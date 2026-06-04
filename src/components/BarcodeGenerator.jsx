@@ -188,8 +188,9 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
         
         {/* 1. SINGLE AREA REGISTRATION FORM */}
         <div className="glass-panel" style={{ padding: '1.5rem', height: 'fit-content' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Plus size={18} className="text-primary" /> Registrasi Area Baru
+          <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <Plus size={18} className="text-primary" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+            <span>Registrasi Area Baru</span>
           </h3>
 
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -256,8 +257,9 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
 
         {/* 2. BULK BARCODE GENERATOR PANEL */}
         <div className="glass-panel" style={{ padding: '1.5rem', height: 'fit-content' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Layers size={18} className="text-primary" /> Generator Barcode Massal
+          <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <Layers size={18} className="text-primary" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+            <span>Generator Barcode Massal</span>
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -319,8 +321,9 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
 
         {/* 3. USER & ROLE REGISTRATION FORM */}
         <div className="glass-panel" style={{ padding: '1.5rem', height: 'fit-content' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={18} className="text-primary" /> Registrasi Anggota & Role
+          <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <User size={18} className="text-primary" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+            <span>Registrasi Anggota & Role</span>
           </h3>
 
           <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -337,8 +340,8 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>NRP / ID</label>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>NRP / ID</label>
                 <input 
                   type="text" 
                   value={userNrp} 
@@ -349,8 +352,8 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
                 />
               </div>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>JABATAN / ROLE</label>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: 0 }}>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>JABATAN / ROLE</label>
                 <select value={userRole} onChange={(e) => setUserRole(e.target.value)} className="modern-select">
                   <option value="Super Admin">Super Admin</option>
                   <option value="Manager Security">Manager Security</option>
@@ -380,9 +383,10 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
         </div>
 
         {/* 3. MASTER AREA LIST VIEW */}
-        <div className="glass-panel" style={{ padding: '1.5rem', gridColumn: 'span 3' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Building size={18} className="text-primary" /> Daftar Master Area Aktif JDC ({areas.length})
+        <div className="glass-panel grid-span-3" style={{ padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <Building size={18} className="text-primary" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+            <span>Daftar Master Area Aktif JDC ({areas.length})</span>
           </h3>
 
           <div style={{ overflowX: 'auto' }}>

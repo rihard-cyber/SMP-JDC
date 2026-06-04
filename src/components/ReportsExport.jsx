@@ -256,14 +256,14 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
       {/* 3. REPORTS DATA TABLE */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
           <h3 style={{ fontSize: '1.1rem' }}>Log Laporan Patroli Keamanan ({filteredReports.length})</h3>
           
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={handleExportCSV} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button onClick={handleExportCSV} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', flex: '1 1 auto' }}>
               <FileSpreadsheet size={16} /> Export Excel (CSV)
             </button>
-            <button onClick={handleExportPDF} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}>
+            <button onClick={handleExportPDF} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', flex: '1 1 auto' }}>
               <FileText size={16} /> Cetak PDF
             </button>
           </div>
@@ -293,8 +293,11 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
                 >
                   <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: 'bold' }}>{report.id}</td>
                   <td style={{ padding: '0.75rem' }}>
-                    <div>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Shift {report.shift}</span>
+                    <div style={{ fontWeight: 600 }}>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                      {new Date(report.timestamp).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Shift {report.shift}</span>
                   </td>
                   <td style={{ padding: '0.75rem', fontWeight: 600 }}>{report.userName}</td>
                   <td style={{ padding: '0.75rem' }}>

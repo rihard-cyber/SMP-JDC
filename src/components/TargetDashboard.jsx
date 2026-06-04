@@ -57,23 +57,26 @@ export default function TargetDashboard({ reports, findings, areas }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* PERSPECTIVE SWITCHER */}
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <div style={{ background: 'var(--bg-secondary)', padding: '0.35rem', borderRadius: '10px', display: 'flex', border: '1px solid var(--border-glass)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+        <div style={{ background: 'var(--bg-secondary)', padding: '0.35rem', borderRadius: '10px', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', border: '1px solid var(--border-glass)', justifyContent: 'center', width: '100%', maxWidth: '600px' }}>
           <button
             onClick={() => setPerspective('tenant')}
             style={{
               border: 'none',
               background: perspective === 'tenant' ? 'var(--color-primary)' : 'transparent',
               color: perspective === 'tenant' ? 'white' : 'var(--text-secondary)',
-              padding: '0.6rem 1.5rem',
+              padding: '0.6rem 1.25rem',
               borderRadius: '8px',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.5rem',
-              transition: 'all 0.2s'
+              flex: '1 1 auto',
+              transition: 'all 0.2s',
+              minWidth: '200px'
             }}
           >
             <Building size={16} /> Perspektif Admin Tenant (SLA)
@@ -84,15 +87,18 @@ export default function TargetDashboard({ reports, findings, areas }) {
               border: 'none',
               background: perspective === 'guard' ? 'var(--color-primary)' : 'transparent',
               color: perspective === 'guard' ? 'white' : 'var(--text-secondary)',
-              padding: '0.6rem 1.5rem',
+              padding: '0.6rem 1.25rem',
               borderRadius: '8px',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '0.5rem',
-              transition: 'all 0.2s'
+              flex: '1 1 auto',
+              transition: 'all 0.2s',
+              minWidth: '200px'
             }}
           >
             <User size={16} /> Perspektif Anggota Patroli (Personal)
@@ -213,7 +219,7 @@ export default function TargetDashboard({ reports, findings, areas }) {
 
                 return (
                   <div key={floorKey} style={{ background: 'rgba(255,255,255,0.01)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                       <span style={{ fontWeight: 700 }}>{config.name}</span>
                       <span style={{ fontWeight: 700, color: colorClass }}>
                         {complianceVal}% Compliance ({visitedAreas.length}/{floorAreas.length} Pos Checked)

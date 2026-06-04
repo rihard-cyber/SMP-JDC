@@ -462,6 +462,20 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
               <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 Gedung: {selectedArea.gedung} | Lt. {selectedArea.lantai} | Zona: {selectedArea.zona}
               </p>
+              <div style={{ marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(59, 130, 246, 0.15)', fontSize: '0.7rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Waktu Scan:</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                    {timeScan ? timeScan.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''} WIB
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Hari & Tanggal:</span>
+                  <span style={{ fontWeight: 700 }}>
+                    {timeScan ? timeScan.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* ANTI-KECURANGAN (Anti-Fraud Validation Console) */}
@@ -773,6 +787,21 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
                   'Koneksi offline. Patroli berhasil disimpan secara lokal dan akan terkirim saat internet kembali.'
                 }
               </p>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '0.75rem', width: '100%', background: 'rgba(255,255,255,0.02)', fontSize: '0.75rem', textAlign: 'left' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Waktu Scan:</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                  {timeScan ? timeScan.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''} WIB
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Hari/Tanggal:</span>
+                <span style={{ fontWeight: 700 }}>
+                  {timeScan ? timeScan.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                </span>
+              </div>
             </div>
 
             <button 

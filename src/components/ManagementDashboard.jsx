@@ -174,13 +174,18 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{report.userName}</span>
-                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                    {report.offlineSync && (
-                      <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', fontSize: '0.55rem', padding: '0.1rem 0.3rem' }}>
-                        🔄 Sync
-                      </span>
-                    )}
-                    <span>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                      {report.offlineSync && (
+                        <span className="badge" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--color-warning)', fontSize: '0.55rem', padding: '0.1rem 0.3rem' }}>
+                          🔄 Sync
+                        </span>
+                      )}
+                      <span style={{ fontWeight: 600 }}>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      {new Date(report.timestamp).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </span>
                   </div>
                 </div>
                 <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 500 }}>
@@ -207,14 +212,14 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
         </div>
 
         {/* Heatmap Patroli */}
-        <div className="glass-panel" style={{ padding: '1.5rem', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="glass-panel grid-span-2" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MapPin size={18} className="text-primary" /> Heatmap Patroli Gedung
             </h3>
             
             {/* Floor switcher tabs */}
-            <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px', overflowX: 'auto', maxWidth: '100%', gap: '2px', whiteSpace: 'nowrap' }}>
               {['B1', '1', '2', '3', '4', '5', '6', '7', 'Outdoor'].map(floor => (
                 <button
                   key={floor}
@@ -228,7 +233,8 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontWeight: 600,
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    flexShrink: 0
                   }}
                 >
                   {floor === 'Outdoor' ? 'Luar' : `Lt. ${floor}`}
@@ -238,7 +244,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
           </div>
 
           {/* Render floor layout map preview */}
-          <div style={{ display: 'flex', gap: '1.5rem', flex: 1, alignItems: 'center' }}>
+          <div className="flex-responsive" style={{ flex: 1, alignItems: 'center', width: '100%' }}>
             <div style={{ flex: 2, background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
               <div className="grid-cols-4" style={{ gap: '0.75rem' }}>
                 {areas.filter(a => a.lantai === selectedFloor).map(area => {
@@ -330,8 +336,8 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
       <div className="grid-cols-3">
         
         {/* Custom SVG Performance Graph */}
-        <div className="glass-panel" style={{ padding: '1.5rem', gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="glass-panel grid-span-2" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <BarChart3 size={18} className="text-primary" /> Statistik Trend Patroli vs Temuan
             </h3>

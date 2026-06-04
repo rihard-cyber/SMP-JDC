@@ -11,7 +11,9 @@ import {
   Building,
   Target,
   LogOut,
-  Sparkles
+  Sparkles,
+  Menu,
+  X
 } from 'lucide-react';
 import ManagementDashboard from './components/ManagementDashboard';
 import SecurityPatrolApp from './components/SecurityPatrolApp';
@@ -166,12 +168,70 @@ const INITIAL_FINDINGS = [
 export default function App() {
   console.log("App component: initialization started");
   const [showSplash, setShowSplash] = useState(true);
+  const [cyberLogs, setCyberLogs] = useState([]);
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState('BOOTING...');
 
   useEffect(() => {
+    const allLogs = [
+      '>> INITIALIZING SAPUJAGAT SECURITIES...',
+      '>> LOAD SYSTEM DRIVER: anti_fraud_gps.sys ... OK',
+      '>> CONNECTING CENTRAL DATABASE DIRECTORY...',
+      '>> VERIFYING ACCESS PRIVILEGES... BY_RICHARDMEHA',
+      '>> SYNCING TENANT TARGETS & FLOOR MAPS...',
+      '>> DEPLOYING OFFLINE TRANSACTION CACHE...',
+      '>> INTRUSION DETECTION SYSTEM: SHIELD ACTIVE',
+      '>> PROTOCOL STACK STABILIZED... SECURE',
+      '>> BOOT COMPLETED: SAPUJAGAT JDC IS READY!'
+    ];
+
+    // Smooth progress bar calibration from 0 to 100
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        const step = Math.floor(Math.random() * 8) + 4;
+        return Math.min(prev + step, 100);
+      });
+    }, 120);
+
+    // Print logs line by line
+    let logIndex = 0;
+    const logInterval = setInterval(() => {
+      if (logIndex < allLogs.length) {
+        setCyberLogs(prev => [...prev, allLogs[logIndex]]);
+        logIndex++;
+      } else {
+        clearInterval(logInterval);
+      }
+    }, 320);
+
+    // Update status labels matching movie hacking terminals
+    const statusInterval = setInterval(() => {
+      setProgress(p => {
+        if (p < 30) setStatusText('BOOTING CORE...');
+        else if (p < 65) setStatusText('CALIBRATING SENSORS...');
+        else if (p < 90) setStatusText('DECRYPTING INTERFACE...');
+        else {
+          setStatusText('SECURE & OPERATIONAL');
+          clearInterval(statusInterval);
+        }
+        return p;
+      });
+    }, 200);
+
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2450); // Matches cinematic zoom-out & fade animation timing
-    return () => clearTimeout(timer);
+    }, 4200); // 4.2 seconds cinematic cyber intro
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(logInterval);
+      clearInterval(statusInterval);
+      clearTimeout(timer);
+    };
   }, []);
 
   // Database States
@@ -222,6 +282,7 @@ export default function App() {
   // Simulator Contexts
   const [currentUser, setCurrentUser] = useState(INITIAL_USERS[0]); // Starts as Super Admin Budi Santoso
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSOS, setActiveSOS] = useState(null); // Active SOS Panic triggers
   const [toasts, setToasts] = useState([]);
   
@@ -410,16 +471,63 @@ export default function App() {
     }
   };
 
+  const handleNavClick = (tabName) => {
+    setCurrentTab(tabName);
+    setIsSidebarOpen(false);
+  };
+
   if (showSplash) {
     return (
-      <div className="splash-screen">
-        <div className="splash-logo-container">
-          <img src="/logo.png" alt="Logo JDC" className="splash-logo" />
+      <div className="splash-screen cyber-screen">
+        {/* Cinematic tech corners */}
+        <div className="cyber-corner corner-tl"></div>
+        <div className="cyber-corner corner-tr"></div>
+        <div className="cyber-corner corner-bl"></div>
+        <div className="cyber-corner corner-br"></div>
+
+        {/* Matrix grid and sweeping laser beam */}
+        <div className="cyber-grid"></div>
+        <div className="cyber-scanline"></div>
+
+        {/* Dynamic rotating HUD rings around the central logo */}
+        <div className="cyber-hud-container">
+          <div className="hud-ring ring-outer"></div>
+          <div className="hud-ring ring-middle"></div>
+          <div className="hud-ring ring-inner"></div>
+          <div className="hud-ring ring-dashed"></div>
+          <div className="splash-logo-container">
+            <img src="/logo.png" alt="Logo JDC" className="splash-logo cyber-logo" />
+          </div>
         </div>
-        <div className="splash-loader" />
-        <div className="splash-footer">
-          <p className="splash-title">SAPUJAGAT JDC</p>
-          <p className="splash-subtitle">Patrol Security System By_RichardMeha</p>
+
+        {/* System calibration progress panel */}
+        <div className="cyber-progress-container">
+          <div className="cyber-progress-header">
+            <span className="progress-label">CORE CALIBRATION</span>
+            <span className="progress-percent">{progress}%</span>
+          </div>
+          <div className="cyber-progress-bar">
+            <div className="cyber-progress-fill" style={{ width: `${progress}%` }}></div>
+          </div>
+        </div>
+
+        {/* Console output display */}
+        <div className="cyber-console">
+          <div className="console-header">
+            <span className="console-title">[SAPUJAGAT CORE SECURE BOOT]</span>
+            <span className="console-status blink">{statusText}</span>
+          </div>
+          <div className="console-body">
+            {cyberLogs.slice(-4).map((log, idx) => (
+              <p key={idx} className="console-line">{log}</p>
+            ))}
+          </div>
+        </div>
+
+        {/* Copyright branding watermark at the bottom */}
+        <div className="splash-footer cyber-footer">
+          <p className="splash-title cyber-title">SAPUJAGAT JDC v2.0</p>
+          <p className="splash-subtitle cyber-subtitle">SECURED PATROL SYSTEM // BY_RICHARDMEHA</p>
         </div>
       </div>
     );
@@ -427,8 +535,16 @@ export default function App() {
 
   return (
     <div className="dashboard-layout">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-overlay"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
           <div style={{
             background: 'rgba(255, 255, 255, 0.05)',
@@ -470,7 +586,7 @@ export default function App() {
           {currentUser.jabatan !== 'Petugas Security' && (
             <>
               <button 
-                onClick={() => setCurrentTab('dashboard')} 
+                onClick={() => handleNavClick('dashboard')} 
                 className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}
               >
                 <LayoutDashboard size={18} />
@@ -478,7 +594,7 @@ export default function App() {
               </button>
 
               <button 
-                onClick={() => setCurrentTab('target-compliance')} 
+                onClick={() => handleNavClick('target-compliance')} 
                 className={`nav-tab-btn ${currentTab === 'target-compliance' ? 'active' : ''}`}
               >
                 <Target size={18} />
@@ -486,7 +602,7 @@ export default function App() {
               </button>
 
               <button 
-                onClick={() => setCurrentTab('barcodes')} 
+                onClick={() => handleNavClick('barcodes')} 
                 className={`nav-tab-btn ${currentTab === 'barcodes' ? 'active' : ''}`}
               >
                 <QrCode size={18} />
@@ -494,7 +610,7 @@ export default function App() {
               </button>
 
               <button 
-                onClick={() => setCurrentTab('reports')} 
+                onClick={() => handleNavClick('reports')} 
                 className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}
               >
                 <FileSpreadsheet size={18} />
@@ -505,7 +621,7 @@ export default function App() {
 
           {/* Dedicated tab for Guard Simulator */}
           <button 
-            onClick={() => setCurrentTab('guard-simulator')} 
+            onClick={() => handleNavClick('guard-simulator')} 
             className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
             style={{ 
               marginTop: currentUser.jabatan === 'Petugas Security' ? '0px' : '1.5rem',
@@ -542,6 +658,24 @@ export default function App() {
           borderBottom: '1px solid var(--border-glass)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="menu-toggle-btn"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                padding: '0.5rem',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              aria-label="Toggle Sidebar"
+            >
+              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
             <div style={{
               background: 'rgba(255, 255, 255, 0.05)',
               padding: '0.4rem',
