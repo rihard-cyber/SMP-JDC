@@ -496,7 +496,7 @@ export default function App() {
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="/logo.png" alt="Logo JDC" className="splash-logo cyber-logo" />
+            <img src="logo.png" alt="Logo JDC" className="splash-logo cyber-logo" />
           </div>
         </div>
 
@@ -555,7 +555,7 @@ export default function App() {
             justifyContent: 'center',
             border: '1px solid var(--border-glass)'
           }}>
-            <img src="/logo.png" alt="Logo JDC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+            <img src="logo.png" alt="Logo JDC" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
           </div>
           <div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '0.05em' }}>
@@ -684,7 +684,7 @@ export default function App() {
               display: 'flex',
               alignItems: 'center'
             }}>
-              <img src="/logo.png" alt="Logo JDC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
+              <img src="logo.png" alt="Logo JDC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
             </div>
             <div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>

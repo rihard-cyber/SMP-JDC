@@ -307,7 +307,7 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
           borderBottom: '1px solid rgba(255,255,255,0.08)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <img src="/logo.png" alt="JDC" style={{ height: '22px', width: 'auto', objectFit: 'contain' }} />
+            <img src="logo.png" alt="JDC" style={{ height: '22px', width: 'auto', objectFit: 'contain' }} />
             <div>
               <h4 style={{ fontSize: '0.95rem', fontWeight: 800 }}>SAPUJAGAT MOBILE</h4>
               <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>JDC Security Patrol App</p>
@@ -347,7 +347,7 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
                 border: '1px solid var(--border-glass)',
                 padding: '0.25rem'
               }}>
-                <img src="/logo.png" alt="Logo JDC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
+                <img src="logo.png" alt="Logo JDC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
               </div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Mulai Tugas Patroli</h3>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
