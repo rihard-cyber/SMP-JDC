@@ -456,6 +456,16 @@ export default function App() {
     }
   };
 
+  // Jabatan short labels untuk dropdown agar tidak overflow di Android
+  const jabatanShort = {
+    'Super Admin': 'Super Admin',
+    'Manager Security': 'Manager',
+    'Chief Security': 'Chief',
+    'Supervisor': 'SPV',
+    'Client (View Only)': 'Client',
+    'Petugas Security': 'Petugas'
+  };
+
   // Switch role and navigate to appropriate page automatically
   const handleRoleChange = (userId) => {
     const selected = users.find(u => u.id === parseInt(userId));
@@ -710,7 +720,7 @@ export default function App() {
               >
                 {users.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.nama} ({u.jabatan})
+                    {u.nama} ({jabatanShort[u.jabatan] || u.jabatan})
                   </option>
                 ))}
               </select>
