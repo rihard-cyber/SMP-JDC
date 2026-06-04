@@ -58,50 +58,18 @@ export default function TargetDashboard({ reports, findings, areas }) {
       
       {/* PERSPECTIVE SWITCHER */}
       <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-        <div style={{ background: 'var(--bg-secondary)', padding: '0.35rem', borderRadius: '10px', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', border: '1px solid var(--border-glass)', justifyContent: 'center', width: '100%', maxWidth: '600px' }}>
+        <div className="perspective-container">
           <button
             onClick={() => setPerspective('tenant')}
-            style={{
-              border: 'none',
-              background: perspective === 'tenant' ? 'var(--color-primary)' : 'transparent',
-              color: perspective === 'tenant' ? 'white' : 'var(--text-secondary)',
-              padding: '0.6rem 1.25rem',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              flex: '1 1 auto',
-              transition: 'all 0.2s',
-              minWidth: '200px'
-            }}
+            className={`perspective-btn ${perspective === 'tenant' ? 'active' : ''}`}
           >
-            <Building size={16} /> Perspektif Admin Tenant (SLA)
+            <Building size={16} /> Admin Tenant (SLA)
           </button>
           <button
             onClick={() => setPerspective('guard')}
-            style={{
-              border: 'none',
-              background: perspective === 'guard' ? 'var(--color-primary)' : 'transparent',
-              color: perspective === 'guard' ? 'white' : 'var(--text-secondary)',
-              padding: '0.6rem 1.25rem',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              flex: '1 1 auto',
-              transition: 'all 0.2s',
-              minWidth: '200px'
-            }}
+            className={`perspective-btn ${perspective === 'guard' ? 'active' : ''}`}
           >
-            <User size={16} /> Perspektif Anggota Patroli (Personal)
+            <User size={16} /> Anggota Patroli (Personal)
           </button>
         </div>
       </div>
@@ -245,9 +213,9 @@ export default function TargetDashboard({ reports, findings, areas }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Guard Selector */}
-          <div className="glass-panel" style={{ padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PILIH PETUGAS:</span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {['Ahmad Rafli', 'Candra Hermawan'].map(name => (
                 <button
                   key={name}
