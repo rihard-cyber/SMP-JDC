@@ -44,9 +44,9 @@ const QR_LOCATION_CODES = {
 
 const REGU_OPTIONS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
 const SHIFT_OPTIONS = [
-  { value: 'Pagi', label: 'Pagi (07:00 - 15:00)' },
-  { value: 'Siang', label: 'Siang (15:00 - 23:00)' },
-  { value: 'Malam', label: 'Malam (23:00 - 07:00)' }
+  { value: 'Pagi', label: 'Pagi (06:00 - 14:00)' },
+  { value: 'Siang', label: 'Siang (14:00 - 22:00)' },
+  { value: 'Malam', label: 'Malam (22:00 - 06:00)' }
 ];
 
 export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser }) {
@@ -74,7 +74,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
   const [userRole, setUserRole] = useState('Anggota');
   const [userAvatar, setUserAvatar] = useState('');
   const [userPin, setUserPin] = useState('');
-  const [userRegu, setUserRegu] = useState('Regu A (Pagi)');
+  const [userRegu, setUserRegu] = useState('Regu A');
   const [userShift, setUserShift] = useState('Pagi');
   const [userHp, setUserHp] = useState('');
 
@@ -100,7 +100,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
     });
 
     setUserName(''); setUserNrp(''); setUserRole('Anggota');
-    setUserAvatar(''); setUserPin(''); setUserRegu('Regu A (Pagi)');
+    setUserAvatar(''); setUserPin(''); setUserRegu('Regu A');
     setUserShift('Pagi'); setUserHp('');
   };
 
@@ -262,7 +262,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
                   <div className="preview-row"><span className="preview-label">No. Titik:</span><span className="preview-value">{nomorTitik || '-'}</span></div>
                   <div className="preview-row"><span className="preview-label">Zona:</span><span className="preview-value">{zoneFinal}</span></div>
                   <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">{titik || '-'}</span></div>
-                  <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid var(--border-glass)' }}>
                     <span className="preview-label">QR Code:</span>
                     <p className="preview-qr">{nomorTitik.trim() ? `JDC-${qrLocCode}-${nomorTitik.trim()}` : getQRPattern()}</p>
                   </div>

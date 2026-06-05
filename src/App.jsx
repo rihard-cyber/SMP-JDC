@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { hashPin, validateSession } from './utils/security';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -14,7 +15,15 @@ import {
   UserPlus,
   Users,
   Sun,
-  Moon
+  Moon,
+  ClipboardList,
+  Mail,
+  MessageSquare,
+  Check,
+  RefreshCw,
+  Key,
+  FileText,
+  Database
 } from 'lucide-react';
 import ManagementDashboard from './components/ManagementDashboard';
 import SecurityPatrolApp from './components/SecurityPatrolApp';
@@ -24,23 +33,31 @@ import TargetDashboard from './components/TargetDashboard';
 import LoginPage from './components/LoginPage';
 import MutasiPenjagaan from './components/MutasiPenjagaan';
 import UserManagement from './components/UserManagement';
+import AbsensiRegu from './components/AbsensiRegu';
+import LaporForm from './components/LaporForm';
+import BackupRestore from './components/BackupRestore';
+import ComplaintForm from './components/ComplaintForm';
+import ComplaintAdmin from './components/ComplaintAdmin';
 
 const INITIAL_USERS = [];
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '2.5-rileas';
+const CURRENT_DB_VERSION = '3.1-rileas';
 
 const SEED_USERS = [
   { id: 1, nama: 'Richard', nrp: '10001', jabatan: 'Admin Super', regu: '-', pin: '@Meha1122', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop' },
   { id: 2, nama: 'Pak Kusnan', nrp: '10002', jabatan: 'Manajemen', regu: '-', pin: '0002', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
   { id: 3, nama: 'Agus Siraitin', nrp: '10003', jabatan: 'SPV', regu: '-', pin: '0003', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
-  { id: 4, nama: 'Wahyudi', nrp: '20001', jabatan: 'Danru', regu: 'Regu A', pin: '0001', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
-  { id: 5, nama: 'Faizal Tanjung', nrp: '20002', jabatan: 'Wadanru', regu: 'Regu A', pin: '0002', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' },
-  { id: 6, nama: 'Agus Hendraya', nrp: '20003', jabatan: 'Danru', regu: 'Regu B', pin: '0003', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
-  { id: 7, nama: 'Suparlan', nrp: '20004', jabatan: 'Wadanru', regu: 'Regu B', pin: '0004', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' },
-  { id: 8, nama: 'Sutrijono', nrp: '20005', jabatan: 'Danru', regu: 'Regu C', pin: '0005', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
-  { id: 9, nama: 'Dedy K', nrp: '20006', jabatan: 'Wadanru', regu: 'Regu C', pin: '0006', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
-  { id: 10, nama: 'M. Iqbal', nrp: '20007', jabatan: 'Danru', regu: 'Regu D', pin: '0007', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
-  { id: 11, nama: 'Dimas Pratama Putra', nrp: '20008', jabatan: 'Wadanru', regu: 'Regu D', pin: '0008', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' },
+  // Regu A
+  { id: 4, nama: 'Andi Pratama', nrp: '20001', jabatan: 'Danru', regu: 'Regu A', pin: '0001', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
+  { id: 5, nama: 'Budi Santoso', nrp: '20002', jabatan: 'Anggota', regu: 'Regu A', pin: '0002', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' },
+  { id: 6, nama: 'Candra Wijaya', nrp: '20003', jabatan: 'Anggota', regu: 'Regu A', pin: '0003', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
+  { id: 7, nama: 'Dedi Kurniawan', nrp: '20004', jabatan: 'Anggota', regu: 'Regu A', pin: '0004', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' },
+  { id: 8, nama: 'Eko Saputra', nrp: '20005', jabatan: 'Anggota', regu: 'Regu A', pin: '0005', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
+  { id: 9, nama: 'Fajar Nugroho', nrp: '20006', jabatan: 'Anggota', regu: 'Regu A', pin: '0006', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
+  { id: 10, nama: 'Doni Setiawan', nrp: '20007', jabatan: 'Anggota', regu: 'Regu A', pin: '0007', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
+  // Regu B
+  { id: 11, nama: 'Agus Hendraya', nrp: '21001', jabatan: 'Danru', regu: 'Regu B', pin: '0008', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
+  { id: 12, nama: 'Suparlan', nrp: '21002', jabatan: 'Anggota', regu: 'Regu B', pin: '0009', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' }
 ];
 
 const INITIAL_AREAS = [
@@ -75,6 +92,21 @@ const INITIAL_AREAS = [
 const INITIAL_REPORTS = [];
 const INITIAL_FINDINGS = [];
 
+const mapDepartment = (kategori, temuanText = '') => {
+  const text = (kategori + ' ' + temuanText).toLowerCase();
+  const wordMatch = (words) => {
+    const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp('\\b(' + escaped.join('|') + ')\\b', 'i').test(text);
+  };
+  if (wordMatch(['ahu', 'chiller', 'lift', 'eskalator', 'listrik', 'pipa', 'lampu', 'teknik', 'bocor', 'rusak', 'fasilitas'])) {
+    return 'Teknisi';
+  }
+  if (wordMatch(['kotor', 'sampah', 'bersih', 'basah', 'cleaning', 'toilet', 'jamban', 'bau', 'aroma'])) {
+    return 'Cleaning';
+  }
+  return 'Keamanan';
+};
+
 export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -89,25 +121,70 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [sosAudio, setSosAudio] = useState(null);
 
+  // Profile & Email Verification State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [verifStep, setVerifStep] = useState('idle'); // idle | send | verify | done
+  const [newEmail, setNewEmail] = useState('');
+  const [verifCode, setVerifCode] = useState('');
+  const [verifSentCode, setVerifSentCode] = useState('');
+  const [verifMethod, setVerifMethod] = useState('email');
+  const [verifLoading, setVerifLoading] = useState(false);
+  const [verifError, setVerifError] = useState('');
+
+  const handleSendVerification = () => {
+    if (!newEmail.includes('@') || !newEmail.includes('.')) {
+      setVerifError('Masukkan alamat email yang valid');
+      return;
+    }
+    setVerifError('');
+    setVerifLoading(true);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setTimeout(() => {
+      setVerifSentCode(code);
+      setVerifStep('verify');
+      setVerifLoading(false);
+      addToast(`Kode verifikasi telah dikirim ke ${verifMethod === 'email' ? 'email' : 'WhatsApp'}`, 'success');
+    }, 800);
+  };
+
+  const handleVerifyCode = () => {
+    if (verifCode === verifSentCode) {
+      setVerifStep('done');
+      const updatedUsers = users.map(u =>
+        u.id === currentUser.id ? { ...u, email: newEmail } : u
+      );
+      setUsers(updatedUsers);
+      setCurrentUser(prev => ({ ...prev, email: newEmail }));
+      localStorage.setItem('sapujagat_users', JSON.stringify(updatedUsers));
+      addToast('Email berhasil diperbarui!', 'success');
+    } else {
+      setVerifError('Kode verifikasi salah. Coba lagi.');
+    }
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem('sapujagat_users');
     const users = stored ? JSON.parse(stored) : null;
     const hasExistingUsers = Array.isArray(users) && users.length > 0;
     setHasUsers(hasExistingUsers);
 
-    const session = localStorage.getItem('smpjdc_session');
-    if (session) {
+    const sessionStr = localStorage.getItem('smpjdc_session');
+    if (sessionStr) {
       try {
-        const { userId } = JSON.parse(session);
-        const userList = hasExistingUsers ? users : [];
-        const found = userList.find(u => u.id === userId);
-        if (found) {
-          setCurrentUser(found);
-          setAuthenticated(true);
-          setShowSplash(true);
-          return;
+        const session = JSON.parse(sessionStr);
+        if (validateSession(session)) {
+          const userList = hasExistingUsers ? users : [];
+          const found = userList.find(u => u.id === session.userId);
+          if (found) {
+            setCurrentUser(found);
+            setAuthenticated(true);
+            setShowSplash(true);
+            return;
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        localStorage.removeItem('smpjdc_session');
+      }
     }
     setAuthenticated(false);
   }, []);
@@ -185,6 +262,15 @@ export default function App() {
       const dbVersion = localStorage.getItem(DB_VERSION_KEY);
 
       if (Array.isArray(parsed) && parsed.length > 0 && dbVersion === CURRENT_DB_VERSION) {
+        // Ensure all PINs are hashed (migrate from plaintext if needed)
+        parsed.forEach(u => {
+          const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
+          if (stored && !stored.startsWith('h')) {
+            localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
+          }
+          delete u.pin;
+        });
+        localStorage.setItem('sapujagat_users', JSON.stringify(parsed));
         return parsed;
       }
 
@@ -196,14 +282,18 @@ export default function App() {
 
       SEED_USERS.forEach(su => {
         if (existingMap[su.nrp]) {
-          existingMap[su.nrp] = { ...existingMap[su.nrp], ...su };
+          existingMap[su.nrp] = { ...su, ...existingMap[su.nrp] };
         } else {
           existingMap[su.nrp] = su;
         }
-        localStorage.setItem(`smpjdc_pin_${su.id}`, su.pin);
+        localStorage.setItem(`smpjdc_pin_${su.id}`, hashPin(su.pin));
       });
 
-      const merged = Object.values(existingMap);
+      const merged = Object.values(existingMap).map(u => {
+        const clean = { ...u };
+        delete clean.pin;
+        return clean;
+      });
       localStorage.setItem('sapujagat_users', JSON.stringify(merged));
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
       return merged;
@@ -255,7 +345,14 @@ export default function App() {
     try {
       const saved = localStorage.getItem('sapujagat_findings');
       const parsed = saved ? JSON.parse(saved) : null;
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_FINDINGS;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(f => ({
+          ...f,
+          department: f.department || mapDepartment(f.kategori, f.detail || ''),
+          waStatus: f.waStatus || 'Belum Dikirim'
+        }));
+      }
+      return INITIAL_FINDINGS;
     } catch (e) {
       return INITIAL_FINDINGS;
     }
@@ -266,6 +363,21 @@ export default function App() {
       const saved = localStorage.getItem('smpjdc_mutasi_logs');
       const parsed = saved ? JSON.parse(saved) : null;
       return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+
+  const [attendanceLogs, setAttendanceLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smpjdc_attendance_logs');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  });
+
+  const [complaints, setComplaints] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smpjdc_complaints');
+      return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
 
@@ -288,6 +400,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(mutasiLogs));
   }, [mutasiLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(attendanceLogs));
+  }, [attendanceLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('smpjdc_complaints', JSON.stringify(complaints));
+  }, [complaints]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -347,6 +467,7 @@ export default function App() {
 
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
       const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
+      const dept = mapDepartment(newReport.kondisi, newReport.keterangan || '');
       setFindings(prev => [{
         id: findingId,
         reportId,
@@ -357,9 +478,12 @@ export default function App() {
         status: 'Open',
         severity: newReport.severity || 'Rendah',
         detail: newReport.keterangan || `Ditemukan kondisi ${newReport.kondisi}`,
-        foto: newReport.foto
+        foto: newReport.foto,
+        department: dept,
+        waStatus: 'Belum Dikirim',
+        waSentAt: null
       }, ...prev]);
-      addToast(`⚠️ Tiket temuan otomatis dibuat [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
+      addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
   };
 
@@ -368,6 +492,21 @@ export default function App() {
       if (f.id === findingId) {
         addToast(`Status temuan ${f.kategori} diubah ke ${newStatus}`, 'info');
         return { ...f, status: newStatus };
+      }
+      return f;
+    }));
+  };
+
+  const dispatchFinding = (findingId, dept) => {
+    setFindings(prev => prev.map(f => {
+      if (f.id === findingId) {
+        addToast(`Tiket didisposisikan ke ${dept}`, 'info');
+        return { 
+          ...f, 
+          department: dept, 
+          waStatus: `Terkirim (${dept})`,
+          waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
+        };
       }
       return f;
     }));
@@ -384,6 +523,18 @@ export default function App() {
     addToast('Catatan mutasi dihapus', 'info');
   };
 
+  const handleAddComplaint = (complaint) => {
+    setComplaints(prev => [complaint, ...prev]);
+    addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
+  };
+
+  const handleUpdateComplaint = (id, updates) => {
+    setComplaints(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    if (updates.status === 'Selesai') {
+      addToast(`Komplain #${id} ditandai selesai`, 'success');
+    }
+  };
+
   const handleAddArea = (newArea) => {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
     setAreas(prev => [...prev, { id: areaId, ...newArea }]);
@@ -394,12 +545,16 @@ export default function App() {
     const userId = Date.now() + Math.floor(Math.random() * 1000);
     const userData = {
       id: userId,
-      ...newUser,
-      avatar: newUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60'
+      nama: newUser.nama,
+      nrp: newUser.nrp,
+      jabatan: newUser.jabatan,
+      regu: newUser.regu || '',
+      avatar: newUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60',
+      email: newUser.email || ''
     };
     setUsers(prev => [...prev, userData]);
     if (newUser.pin) {
-      localStorage.setItem(`smpjdc_pin_${userId}`, newUser.pin);
+      localStorage.setItem(`smpjdc_pin_${userId}`, hashPin(newUser.pin));
     }
     addToast(`Anggota baru ${newUser.nama} (${newUser.jabatan}) berhasil didaftarkan!`, 'success');
   };
@@ -448,6 +603,12 @@ export default function App() {
   const isSuperAdmin = isGodMode;
   const isPatrol = ['Danru', 'Wadanru', 'Anggota'].includes(currentUser?.jabatan);
 
+  // Public complaint form — accessible without login via QR code or direct URL
+  const isPublicComplaint = typeof window !== 'undefined' && window.location.search.includes('complaint');
+  if (isPublicComplaint) {
+    return <div style={{ minHeight: '100vh', background: '#0f172a' }}><ComplaintForm onAddComplaint={handleAddComplaint} /></div>;
+  }
+
   if (authenticated === null) {
     return <div className="login-page" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex' }}><div className="cyber-grid" style={{ position: 'absolute', inset: 0 }}></div></div>;
   }
@@ -471,7 +632,7 @@ export default function App() {
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo" />
+            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
         </div>
         <div className="cyber-progress-container">
@@ -509,7 +670,7 @@ export default function App() {
       <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-logo-box">
-            <img src="logo.png" alt="SMPJDC" />
+            <img src="logo.png" alt="SMPJDC" className="logo-3d" />
           </div>
           <div>
             <h2>SMPJDC<span className="text-primary"> JDC</span></h2>
@@ -517,12 +678,13 @@ export default function App() {
           </div>
         </div>
 
-        <div className="sidebar-user glass-panel">
-          <img src={currentUser.avatar} alt={currentUser.nama} className="sidebar-avatar" />
-          <div>
-            <h4>{currentUser.nama}</h4>
-            <p>{currentUser.jabatan}</p>
+        <div className="sidebar-user glass-panel" onClick={() => setShowProfileModal(true)} style={{ cursor: 'pointer' }}>
+          <img src={currentUser.avatar} alt={currentUser.nama} className="sidebar-avatar" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60'; }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h4 style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{currentUser.nama}</h4>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{currentUser.jabatan}</p>
           </div>
+          <Mail size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, opacity: 0.6 }} />
         </div>
 
         <nav className="sidebar-nav">
@@ -532,6 +694,9 @@ export default function App() {
             <>
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
                 <LayoutDashboard size={18} /> <span>Dashboard Admin</span>
+              </button>
+              <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
+                <ClipboardList size={18} /> <span>Absensi & Plotting</span>
               </button>
               <button onClick={() => handleNavClick('target-compliance')} className={`nav-tab-btn ${currentTab === 'target-compliance' ? 'active' : ''}`}>
                 <Target size={18} /> <span>Dashboard Target</span>
@@ -548,6 +713,12 @@ export default function App() {
               <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
                 <Users size={18} /> <span>Management User</span>
               </button>
+              <button onClick={() => handleNavClick('backup')} className={`nav-tab-btn ${currentTab === 'backup' ? 'active' : ''}`}>
+                <Database size={18} /> <span>Backup & Restore</span>
+              </button>
+              <button onClick={() => handleNavClick('complaint')} className={`nav-tab-btn ${currentTab === 'complaint' ? 'active' : ''}`}>
+                <MessageSquare size={18} /> <span>Komplain Masuk</span>
+              </button>
               <button onClick={() => handleNavClick('guard-simulator')} className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
                 style={{ marginTop: '1.5rem', border: '1px dashed var(--color-primary-glow)', background: currentTab === 'guard-simulator' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.03)' }}>
                 <Smartphone size={18} /> <span style={{ fontWeight: 600 }}>Simulasi HP Petugas</span>
@@ -561,6 +732,9 @@ export default function App() {
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
                 <LayoutDashboard size={18} /> <span>Dashboard Admin</span>
               </button>
+              <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
+                <ClipboardList size={18} /> <span>Absensi & Plotting</span>
+              </button>
               <button onClick={() => handleNavClick('target-compliance')} className={`nav-tab-btn ${currentTab === 'target-compliance' ? 'active' : ''}`}>
                 <Target size={18} /> <span>Dashboard Target</span>
               </button>
@@ -573,9 +747,8 @@ export default function App() {
               <button onClick={() => handleNavClick('reports')} className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}>
                 <FileSpreadsheet size={18} /> <span>Laporan & Export</span>
               </button>
-              <button onClick={() => handleNavClick('guard-simulator')} className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
-                style={{ marginTop: '1.5rem', border: '1px dashed var(--color-primary-glow)', background: currentTab === 'guard-simulator' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.03)' }}>
-                <Smartphone size={18} /> <span style={{ fontWeight: 600 }}>Simulasi HP Petugas</span>
+              <button onClick={() => handleNavClick('complaint')} className={`nav-tab-btn ${currentTab === 'complaint' ? 'active' : ''}`}>
+                <MessageSquare size={18} /> <span>Komplain Masuk</span>
               </button>
             </>
           )}
@@ -589,10 +762,27 @@ export default function App() {
 
           {/* PATROL — Danru / Wadanru / Anggota */}
           {isPatrol && (
-            <button onClick={() => handleNavClick('guard-simulator')} className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
-              style={{ border: '1px dashed var(--color-primary-glow)', background: currentTab === 'guard-simulator' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.03)' }}>
-              <Smartphone size={18} /> <span style={{ fontWeight: 600 }}>Aplikasi Patroli</span>
-            </button>
+            <>
+              {['Danru', 'Wadanru'].includes(currentUser.jabatan) && (
+                <>
+                  <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
+                    <ClipboardList size={18} /> <span>Absensi & Plotting</span>
+                  </button>
+                  <button onClick={() => handleNavClick('mutasi')} className={`nav-tab-btn ${currentTab === 'mutasi' ? 'active' : ''}`}>
+                    <BookOpen size={18} /> <span>Mutasi Penjagaan</span>
+                  </button>
+                  <button onClick={() => handleNavClick('reports')} className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}>
+                    <FileSpreadsheet size={18} /> <span>Laporan & Log Temuan</span>
+                  </button>
+                </>
+              )}
+              {['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan) && (
+                <button onClick={() => handleNavClick('guard-simulator')} className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
+                  style={{ border: '1px dashed var(--color-primary-glow)', background: currentTab === 'guard-simulator' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.03)' }}>
+                  <Smartphone size={18} /> <span style={{ fontWeight: 600 }}>Aplikasi Patroli</span>
+                </button>
+              )}
+            </>
           )}
         </nav>
 
@@ -619,27 +809,35 @@ export default function App() {
                 {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               <div className="header-logo-box">
-                <img src="logo.png" alt="SMPJDC" />
+                <img src="logo.png" alt="SMPJDC" className="logo-3d" />
               </div>
             </div>
             <div className="header-text-box">
               <h1 className="header-title">
                 {currentTab === 'dashboard' && 'Dashboard Manajemen Keamanan'}
+                {currentTab === 'absensi' && 'Absensi & Plotting Penjagaan'}
                 {currentTab === 'target-compliance' && 'Dashboard Target & SLA'}
                 {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
                 {currentTab === 'mutasi' && 'Mutasi Penjagaan'}
                 {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
-                {currentTab === 'guard-simulator' && (isPatrol ? 'Aplikasi Patroli Anggota' : 'Simulasi HP Petugas')}
+                {currentTab === 'guard-simulator' && (isGodMode ? 'Simulasi HP Petugas' : 'Aplikasi Patroli')}
                 {currentTab === 'user-management' && 'Management User'}
+                {currentTab === 'backup' && 'Backup & Restore Data'}
+                {currentTab === 'lapor' && 'Lapor Cepat'}
+                {currentTab === 'complaint' && 'Komplain Masuk & Management Tiket'}
               </h1>
               <p className="header-desc">
                 {currentTab === 'dashboard' && 'Pemantauan real-time petugas, status area, dan statistik keamanan.'}
+                {currentTab === 'absensi' && 'Input absensi harian regu dan plotting pos penugasan personil security.'}
                 {currentTab === 'target-compliance' && 'Realisasi patroli, SLA penyelesaian kendala, dan target SMPJDC Tenant.'}
                 {currentTab === 'barcodes' && 'Daftar master area SMPJDC, cetak barcode QR, dan generate massal.'}
                 {currentTab === 'mutasi' && 'Catatan serah terima shift, informasi, dan kejadian antar petugas.'}
                 {currentTab === 'reports' && 'Filter laporan patroli harian/shift, ekspor ke PDF/Excel, dan follow-up temuan.'}
-                {currentTab === 'guard-simulator' && (isPatrol ? 'Aplikasi patroli untuk mencatat scan checkpoint dan laporan temuan.' : 'Uji coba alur patroli petugas security menggunakan HP virtual.')}
+                {currentTab === 'guard-simulator' && (isGodMode ? 'Uji coba alur patroli petugas security menggunakan HP virtual.' : 'Aplikasi patroli untuk scan barcode, laporan temuan, dan catatan mutasi.')}
                 {currentTab === 'user-management' && 'Kelola user, tambah anggota baru, atur role dan akses sistem.'}
+                {currentTab === 'backup' && 'Ekspor dan impor seluruh data sistem untuk keamanan data.'}
+                {currentTab === 'lapor' && 'Form pengisian laporan cepat patroli dan mutasi kejadian.'}
+                {currentTab === 'complaint' && 'Kelola komplain masuk dari tenant/pelanggan, disposisi ke departemen, dan pantau status tiket.'}
               </p>
             </div>
           </div>
@@ -657,7 +855,32 @@ export default function App() {
 
         <div className="animate-slide-up">
           {currentTab === 'dashboard' && (isGodMode || (isAdmin && !isClient)) && (
-            <ManagementDashboard reports={reports} findings={findings} areas={areas} users={users} onUpdateStatus={updateFindingStatus} />
+            <ManagementDashboard reports={reports} findings={findings} areas={areas} users={users} attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} />
+          )}
+
+          {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
+            <AbsensiRegu 
+              users={users} 
+              areas={areas} 
+              attendanceLogs={attendanceLogs} 
+              onAddAttendance={(newAttendance) => {
+                const id = `att-${Date.now()}`;
+                setAttendanceLogs(prev => {
+                  const existingIndex = prev.findIndex(
+                    l => l.tanggal === newAttendance.tanggal && l.regu === newAttendance.regu && l.shift === newAttendance.shift
+                  );
+                  if (existingIndex > -1) {
+                    const updated = [...prev];
+                    updated[existingIndex] = { id: prev[existingIndex].id, ...newAttendance };
+                    addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil diperbarui`, 'success');
+                    return updated;
+                  } else {
+                    addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil disimpan`, 'success');
+                    return [...prev, { id, ...newAttendance }];
+                  }
+                });
+              }} 
+            />
           )}
 
           {currentTab === 'target-compliance' && (
@@ -668,22 +891,36 @@ export default function App() {
             <BarcodeGenerator areas={areas} onAddArea={handleAddArea} users={users} onAddUser={handleAddUser} />
           )}
 
-          {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient)) && (
+          {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
             <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} />
           )}
 
-          {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient)) && (
-            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} />
+          {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
+            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} />
           )}
 
-          {currentTab === 'guard-simulator' && currentUser && (
+          {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
             <div className="mobile-simulator-container">
-              <SecurityPatrolApp currentUser={currentUser} areas={areas} onAddReport={handleAddReport} onTriggerSOS={triggerSOS} />
+              <SecurityPatrolApp currentUser={currentUser} areas={areas} attendanceLogs={attendanceLogs} reports={reports} findings={findings} mutasiLogs={mutasiLogs} onAddReport={handleAddReport} onAddLog={handleAddMutasi} onTriggerSOS={triggerSOS} />
             </div>
           )}
 
           {currentTab === 'user-management' && isSuperAdmin && (
             <UserManagement users={users} onAddUser={handleAddUser} />
+          )}
+
+          {currentTab === 'backup' && isSuperAdmin && (
+            <div style={{ padding: '1rem 0' }}>
+              <BackupRestore addToast={addToast} />
+            </div>
+          )}
+
+          {currentTab === 'lapor' && isPatrol && (
+            <LaporForm currentUser={currentUser} areas={areas} onAddReport={handleAddReport} onAddLog={handleAddMutasi} />
+          )}
+
+          {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (
+            <ComplaintAdmin complaints={complaints} onUpdateComplaint={handleUpdateComplaint} />
           )}
 
           <footer className="app-footer">
@@ -718,6 +955,82 @@ export default function App() {
         </div>
       )}
 
+      {/* Profile & Email Reset Modal */}
+      {showProfileModal && (
+        <div className="sidebar-overlay" onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ zIndex: 200 }}>
+          <div className="panic-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--border-radius-lg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Shield size={20} className="text-primary" /> Profil Saya
+              </h3>
+              <button onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.25rem' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)' }}>
+                <img src={currentUser.avatar} alt="" style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary)' }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{currentUser.nama}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{currentUser.jabatan} • NRP: {currentUser.nrp}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser.regu || '-'}</div>
+                </div>
+              </div>
+
+              {/* Email Section */}
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <Mail size={16} className="text-primary" />
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Email & Verifikasi</span>
+                </div>
+
+                {verifStep === 'idle' && (
+                  <>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                      Email saat ini: <strong style={{ color: 'var(--text-primary)' }}>{currentUser.email || '(belum diatur)'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Masukkan email baru" className="modern-input" style={{ fontSize: '0.82rem' }} />
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={handleSendVerification} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                          <Key size={14} /> Kirim Kode Verifikasi
+                        </button>
+                      </div>
+                      {verifError && <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>{verifError}</div>}
+                    </div>
+                  </>
+                )}
+
+                {verifStep === 'verify' && (
+                  <>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                      Kode verifikasi telah dikirim ke <strong>{verifMethod === 'email' ? newEmail : 'WhatsApp'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input type="text" value={verifCode} onChange={e => setVerifCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Masukkan kode 6 digit" className="modern-input" style={{ fontSize: '1.1rem', textAlign: 'center', letterSpacing: '0.3em', fontWeight: 700 }} maxLength={6} />
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={handleVerifyCode} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                          <Check size={14} /> Verifikasi & Simpan
+                        </button>
+                      </div>
+                      {verifError && <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>{verifError}</div>}
+                      <button onClick={() => { setVerifStep('idle'); setVerifError(''); setVerifCode(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', padding: '0.25rem' }}>← Kembali</button>
+                    </div>
+                  </>
+                )}
+
+                {verifStep === 'done' && (
+                  <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Email Berhasil Diperbarui!</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Email baru: <strong style={{ color: 'var(--color-primary)' }}>{newEmail}</strong></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="toast-container">
         {toasts.map(t => (
           <div key={t.id} className="glass-panel toast-item" style={{
@@ -732,68 +1045,6 @@ export default function App() {
         ))}
       </div>
 
-      <style>{`
-        .nav-tab-btn {
-          display: flex; align-items: center; gap: 0.75rem; width: 100%;
-          background: transparent; border: none; color: var(--text-secondary);
-          padding: 0.8rem 1rem; border-radius: var(--border-radius-sm);
-          cursor: pointer; font-family: var(--font-sans); font-weight: 500;
-          font-size: 0.9rem; text-align: left; transition: var(--transition-smooth);
-        }
-        .nav-tab-btn:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); }
-        .nav-tab-btn.active { background: rgba(59, 130, 246, 0.15); color: var(--color-primary); font-weight: 600; }
-        .text-primary { color: var(--color-primary); }
-        .sidebar-brand {
-          display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem;
-        }
-        .sidebar-logo-box {
-          background: rgba(255, 255, 255, 0.05); padding: 0.35rem 0.5rem;
-          border-radius: 8px; display: flex; align-items: center; justify-content: center;
-          border: 1px solid var(--border-glass);
-        }
-        .sidebar-logo-box img { height: 28px; width: auto; object-fit: contain; }
-        .sidebar-brand h2 { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.05em; }
-        .sidebar-brand p { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-        .sidebar-user { padding: 0.8rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
-        .sidebar-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-primary); }
-        .sidebar-user h4 { font-size: 0.85rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-        .sidebar-user p { font-size: 0.7rem; color: var(--text-secondary); }
-        .sidebar-nav { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
-        .sidebar-footer { padding: 0.75rem 0; border-top: 1px solid var(--border-glass); display: flex; flex-direction: column; gap: 0.3rem; }
-        .sidebar-footer-info { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
-        .sidebar-footer-copy { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }
-        .header-user-badge {
-          display: flex; align-items: center; gap: 0.4rem;
-          background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);
-          padding: 0.4rem 0.8rem; border-radius: 8px;
-          font-size: 0.75rem; color: var(--color-primary); font-weight: 600;
-        }
-        .btn-logout {
-          display: flex; align-items: center; gap: 0.4rem;
-          background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
-          color: var(--color-danger); padding: 0.4rem 0.8rem;
-          border-radius: 8px; cursor: pointer; font-size: 0.75rem;
-          font-weight: 600; font-family: var(--font-sans);
-          transition: var(--transition-smooth); white-space: nowrap;
-        }
-        .btn-logout:hover { background: rgba(239, 68, 68, 0.2); }
-        .app-footer {
-          margin-top: 3rem; padding-top: 1.5rem;
-          border-top: 1px solid var(--border-glass);
-          text-align: center; font-size: 0.8rem; color: var(--text-secondary);
-          display: flex; justify-content: space-between;
-          align-items: center; flex-wrap: wrap; gap: 1rem;
-        }
-        .toast-container {
-          position: fixed; bottom: 20px; right: 20px;
-          z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem;
-        }
-        .toast-item {
-          padding: 0.8rem 1.2rem; font-size: 0.85rem;
-          display: flex; align-items: center; gap: 0.5rem;
-          animation: slide-in 0.2s ease-out;
-        }
-      `}</style>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building } from 'lucide-react';
+import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building, Clock } from 'lucide-react';
+import { hashPin, verifyPin, createSession, getLoginAttempts, recordLoginAttempt } from '../utils/security';
 
 export default function LoginPage({ onLogin, onSetup, hasUsers }) {
   const [nrp, setNrp] = useState('');
@@ -23,25 +24,37 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
       return;
     }
 
+    const attempts = getLoginAttempts(nrp.trim());
+    if (attempts.locked) {
+      const menit = Math.floor(attempts.remainingTime / 60);
+      const detik = attempts.remainingTime % 60;
+      setError(`Terlalu banyak percobaan. Coba lagi ${menit}m ${detik}d lagi.`);
+      return;
+    }
+
     setLoading(true);
     setTimeout(() => {
       const users = JSON.parse(localStorage.getItem('sapujagat_users') || '[]');
       const user = users.find(u => u.nrp === nrp.trim());
       
       if (!user) {
+        recordLoginAttempt(nrp.trim(), false);
         setError('NRP tidak ditemukan');
         setLoading(false);
         return;
       }
 
-      const storedPin = localStorage.getItem(`smpjdc_pin_${user.id}`) || user.nrp.slice(-4);
-      if (pin !== storedPin) {
+      const storedPin = localStorage.getItem(`smpjdc_pin_${user.id}`);
+      if (!storedPin || !verifyPin(pin, storedPin)) {
+        recordLoginAttempt(nrp.trim(), false);
         setError('PIN salah');
         setLoading(false);
         return;
       }
 
-      localStorage.setItem('smpjdc_session', JSON.stringify({ userId: user.id, loginAt: Date.now() }));
+      recordLoginAttempt(nrp.trim(), true);
+      const session = createSession(user.id);
+      localStorage.setItem('smpjdc_session', JSON.stringify(session));
       onLogin(user);
       setLoading(false);
     }, 600);
@@ -56,7 +69,11 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
       return;
     }
     if (setupPin.length < 4) {
-      setError('PIN minimal 4 digit');
+      setError('PIN minimal 6 karakter');
+      return;
+    }
+    if (!/[A-Za-z]/.test(setupPin) || !/\d/.test(setupPin)) {
+      setError('PIN harus mengandung huruf dan angka');
       return;
     }
     if (setupPin !== setupConfirmPin) {
@@ -66,18 +83,19 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
 
     setLoading(true);
     setTimeout(() => {
+      const hashed = hashPin(setupPin);
       const newUser = {
         id: 1,
         nama: setupNama.trim(),
         nrp: setupNrp.trim(),
         jabatan: 'Admin Super',
-        pin: setupPin,
         avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60'
       };
       
       localStorage.setItem('sapujagat_users', JSON.stringify([newUser]));
-      localStorage.setItem(`smpjdc_pin_${newUser.id}`, setupPin);
-      localStorage.setItem('smpjdc_session', JSON.stringify({ userId: newUser.id, loginAt: Date.now() }));
+      localStorage.setItem(`smpjdc_pin_${newUser.id}`, hashed);
+      const session = createSession(newUser.id);
+      localStorage.setItem('smpjdc_session', JSON.stringify(session));
       
       onSetup(newUser);
       setLoading(false);
@@ -95,7 +113,7 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
           <div className="login-card">
             <div className="login-header">
               <div className="login-logo-ring">
-                <img src="logo.png" alt="SMPJDC" className="login-logo" />
+                <img src="logo.png" alt="SMPJDC" className="login-logo logo-3d" />
               </div>
               <h1 className="login-title">Setup Awal SMPJDC</h1>
               <p className="login-subtitle">Buat akun Admin Super untuk memulai</p>
@@ -132,7 +150,7 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
               </div>
 
               <div className="login-field">
-                <label>PIN (min. 4 digit)</label>
+                <label>PIN (min. 6 karakter, huruf + angka)</label>
                 <div className="login-input-wrap">
                   <Lock size={18} />
                   <input
@@ -186,7 +204,7 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
         <div className="login-card">
           <div className="login-header">
             <div className="login-logo-ring">
-              <img src="logo.png" alt="SMPJDC" className="login-logo" />
+              <img src="logo.png" alt="SMPJDC" className="login-logo logo-3d" />
             </div>
             <h1 className="login-title">SMPJDC</h1>
             <p className="login-subtitle">SISTEM MANAGEMENT KEAMANAN JDC</p>

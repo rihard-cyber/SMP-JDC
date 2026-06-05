@@ -1,47 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Clock, Check, AlertTriangle, QrCode, Shield, Wifi, WifiOff, Database, RefreshCw, ThumbsUp, MapPin } from 'lucide-react';
-import KATEGORI_TEMUAN, { STATUS_PATROLI as SEVERITY_LEVELS } from '../data/kategoriTemuan';
+import {
+  Camera, Clock, Check, AlertTriangle, QrCode, Shield,
+  Wifi, WifiOff, Database, ThumbsUp, MapPin,
+  FileText, History, Send, Info, Search, Wrench, Radio, X
+} from 'lucide-react';
+import KATEGORI_TEMUAN from '../data/kategoriTemuan';
 
-export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onTriggerSOS }) {
-  const [step, setStep] = useState(1);
-  const [shift, setShift] = useState('Pagi');
-  const [area, setArea] = useState(null);
+const KATEGORI_MUTASI = [
+  { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
+  { id: 'kehilangan', label: 'Kehilangan', icon: Search, color: '#f59e0b' },
+  { id: 'kerusakan', label: 'Kerusakan', icon: Wrench, color: '#ef4444' },
+  { id: 'gangguan', label: 'Gangguan', icon: AlertTriangle, color: '#dc2626' },
+  { id: 'emergency', label: 'Emergency', icon: Radio, color: '#7c3aed' }
+];
+
+export default function SecurityPatrolApp({
+  currentUser, areas, attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
+  onAddReport, onTriggerSOS, onAddLog
+}) {
   const [online, setOnline] = useState(true);
   const [queue, setQueue] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sapujagat_offline_queue')) || []; }
     catch { return []; }
   });
+  useEffect(() => { localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue)); }, [queue]);
+  useEffect(() => { if (online && queue.length > 0) { queue.forEach(r => onAddReport(r)); setQueue([]); } }, [online]);
 
-  const [mode, setMode] = useState(null); // null | 'normal' | 'temuan'
+  const [tab, setTab] = useState('patroli');
+
+  // ── Tab: Patroli ──
+  const [step, setStep] = useState(1); // 1=start, 2=scan, 3=lapor, 4=done
+  const [shift, setShift] = useState('Pagi');
+  const [area, setArea] = useState(null);
+  const [timeScan, setTimeScan] = useState(null);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [mode, setMode] = useState(null);
   const [kategori, setKategori] = useState('');
   const [temuan, setTemuan] = useState('');
   const [severity, setSeverity] = useState('low');
   const [deskripsi, setDeskripsi] = useState('');
   const [foto, setFoto] = useState(null);
-  const [timeScan, setTimeScan] = useState(null);
-  const [barcodeInput, setBarcodeInput] = useState('');
-  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState('');
 
-  useEffect(() => { localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue)); }, [queue]);
-  useEffect(() => { if (online && queue.length > 0) { queue.forEach(r => onAddReport(r)); setQueue([]); } }, [online]);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayLog = attendanceLogs.find(log => log.tanggal === todayStr);
+  const myPlotting = todayLog?.details?.find(d => d.personilId === currentUser.id);
+
+  useEffect(() => {
+    if (myPlotting && todayLog) {
+      const shiftMap = { P: 'Pagi (06:00-14:00)', S: 'Siang (14:00-22:00)', M: 'Malam (22:00-06:00)', Kh: 'Khusus' };
+      setShift(shiftMap[todayLog.shift] || 'Pagi');
+    }
+  }, [myPlotting, todayLog]);
 
   useEffect(() => { if (kategori) setTemuan(''); }, [kategori]);
 
   const kategoriData = KATEGORI_TEMUAN;
   const daftarTemuan = kategori ? kategoriData.find(k => k.id === kategori)?.items || [] : [];
 
-  const handleScan = (id) => {
-    const a = areas.find(x => x.id === id);
-    if (!a) return;
-    setArea(a);
-    setTimeScan(new Date());
-    setMode(null);
-    setKategori('');
-    setTemuan('');
-    setSeverity('low');
-    setDeskripsi('');
-    setFoto(null);
-    setStep(3);
+  const resetLaporan = () => {
+    setStep(1); setArea(null); setTimeScan(null);
+    setMode(null); setKategori(''); setTemuan('');
+    setSeverity('low'); setDeskripsi(''); setFoto(null);
+    setBarcodeInput(''); setScanError('');
+  };
+
+  const handleBarcodeScan = () => {
+    const val = barcodeInput.trim();
+    if (!val) return;
+    const found = areas.find(a =>
+      a.qrCode.toLowerCase() === val.toLowerCase() ||
+      a.id.toLowerCase() === val.toLowerCase()
+    );
+    if (found) {
+      setArea(found);
+      setTimeScan(new Date());
+      setBarcodeInput('');
+      setMode(null);
+      setKategori('');
+      setTemuan('');
+      setSeverity('low');
+      setDeskripsi('');
+      setFoto(null);
+      setStep(3);
+    } else {
+      setScanError(`QR Code "${val}" tidak ditemukan. Periksa kode dan coba lagi.`);
+    }
   };
 
   const handleNormal = () => {
@@ -52,13 +96,13 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
       shift, kategori: '-', kodeTemuan: '-', temuan: 'Normal', status: 'normal',
       kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null
     };
-    online ? onAddReport(r) : setQueue(p => [...p, r]);
+    (online ? onAddReport(r) : setQueue(p => [...p, r]));
     setStep(4);
   };
 
   const handleTemuanSubmit = (e) => {
     e.preventDefault();
-    if (!kategori || !temuan) { alert('Pilih kategori dan jenis temuan.'); return; }
+    if (!kategori || !temuan) return;
     const kat = kategoriData.find(k => k.id === kategori);
     const item = daftarTemuan.find(t => t.kode === temuan);
     const severityMap = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
@@ -70,33 +114,42 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
       status: 'temuan', kondisi: item?.nama || 'Temuan', severity: severityMap[severity] || 'Rendah',
       keterangan: deskripsi, foto
     };
-    online ? onAddReport(r) : setQueue(p => [...p, r]);
+    (online ? onAddReport(r) : setQueue(p => [...p, r]));
     setStep(4);
   };
 
-  const handleBarcodeScan = () => {
-    const val = barcodeInput.trim();
-    if (!val) return;
-    const found = areas.find(a =>
-      a.qrCode.toLowerCase() === val.toLowerCase() ||
-      a.id.toLowerCase() === val.toLowerCase()
-    );
-    if (found) {
-      setScanResult(found);
-      setBarcodeInput('');
-    } else {
-      alert(`QR Code "${val}" tidak ditemukan. Pastikan kode yang dimasukkan benar.`);
-    }
+  // ── Tab: Mutasi ──
+  const [mKat, setMKat] = useState('informasi');
+  const [mLokasi, setMLokasi] = useState('');
+  const [mUraian, setMUraian] = useState('');
+  const [mFoto, setMFoto] = useState(null);
+  const [mErrors, setMErrors] = useState({});
+  const [mSent, setMSent] = useState(false);
+
+  const handleMutasiSubmit = (e) => {
+    e.preventDefault();
+    const errs = {};
+    if (!mLokasi.trim()) errs.lokasi = 'Lokasi harus diisi';
+    if (!mUraian.trim()) errs.uraian = 'Uraian harus diisi';
+    if (Object.keys(errs).length) { setMErrors(errs); return; }
+    setMErrors({});
+    onAddLog({
+      waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      lokasi: mLokasi.trim(), uraian: mUraian.trim(), kategori: mKat,
+      foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
+      tanggal: todayStr, pelapor: currentUser.nama
+    });
+    setMSent(true);
+    setMLokasi(''); setMUraian(''); setMFoto(null);
+    setTimeout(() => setMSent(false), 3000);
   };
 
-  const confirmScanResult = () => {
-    if (scanResult) {
-      handleScan(scanResult.id);
-      setScanResult(null);
-    }
-  };
-
-  const resetScan = () => { setArea(null); setScanResult(null); setBarcodeInput(''); setStep(2); };
+  // ── Tab: Riwayat ──
+  const myReports = reports.filter(r => r.userId === currentUser.id).slice(0, 20);
+  const myFindings = findings.filter(f => f.pelapor === currentUser.nama).slice(0, 20);
+  const myMutasi = mutasiLogs.filter(m => m.petugas === currentUser.nama).slice(0, 20);
+  const [riwayatTab, setRiwayatTab] = useState('patroli');
 
   const labelSeverity = (v) => ({ low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' })[v] || v;
   const colorSeverity = (v) => ({ low: '#3b82f6', medium: '#f59e0b', high: '#ef4444', critical: '#dc2626' })[v] || '#3b82f6';
@@ -104,6 +157,7 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
   return (
     <div className="mobile-phone-frame">
       <div className="mobile-screen">
+        {/* Status Bar */}
         <div className="mobile-status-bar">
           <span>{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
           <button onClick={() => setOnline(!online)} className="mobile-conn-toggle">
@@ -111,195 +165,434 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
           </button>
         </div>
         {queue.length > 0 && <div className="offline-badge"><Database size={12} /><span>{queue.length} offline</span></div>}
+
+        {/* Header with SOS */}
         <div className="mobile-header">
           <div className="mobile-brand">
-            <img src="logo.png" alt="" className="mobile-logo" />
-            <div><h4 className="mobile-app-title">SMPJDC</h4><p className="mobile-app-sub">SISTEM MANAGEMENT KEAMANAN JDC</p></div>
+            <img src="logo.png" alt="" className="mobile-logo logo-3d" />
+            <div><h4 className="mobile-app-title">SMPJDC</h4><p className="mobile-app-sub">Aplikasi Patroli</p></div>
           </div>
           <button onClick={() => onTriggerSOS(currentUser.nama, area?.titik || 'Lobby')} className="sos-btn-small">SOS</button>
         </div>
 
-        {step === 1 && (
-          <div className="step-login">
-            <div className="step-login-header">
-              <div className="step-login-logo-wrap"><img src="logo.png" alt="" /></div>
-              <h3>Mulai Tugas Patroli</h3>
-              <p>Pilih shift dinas aktif Anda.</p>
-            </div>
-            <div className="glass-panel step-user-card">
-              <img src={currentUser.avatar} alt="" className="step-avatar" />
-              <div><h4>{currentUser.nama}</h4><p className="text-secondary">NRP: {currentUser.nrp}</p></div>
-            </div>
-            <div className="step-field">
-              <label>SHIFT PATROLI</label>
-              <select value={shift} onChange={e => setShift(e.target.value)} className="modern-select">
-                <option value="Pagi">Pagi (07:00-15:00)</option>
-                <option value="Siang">Siang (15:00-23:00)</option>
-                <option value="Malam">Malam (23:00-07:00)</option>
-              </select>
-            </div>
-            <button onClick={() => setStep(2)} className="btn-primary btn-full">Mulai Tugas</button>
+        {/* User info card */}
+        <div className="glass-panel step-user-card" style={{ marginBottom: '0.5rem' }}>
+          <img src={currentUser.avatar} alt="" className="step-avatar" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60'; }} />
+          <div>
+            <h4>{currentUser.nama}</h4>
+            <p className="text-secondary" style={{ fontSize: '0.7rem' }}>NRP: {currentUser.nrp} • {currentUser.jabatan}</p>
           </div>
-        )}
+        </div>
 
-        {step === 2 && !scanResult && (
-          <div className="step-scan">
-            <div className="scan-qr-area">
-              <div className="scan-qr-icon"><QrCode size={48} /></div>
-              <h3>Scan Barcode Checkpoint</h3>
-              <p>Arahkan kamera ke QR Code atau masukkan kode checkpoint.</p>
-              <div className="step-field">
-                <label>MASUKKAN KODE QR / BARCODE</label>
-                <div className="scan-input-group">
-                  <input type="text" value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleBarcodeScan()} placeholder="Cth: JDC-BSMT-B-1" className="modern-input" style={{ flex: 1 }} />
-                  <button onClick={handleBarcodeScan} className="btn-primary" style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}><QrCode size={16} /> Scan</button>
-                </div>
-              </div>
-              <div className="step-hint">
-                <MapPin size={14} style={{ opacity: 0.5 }} />
-                <span>Atau pilih dari daftar checkpoint di bawah:</span>
-              </div>
-              <div className="scan-area-compact-list">
-                {[...areas].sort((a, b) => {
-                  const na = parseInt(a.nomorTitik, 10);
-                  const nb = parseInt(b.nomorTitik, 10);
-                  if (isNaN(na) && isNaN(nb)) return a.nomorTitik?.localeCompare(b.nomorTitik || '');
-                  if (isNaN(na)) return 1;
-                  if (isNaN(nb)) return -1;
-                  return na - nb;
-                }).map(a => (
-                  <button key={a.id} onClick={() => { setScanResult(a); }} className="scan-compact-item">
-                    <span className="scan-item-qr">{a.qrCode}</span>
-                    <span className="scan-item-name">{a.titik}</span>
-                    <span className="scan-item-floor">{['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Tab Navigation */}
+        <div className="mobile-tab-bar" style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', background: 'var(--bg-glass)', borderRadius: '10px', padding: '0.2rem' }}>
+          <button onClick={() => { setTab('patroli'); resetLaporan(); }} className={`mobile-tab ${tab === 'patroli' ? 'active' : ''}`} style={{
+            flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            background: tab === 'patroli' ? 'var(--color-primary)' : 'transparent',
+            color: tab === 'patroli' ? 'white' : 'var(--text-secondary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
+          }}><QrCode size={14} /> Patroli</button>
+          <button onClick={() => setTab('mutasi')} className={`mobile-tab ${tab === 'mutasi' ? 'active' : ''}`} style={{
+            flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            background: tab === 'mutasi' ? 'var(--color-primary)' : 'transparent',
+            color: tab === 'mutasi' ? 'white' : 'var(--text-secondary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
+          }}><FileText size={14} /> Mutasi</button>
+          <button onClick={() => setTab('riwayat')} className={`mobile-tab ${tab === 'riwayat' ? 'active' : ''}`} style={{
+            flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            background: tab === 'riwayat' ? 'var(--color-primary)' : 'transparent',
+            color: tab === 'riwayat' ? 'white' : 'var(--text-secondary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
+          }}><History size={14} /> Riwayat</button>
+        </div>
 
-        {step === 2 && scanResult && (
-          <div className="step-scan-result">
-            <div className="scan-qr-area">
-              <div className="scan-success-icon"><Check size={40} /></div>
-              <h3>Checkpoint Ditemukan!</h3>
-              <div className="glass-panel scan-location-detail">
-                <div className="scan-detail-row">
-                  <span className="scan-detail-label">Kode QR</span>
-                  <span className="scan-detail-value mono">{scanResult.qrCode}</span>
+        {/* ============================================================ */}
+        {/* TAB: PATROLI */}
+        {/* ============================================================ */}
+        {tab === 'patroli' && (
+          <>
+            {step === 1 && (
+              <div className="step-login">
+                <div className="step-login-header">
+                  <h3>Mulai Patroli</h3>
+                  <p>Scan barcode checkpoint untuk memulai patroli.</p>
                 </div>
-                <div className="scan-detail-row">
-                  <span className="scan-detail-label">Gedung</span>
-                  <span className="scan-detail-value">{scanResult.gedung}</span>
+                {myPlotting && (
+                  <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-success)', background: 'rgba(16,185,129,0.05)' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
+                      <Shield size={11} /> PLOTTING AKTIF
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Shift:</span>
+                      <span style={{ fontWeight: 700 }}>{todayLog?.shift === 'P' ? 'Pagi' : todayLog?.shift === 'S' ? 'Siang' : todayLog?.shift === 'M' ? 'Malam' : shift}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Pos:</span>
+                      <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{myPlotting.posPlotting}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="step-field">
+                  <label>SHIFT PATROLI</label>
+                  <select value={shift} onChange={e => setShift(e.target.value)} className="modern-select" disabled={!!myPlotting}>
+                    <option value="Pagi">Pagi (06:00-14:00)</option>
+                    <option value="Siang">Siang (14:00-22:00)</option>
+                    <option value="Malam">Malam (22:00-06:00)</option>
+                  </select>
                 </div>
-                <div className="scan-detail-row">
-                  <span className="scan-detail-label">Lantai</span>
-                  <span className="scan-detail-value">{['1','2','3','4','5','6'].includes(scanResult.lantai) ? `Lantai ${scanResult.lantai}` : scanResult.lantai}</span>
-                </div>
-                <div className="scan-detail-row">
-                  <span className="scan-detail-label">Zona</span>
-                  <span className="scan-detail-value">Zona {scanResult.zona}</span>
-                </div>
-                <div className="scan-detail-row">
-                  <span className="scan-detail-label">Titik</span>
-                  <span className="scan-detail-value fw-700">{scanResult.titik}</span>
-                </div>
+                <button onClick={() => setStep(2)} className="btn-primary btn-full">Mulai Scan</button>
               </div>
-              <button onClick={confirmScanResult} className="btn-primary btn-full">Lanjutkan Patroli</button>
-              <button onClick={() => setScanResult(null)} className="btn-secondary btn-full" style={{ marginTop: '0.3rem' }}>Kembali</button>
-            </div>
-          </div>
-        )}
+            )}
 
-        {step === 3 && area && !mode && (
-          <div className="step-decision">
-            <div className="glass-panel form-location-box">
-              <p className="form-label">LOKASI CHECKPOINT</p>
-              <h4 className="form-location-name">{area.titik}</h4>
-              <p className="text-secondary form-location-detail">{area.gedung} | {['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} | Zona: {area.zona}</p>
-              {timeScan && <div className="form-scan-time"><Clock size={12} /><span>{timeScan.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})} WIB</span></div>}
-            </div>
-            <p className="decision-label">PILIH STATUS AREA:</p>
-            <button onClick={handleNormal} className="decision-btn decision-normal">
-              <ThumbsUp size={32} />
-              <span className="decision-btn-title">NORMAL</span>
-              <span className="decision-btn-sub">Tidak ada temuan</span>
-            </button>
-            <button onClick={() => setMode('temuan')} className="decision-btn decision-temuan">
-              <AlertTriangle size={32} />
-              <span className="decision-btn-title">TEMUAN</span>
-              <span className="decision-btn-sub">Ada temuan / kendala</span>
-            </button>
-            <button onClick={resetScan} className="btn-secondary btn-full" style={{marginTop:'0.5rem'}}>Kembali</button>
-          </div>
-        )}
-
-        {step === 3 && area && mode === 'temuan' && (
-          <form onSubmit={handleTemuanSubmit} className="step-form">
-            <div className="glass-panel form-location-box">
-              <p className="form-label">LOKASI CHECKPOINT</p>
-              <h4 className="form-location-name">{area.titik}</h4>
-              <p className="text-secondary form-location-detail">{['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} | Zona: {area.zona}</p>
-              {timeScan && <div className="form-scan-time"><Clock size={12} /><span>{timeScan.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})} WIB</span></div>}
-            </div>
-            <div className="glass-panel form-section">
-              <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN</h5>
-              <div className="step-field">
-                <label>KATEGORI</label>
-                <select value={kategori} onChange={e => setKategori(e.target.value)} className="modern-select" required>
-                  <option value="">-- Pilih --</option>
-                  {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                </select>
-              </div>
-              <div className="step-field">
-                <label>JENIS TEMUAN</label>
-                <select value={temuan} onChange={e => setTemuan(e.target.value)} className="modern-select" disabled={!kategori} required>
-                  <option value="">-- Pilih --</option>
-                  {daftarTemuan.map(t => <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>)}
-                </select>
-              </div>
-              <div className="step-field">
-                <label>TINGKAT KEPARAHAN</label>
-                <div className="severity-grid">
-                  {['low','medium','high','critical'].map(s => (
-                    <button key={s} type="button" onClick={() => setSeverity(s)}
-                      className={`severity-btn ${severity === s ? 'active' : ''}`}
-                      style={{ '--c': colorSeverity(s), borderColor: severity === s ? colorSeverity(s) : 'var(--border-glass)', background: severity === s ? `${colorSeverity(s)}1A` : 'transparent', color: severity === s ? colorSeverity(s) : 'var(--text-secondary)' }}>
-                      {labelSeverity(s)}
+            {step === 2 && (
+              <div className="step-scan">
+                <div className="scan-qr-area">
+                  <div className="scan-qr-icon"><QrCode size={48} /></div>
+                  <h3>Scan Barcode Checkpoint</h3>
+                  <p>Masukkan kode QR checkpoint atau pilih dari daftar.</p>
+                  <div className="step-field" style={{ marginTop: '0.5rem' }}>
+                    <label>KODE QR / BARCODE</label>
+                    <div className="scan-input-group">
+                      <input type="text" value={barcodeInput} onChange={e => { setBarcodeInput(e.target.value); setScanError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleBarcodeScan()}
+                        placeholder="Cth: JDC-BSMT-B-1" className="modern-input" style={{ flex: 1 }} autoFocus />
+                      <button onClick={handleBarcodeScan} className="btn-primary" style={{ padding: '0.5rem 0.8rem', whiteSpace: 'nowrap' }}><QrCode size={15} /> Scan</button>
+                    </div>
+                    {scanError && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)', marginTop: '0.2rem' }}>{scanError}</span>}
+                  </div>
+                </div>
+                <div className="step-hint"><MapPin size={14} style={{ opacity: 0.5 }} /><span>Pilih dari daftar checkpoint:</span></div>
+                <div className="scan-area-compact-list">
+                  {[...areas].sort((a, b) => {
+                    const na = parseInt(a.nomorTitik, 10);
+                    const nb = parseInt(b.nomorTitik, 10);
+                    if (isNaN(na) && isNaN(nb)) return (a.nomorTitik || '').localeCompare(b.nomorTitik || '');
+                    if (isNaN(na)) return 1; if (isNaN(nb)) return -1; return na - nb;
+                  }).map(a => (
+                    <button key={a.id} onClick={() => {
+                      setArea(a); setTimeScan(new Date());
+                      setMode(null); setKategori(''); setTemuan('');
+                      setSeverity('low'); setDeskripsi(''); setFoto(null);
+                      setStep(3);
+                    }} className="scan-compact-item">
+                      <span className="scan-item-qr">{a.qrCode}</span>
+                      <span className="scan-item-name">{a.titik}</span>
+                      <span className="scan-item-floor">{['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai}</span>
                     </button>
                   ))}
                 </div>
+                <button onClick={() => { resetLaporan(); setStep(1); }} className="btn-secondary btn-full" style={{ marginTop: '0.25rem' }}>Kembali</button>
               </div>
-              <div className="step-field">
-                <label>DESKRIPSI</label>
-                <textarea value={deskripsi} onChange={e => setDeskripsi(e.target.value)} className="modern-input form-textarea" rows={3} placeholder="Jelaskan temuan di lokasi..." />
+            )}
+
+            {step === 3 && area && !mode && (
+              <div className="step-decision">
+                <div className="glass-panel form-location-box">
+                  <p className="form-label">CHECKPOINT TERSCAN</p>
+                  <h4 className="form-location-name">{area.titik}</h4>
+                  <p className="text-secondary form-location-detail">{area.gedung} | {['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} | Zona: {area.zona}</p>
+                  {timeScan && <div className="form-scan-time"><Clock size={12} /><span>{timeScan.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})} WIB</span></div>}
+                </div>
+                <p className="decision-label">PILIH STATUS AREA:</p>
+                <button onClick={handleNormal} className="decision-btn decision-normal">
+                  <ThumbsUp size={32} />
+                  <span className="decision-btn-title">NORMAL</span>
+                  <span className="decision-btn-sub">Tidak ada temuan</span>
+                </button>
+                <button onClick={() => setMode('temuan')} className="decision-btn decision-temuan">
+                  <AlertTriangle size={32} />
+                  <span className="decision-btn-title">TEMUAN</span>
+                  <span className="decision-btn-sub">Ada temuan / kendala</span>
+                </button>
+                <button onClick={() => setStep(2)} className="btn-secondary btn-full" style={{ marginTop: '0.5rem' }}>Kembali</button>
               </div>
-              <div className="step-field">
-                <label>FOTO</label>
-                {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
-                  : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto<input type="file" accept="image/*" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=>setFoto(r.result); r.readAsDataURL(f)} }} hidden /></label>}
+            )}
+
+            {step === 3 && area && mode === 'temuan' && (
+              <form onSubmit={handleTemuanSubmit} className="step-form">
+                <div className="glass-panel form-location-box">
+                  <p className="form-label">LOKASI CHECKPOINT</p>
+                  <h4 className="form-location-name">{area.titik}</h4>
+                  <p className="text-secondary form-location-detail">{['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} | Zona: {area.zona}</p>
+                  {timeScan && <div className="form-scan-time"><Clock size={12} /><span>{timeScan.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})} WIB</span></div>}
+                </div>
+                <div className="glass-panel form-section">
+                  <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN</h5>
+                  <div className="step-field">
+                    <label>KATEGORI</label>
+                    <select value={kategori} onChange={e => setKategori(e.target.value)} className="modern-select" required>
+                      <option value="">-- Pilih --</option>
+                      {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    </select>
+                  </div>
+                  <div className="step-field">
+                    <label>JENIS TEMUAN</label>
+                    <select value={temuan} onChange={e => setTemuan(e.target.value)} className="modern-select" disabled={!kategori} required>
+                      <option value="">-- Pilih --</option>
+                      {daftarTemuan.map(t => <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>)}
+                    </select>
+                  </div>
+                  <div className="step-field">
+                    <label>SEVERITY</label>
+                    <div className="severity-grid">
+                      {['low','medium','high','critical'].map(s => (
+                        <button key={s} type="button" onClick={() => setSeverity(s)}
+                          className={`severity-btn ${severity === s ? 'active' : ''}`}
+                          style={{
+                            '--c': colorSeverity(s), borderColor: severity === s ? colorSeverity(s) : 'var(--border-glass)',
+                            background: severity === s ? `${colorSeverity(s)}1A` : 'transparent',
+                            color: severity === s ? colorSeverity(s) : 'var(--text-secondary)'
+                          }}>
+                          {labelSeverity(s)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="step-field">
+                    <label>DESKRIPSI</label>
+                    <textarea value={deskripsi} onChange={e => setDeskripsi(e.target.value)} className="modern-input form-textarea" rows={3} placeholder="Jelaskan temuan..." />
+                  </div>
+                  <div className="step-field">
+                    <label>FOTO</label>
+                    {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
+                      : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
+                        <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => setFoto(r.result); r.readAsDataURL(f); } }} hidden />
+                      </label>}
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="button" onClick={() => setMode(null)} className="btn-secondary" style={{ flex: 1 }}>Kembali</button>
+                  <button type="submit" className="btn-primary" style={{ flex: 2, opacity: kategori && temuan ? 1 : 0.5 }} disabled={!kategori || !temuan}>Kirim Laporan</button>
+                </div>
+              </form>
+            )}
+
+            {step === 4 && (
+              <div className="step-success">
+                <div className="success-icon-wrap"><Check size={40} /></div>
+                <h3>Laporan Terkirim!</h3>
+                <p className="text-secondary">Data patroli tercatat di Dashboard Monitoring.</p>
+                <div className="glass-panel success-summary">
+                  <div className="success-row"><span className="text-secondary">Lokasi:</span><span className="fw-700">{area?.titik}</span></div>
+                  <div className="success-row"><span className="text-secondary">Status:</span>
+                    <span className="fw-700" style={{ color: mode === 'temuan' ? 'var(--color-warning)' : 'var(--color-success)' }}>
+                      {mode === 'temuan' ? 'Temuan' : 'Normal'}
+                    </span>
+                  </div>
+                  {mode === 'temuan' && (
+                    <>
+                      <div className="success-row"><span className="text-secondary">Temuan:</span><span className="fw-700">{daftarTemuan.find(t => t.kode === temuan)?.nama || '-'}</span></div>
+                      <div className="success-row"><span className="text-secondary">Severity:</span><span className="fw-700" style={{ color: colorSeverity(severity) }}>{labelSeverity(severity)}</span></div>
+                    </>
+                  )}
+                </div>
+                <button onClick={() => { resetLaporan(); setStep(2); }} className="btn-primary btn-full">Scan Checkpoint Berikutnya</button>
+                <button onClick={() => { resetLaporan(); }} className="btn-secondary btn-full">Selesai Patroli</button>
               </div>
-            </div>
-            <div className="form-actions">
-              <button type="button" onClick={() => setMode(null)} className="btn-secondary" style={{flex:1}}>Kembali</button>
-              <button type="submit" className="btn-primary" style={{flex:2}}>Kirim Laporan</button>
-            </div>
-          </form>
+            )}
+          </>
         )}
 
-        {step === 4 && (
-          <div className="step-success">
-            <div className="success-icon-wrap"><Check size={40} /></div>
-            <h3>Laporan Terkirim!</h3>
-            <p className="text-secondary">Data patroli tercatat di Dashboard Monitoring.</p>
-            <div className="glass-panel success-summary">
-              <div className="success-row"><span className="text-secondary">Lokasi:</span><span className="fw-700">{area?.titik}</span></div>
-              <div className="success-row"><span className="text-secondary">Status:</span><span className="fw-700" style={{color: mode === 'temuan' ? 'var(--color-warning)' : 'var(--color-success)'}}>{mode === 'temuan' ? 'Temuan' : 'Normal'}</span></div>
-              {mode === 'temuan' && <><div className="success-row"><span className="text-secondary">Temuan:</span><span className="fw-700">{daftarTemuan.find(t=>t.kode===temuan)?.nama||'-'}</span></div>
-              <div className="success-row"><span className="text-secondary">Severity:</span><span className="fw-700" style={{color:colorSeverity(severity)}}>{labelSeverity(severity)}</span></div></>}
+        {/* ============================================================ */}
+        {/* TAB: MUTASI */}
+        {/* ============================================================ */}
+        {tab === 'mutasi' && (
+          <div className="step-form">
+            {mSent && (
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', background: 'rgba(16,185,129,0.08)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <Check size={36} style={{ color: 'var(--color-success)', marginBottom: '0.5rem' }} />
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-success)' }}>Mutasi Terkirim!</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Catatan mutasi berhasil disimpan.</p>
+              </div>
+            )}
+
+            {!mSent && (
+              <>
+                <div className="glass-panel form-section">
+                  <h5 className="form-section-title"><FileText size={14} /> FORM MUTASI / KEJADIAN</h5>
+
+                  <div className="step-field">
+                    <label>KATEGORI</label>
+                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                      {KATEGORI_MUTASI.map(k => (
+                        <button key={k.id} type="button" onClick={() => setMKat(k.id)} style={{
+                          padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.67rem',
+                          border: `1.5px solid ${mKat === k.id ? k.color : 'var(--border-glass)'}`,
+                          background: mKat === k.id ? `${k.color}18` : 'transparent',
+                          color: mKat === k.id ? k.color : 'var(--text-secondary)',
+                          fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                          display: 'flex', alignItems: 'center', gap: '0.2rem'
+                        }}>{k.label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="step-field">
+                    <label>LOKASI / POS</label>
+                    <input type="text" value={mLokasi} onChange={e => { setMLokasi(e.target.value); setMErrors(p => ({ ...p, lokasi: '' })); }}
+                      placeholder="Contoh: Lobby Utama / Lt.3" className="modern-input" style={{ fontSize: '0.8rem' }} />
+                    {mErrors.lokasi && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.lokasi}</span>}
+                  </div>
+
+                  <div className="step-field">
+                    <label>URAIAN KEJADIAN</label>
+                    <textarea value={mUraian} onChange={e => { setMUraian(e.target.value); setMErrors(p => ({ ...p, uraian: '' })); }}
+                      placeholder="Jelaskan kejadian secara detail..." className="modern-input" style={{ height: '80px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }} />
+                    {mErrors.uraian && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.uraian}</span>}
+                  </div>
+
+                  <div className="step-field">
+                    <label>FOTO <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional)</span></label>
+                    {mFoto ? <div className="photo-preview"><img src={mFoto} alt="" /><button type="button" onClick={() => setMFoto(null)} className="photo-remove">X</button></div>
+                      : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
+                        <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => setMFoto(r.result); r.readAsDataURL(f); } }} hidden />
+                      </label>}
+                  </div>
+                </div>
+
+                <button onClick={handleMutasiSubmit} className="btn-primary btn-full" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                  <Send size={16} /> Kirim Mutasi
+                </button>
+              </>
+            )}
+
+            {/* Riwayat mutasi terbaru */}
+            {myMutasi.length > 0 && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h5 style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <History size={13} /> Riwayat Mutasi Terbaru
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {myMutasi.slice(0, 5).map(m => (
+                    <div key={m.id} className="glass-panel" style={{ padding: '0.5rem 0.65rem', fontSize: '0.7rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 700 }}>{m.kategori}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{m.tanggal} {m.waktu}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)' }}>{m.lokasi}</div>
+                      <div style={{ color: 'var(--text-primary)', marginTop: '0.15rem' }}>{m.uraian}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB: RIWAYAT */}
+        {/* ============================================================ */}
+        {tab === 'riwayat' && (
+          <div>
+            {/* Sub-tab: Patroli / Temuan / Mutasi */}
+            <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', background: 'var(--bg-glass)', borderRadius: '8px', padding: '0.15rem' }}>
+              {[
+                { id: 'patroli', label: 'Patroli', icon: MapPin },
+                { id: 'temuan', label: 'Temuan', icon: AlertTriangle },
+                { id: 'mutasi', label: 'Mutasi', icon: FileText }
+              ].map(st => (
+                <button key={st.id} onClick={() => setRiwayatTab(st.id)} style={{
+                  flex: 1, padding: '0.35rem 0.2rem', fontSize: '0.62rem', fontWeight: 700,
+                  border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  background: riwayatTab === st.id ? 'var(--color-primary)' : 'transparent',
+                  color: riwayatTab === st.id ? 'white' : 'var(--text-secondary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem'
+                }}><st.icon size={11} /> {st.label}</button>
+              ))}
             </div>
-            <button onClick={resetScan} className="btn-primary btn-full">Scan Checkpoint Berikutnya</button>
+
+            {/* Riwayat Patroli */}
+            {riwayatTab === 'patroli' && (
+              <>
+                {myReports.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    <MapPin size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                    <p>Belum ada laporan patroli.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {myReports.map(r => (
+                      <div key={r.id} className="glass-panel" style={{ padding: '0.55rem 0.65rem', fontSize: '0.7rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem' }}>
+                          <span style={{ fontWeight: 700 }}>{r.titik}</span>
+                          <span style={{ color: r.status === 'normal' ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600, fontSize: '0.6rem' }}>
+                            {r.status === 'normal' ? 'NORMAL' : 'TEMUAN'}
+                          </span>
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.65rem' }}>
+                          {r.gedung} • {['1','2','3','4','5','6'].includes(r.lantai) ? `Lt.${r.lantai}` : r.lantai} • {r.shift}
+                        </div>
+                        {r.keterangan && <div style={{ marginTop: '0.2rem', color: 'var(--text-primary)' }}>{r.keterangan}</div>}
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.6rem', marginTop: '0.15rem' }}>
+                          {r.timestamp ? new Date(r.timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Riwayat Temuan */}
+            {riwayatTab === 'temuan' && (
+              <>
+                {myFindings.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    <AlertTriangle size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                    <p>Belum ada temuan.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {myFindings.map(f => (
+                      <div key={f.id} className="glass-panel" style={{ padding: '0.55rem 0.65rem', fontSize: '0.7rem', borderLeft: `3px solid ${f.severity === 'Kritis' ? '#dc2626' : f.severity === 'Tinggi' ? '#ef4444' : f.severity === 'Sedang' ? '#f59e0b' : '#3b82f6'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700 }}>{f.kategori}</span>
+                          <span style={{
+                            fontSize: '0.55rem', padding: '0.1rem 0.3rem', borderRadius: '4px', fontWeight: 700,
+                            background: f.status === 'Open' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                            color: f.status === 'Open' ? 'var(--color-danger)' : 'var(--color-success)'
+                          }}>{f.status}</span>
+                        </div>
+                        <div style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.65rem' }}>{f.area}</div>
+                        {f.detail && <div style={{ marginTop: '0.15rem', color: 'var(--text-primary)' }}>{f.detail}</div>}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem', color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                          <span>{f.severity}</span>
+                          <span>{f.tanggal ? new Date(f.tanggal).toLocaleString('id-ID', { dateStyle: 'short' }) : '-'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Riwayat Mutasi */}
+            {riwayatTab === 'mutasi' && (
+              <>
+                {myMutasi.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    <FileText size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                    <p>Belum ada catatan mutasi.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {myMutasi.map(m => (
+                      <div key={m.id} className="glass-panel" style={{ padding: '0.55rem 0.65rem', fontSize: '0.7rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.15rem', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700 }}>{m.kategori}</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>{m.tanggal} {m.waktu}</span>
+                        </div>
+                        <div style={{ color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.65rem' }}>{m.lokasi}</div>
+                        <div style={{ marginTop: '0.15rem', color: 'var(--text-primary)' }}>{m.uraian}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

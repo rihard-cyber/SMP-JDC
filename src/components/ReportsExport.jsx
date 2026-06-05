@@ -7,9 +7,14 @@ import {
   Filter,
   Clock
 } from 'lucide-react';
+import { buildWALink } from '../data/waContacts';
 
-export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus }) {
+export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus, onDispatchFinding }) {
   const [selectedLog, setSelectedLog] = useState(null);
+
+  const generateWALink = (find, dept) => {
+    return buildWALink(find, dept);
+  };
   
   // SLA Timer helper
   const getSLATimer = (startDateStr, status) => {
@@ -99,9 +104,9 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
             <span className="form-label">SHIFT</span>
             <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="form-select form-select-sm">
               <option value="All">Semua Shift</option>
-              <option value="Pagi">Shift Pagi</option>
-              <option value="Siang">Shift Siang</option>
-              <option value="Malam">Shift Malam</option>
+              <option value="Pagi">Pagi (06:00-14:00)</option>
+              <option value="Siang">Siang (14:00-22:00)</option>
+              <option value="Malam">Malam (22:00-06:00)</option>
             </select>
           </div>
 
@@ -191,13 +196,63 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
                     <span>{getSLATimer(find.tanggal, find.status)}</span>
                   </div>
                   <p className="finding-card-pelapor">Pelapor: {find.pelapor}</p>
-                  <div className="finding-card-actions">
-                    <span className="finding-card-actions-label">Ubah Status:</span>
-                    <select value={find.status} onChange={(e) => onUpdateFindingStatus(find.id, e.target.value)} className="form-select form-select-sm" style={{ width: '110px' }}>
-                      <option value="Open">Open</option>
-                      <option value="On Progress">On Progress</option>
-                      <option value="Closed">Closed</option>
-                    </select>
+                  <div className="finding-card-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="finding-card-actions-label">Ubah Status:</span>
+                      <select value={find.status} onChange={(e) => onUpdateFindingStatus(find.id, e.target.value)} className="form-select form-select-sm" style={{ width: '110px' }}>
+                        <option value="Open">Open</option>
+                        <option value="On Progress">On Progress</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="finding-card-actions-label" style={{ display: 'flex', alignItems: 'center', gap: '0.1rem' }}>Disposisi Dept:</span>
+                      <select 
+                        value={find.department || 'Keamanan'} 
+                        onChange={(e) => onDispatchFinding(find.id, e.target.value)} 
+                        className="form-select form-select-sm" 
+                        style={{ width: '110px' }}
+                      >
+                        <option value="Teknisi">🛠️ Teknisi</option>
+                        <option value="Cleaning">🧹 Cleaning</option>
+                        <option value="Keamanan">🛡️ Keamanan</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Status Forward WA:</span>
+                      <span style={{ fontWeight: 700, color: find.waStatus?.startsWith('Terkirim') ? 'var(--color-success)' : 'var(--color-warning)' }}>
+                        {find.waStatus || 'Belum Dikirim'}
+                      </span>
+                    </div>
+
+                    <a 
+                      href={generateWALink(find, find.department || 'Keamanan')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        onDispatchFinding(find.id, find.department || 'Keamanan');
+                      }}
+                      className="btn-success"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.3rem',
+                        fontSize: '0.75rem',
+                        padding: '0.4rem',
+                        textDecoration: 'none',
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        marginTop: '0.2rem',
+                        background: '#25d366',
+                        border: 'none',
+                        textAlign: 'center'
+                      }}
+                    >
+                      📲 Forward ke WA Kepala {find.department || 'Keamanan'}
+                    </a>
                   </div>
                 </div>
               </div>

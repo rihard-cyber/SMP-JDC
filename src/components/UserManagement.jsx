@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare } from 'lucide-react';
+import { getWAContacts, saveWAContacts } from '../data/waContacts';
 
 const ROLE_OPTIONS = [
   'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Anggota', 'Guest Viewer'
@@ -24,6 +25,25 @@ export default function UserManagement({ users, onAddUser }) {
   const [role, setRole] = useState('Anggota');
   const [search, setSearch] = useState('');
   const [reguBuka, setReguBuka] = useState({});
+  const [waContacts, setWaContacts] = useState(() => getWAContacts());
+  const [saveStatus, setSaveStatus] = useState('');
+
+  const updateWAField = (dept, field, value) => {
+    setWaContacts(prev => ({
+      ...prev,
+      [dept]: {
+        ...prev[dept],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleWASave = (e) => {
+    e.preventDefault();
+    saveWAContacts(waContacts);
+    setSaveStatus('✓ Pengaturan nomor WhatsApp berhasil disimpan!');
+    setTimeout(() => setSaveStatus(''), 3000);
+  };
 
   const isReguKustom = reguPilih === '__LAINNYA__';
 
@@ -128,6 +148,131 @@ export default function UserManagement({ users, onAddUser }) {
           <button type="submit" className="btn-primary" style={{ width: '100%', padding: '0.75rem' }}>
             <UserPlus size={16} /> Daftarkan {anggotaList.length > 0 ? `${anggotaList.length} Anggota` : 'Anggota'}
           </button>
+        </form>
+      </div>
+
+      {/* Panel Pengaturan Nomor WA Disposisi */}
+      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <MessageSquare size={18} className="text-primary" />
+          <span>Pengaturan Disposisi WhatsApp</span>
+        </h3>
+        
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: '1.4' }}>
+          Tentukan nama, nomor WhatsApp penerima, dan emoji untuk masing-masing departemen tindak lanjut. 
+          Pastikan nomor menggunakan format kode negara tanpa tanda <code>+</code> atau <code>0</code> di awal (contoh: <code>6281234567890</code>).
+        </p>
+
+        <form onSubmit={handleWASave} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {/* Keamanan */}
+            <div className="glass-panel" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>{waContacts.Keamanan.emoji || '🛡️'}</span>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Departemen Keamanan</strong>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NAMA PENERIMA</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Keamanan.nama} 
+                    onChange={e => updateWAField('Keamanan', 'nama', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NOMOR WHATSAPP</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Keamanan.nomor} 
+                    onChange={e => updateWAField('Keamanan', 'nomor', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Teknisi */}
+            <div className="glass-panel" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>{waContacts.Teknisi.emoji || '🛠️'}</span>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Departemen Engineering / Teknisi</strong>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NAMA PENERIMA</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Teknisi.nama} 
+                    onChange={e => updateWAField('Teknisi', 'nama', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NOMOR WHATSAPP</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Teknisi.nomor} 
+                    onChange={e => updateWAField('Teknisi', 'nomor', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Cleaning Service */}
+            <div className="glass-panel" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>{waContacts.Cleaning.emoji || '🧹'}</span>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Departemen Cleaning Service</strong>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NAMA PENERIMA</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Cleaning.nama} 
+                    onChange={e => updateWAField('Cleaning', 'nama', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NOMOR WHATSAPP</label>
+                  <input 
+                    type="text" 
+                    value={waContacts.Cleaning.nomor} 
+                    onChange={e => updateWAField('Cleaning', 'nomor', e.target.value)}
+                    className="modern-input" 
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            {saveStatus && (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                color: '#10b981', 
+                background: 'rgba(16, 185, 129, 0.1)', 
+                padding: '0.35rem 0.75rem', 
+                borderRadius: '6px',
+                fontWeight: 600
+              }}>
+                {saveStatus}
+              </span>
+            )}
+            <button type="submit" className="btn-primary" style={{ padding: '0.6rem 1.5rem', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Save size={14} /> Simpan Pengaturan WA
+            </button>
+          </div>
         </form>
       </div>
 

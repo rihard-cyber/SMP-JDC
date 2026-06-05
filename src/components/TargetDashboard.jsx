@@ -6,7 +6,11 @@ import {
   Zap,
   Building,
   User,
-  Activity
+  Activity,
+  FileText,
+  AlertTriangle,
+  AlertOctagon,
+  MapPin
 } from 'lucide-react';
 
 export default function TargetDashboard({ reports, findings, areas, currentUser, isClient }) {
@@ -88,7 +92,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 </div>
                 <span className="badge badge-success" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)' }}>Target 95%</span>
               </div>
-              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ width: `${complianceRate}%`, height: '100%', background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)', borderRadius: '4px' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
@@ -121,7 +125,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 </div>
                 <span className="badge badge-success">Target 90%</span>
               </div>
-              <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ width: '96%', height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)', borderRadius: '4px' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
@@ -190,14 +194,14 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 }
 
                 return (
-                  <div key={floorKey} style={{ background: 'rgba(255,255,255,0.01)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+                  <div key={floorKey} style={{ padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                       <span style={{ fontWeight: 700 }}>{config.name}</span>
                       <span style={{ fontWeight: 700, color: colorClass }}>
                         {complianceVal}% Compliance ({visitedAreas.length}/{floorAreas.length} Pos Checked)
                       </span>
                     </div>
-                    <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px' }}>
+                    <div style={{ width: '100%', height: '6px', background: 'rgba(0,0,0,0.06)', borderRadius: '3px' }}>
                       <div style={{ width: `${complianceVal}%`, height: '100%', background: colorClass, borderRadius: '3px' }} />
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'block' }}>
@@ -207,6 +211,99 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 );
               })}
             </div>
+          </div>
+
+          {/* ── TIKET TEMUAN AKTIF ── */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={18} className="text-primary" /> Tiket Temuan Aktif
+            </h3>
+            {findings.filter(f => f.status !== 'Closed').length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {findings.filter(f => f.status !== 'Closed').map(f => (
+                  <div key={f.id} style={{
+                    padding: '0.65rem 0.85rem', borderRadius: '8px',
+                    background: 'rgba(59,130,246,0.02)', border: '1px solid var(--border-glass)',
+                    borderLeft: `3px solid ${
+                      f.severity === 'Kritis' || f.severity === 'Tinggi' ? '#ef4444' :
+                      f.severity === 'Sedang' ? '#f59e0b' : '#3b82f6'
+                    }`
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{f.kategori}</span>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <span className="badge" style={{
+                          fontSize: '0.6rem', padding: '0.1rem 0.4rem',
+                          background: f.severity === 'Kritis' ? 'rgba(239,68,68,0.15)' :
+                                     f.severity === 'Tinggi' ? 'rgba(239,68,68,0.1)' :
+                                     f.severity === 'Sedang' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
+                          color: f.severity === 'Kritis' ? '#ef4444' :
+                                 f.severity === 'Tinggi' ? '#ef4444' :
+                                 f.severity === 'Sedang' ? '#f59e0b' : '#3b82f6'
+                        }}>{f.severity || 'Rendah'}</span>
+                        <span className="badge" style={{
+                          fontSize: '0.6rem', padding: '0.1rem 0.4rem',
+                          background: f.status === 'Open' ? 'rgba(239,68,68,0.1)' :
+                                     f.status === 'In Progress' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                          color: f.status === 'Open' ? '#ef4444' :
+                                 f.status === 'In Progress' ? '#f59e0b' : '#10b981'
+                        }}>{f.status}</span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      📍 {f.area}
+                    </p>
+                    {f.detail && <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{f.detail}</p>}
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {f.department ? `Disposisi: ${f.department}` : ''} • {f.pelapor ? `Pelapor: ${f.pelapor}` : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                ✅ Semua tiket temuan sudah selesai. Tidak ada kendala aktif.
+              </div>
+            )}
+          </div>
+
+          {/* ── LAPORAN PATROLI HARI INI ── */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={18} className="text-primary" /> Laporan Patroli Hari Ini
+            </h3>
+            {reportsToday.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {reportsToday.slice(-10).reverse().map(r => (
+                  <div key={r.id} style={{
+                    padding: '0.55rem 0.75rem', borderRadius: '6px',
+                    borderLeft: `3px solid ${
+                      r.kondisi === 'Aman dan Kondusif' ? 'var(--color-success)' :
+                      r.kondisi === 'Ada Aktivitas' || r.kondisi === 'Renovasi' ? 'var(--color-warning)' : 'var(--color-danger)'
+                    }`,
+                    background: 'rgba(255,255,255,0.02)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                      <span style={{ fontWeight: 600 }}>{r.userName}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {new Date(r.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>{r.titik}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>({['1','2','3','4','5','6'].includes(r.lantai) ? `Lt.${r.lantai}` : r.lantai})</span>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                      {r.kondisi}{r.keterangan ? ` — ${r.keterangan}` : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Belum ada laporan patroli untuk hari ini.
+              </div>
+            )}
           </div>
 
         </div>
@@ -227,7 +324,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                   style={{
                     border: 'none',
                     background: selectedGuard === name ? 'var(--color-primary)' : 'var(--bg-tertiary)',
-                    color: 'white',
+                    color: selectedGuard === name ? '#ffffff' : 'var(--text-primary)',
                     padding: '0.4rem 1rem',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -266,11 +363,11 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.35rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Skor Keaktifan:</span>
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{activeGuard.points} Pts</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.35rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Kepatuhan Rute:</span>
                   <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{activeGuard.shiftCompliance}</span>
                 </div>
@@ -294,7 +391,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Checkpoint terselesaikan pada shift hari ini.
                 </p>
-                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden', marginTop: '0.5rem' }}>
                   <div style={{ 
                     width: `${Math.min((activeGuard.completedCheckpoints / activeGuard.targetCheckpoints) * 100, 100)}%`, 
                     height: '100%', 
