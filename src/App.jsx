@@ -404,7 +404,11 @@ export default function App() {
   }, [attendanceLogs]);
 
   useEffect(() => {
-    localStorage.setItem('smpjdc_complaints', JSON.stringify(complaints));
+    try {
+      localStorage.setItem('smpjdc_complaints', JSON.stringify(complaints));
+    } catch (e) {
+      console.warn('[Complaint] Gagal sync ke localStorage:', e);
+    }
   }, [complaints]);
 
   const addToast = (message, type = 'info') => {
@@ -522,21 +526,35 @@ export default function App() {
   };
 
   const handleAddComplaint = (complaint) => {
+    console.log('[Complaint] handleAddComplaint dipanggil:', complaint?.ticketId);
     setComplaints(prev => {
       const updated = [complaint, ...prev];
-      localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
+      try {
+        localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
+        console.log('[Complaint] localStorage tersimpan, total:', updated.length);
+      } catch (e) {
+        console.warn('[Complaint] Gagal simpan ke localStorage:', e);
+      }
       return updated;
     });
     addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
   };
-
+  
   const handleUpdateComplaint = (id, updates) => {
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    setComplaints(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
+      try {
+        localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('[Complaint] Gagal update localStorage:', e);
+      }
+      return updated;
+    });
     if (updates.status === 'Selesai') {
       addToast(`Komplain #${id} ditandai selesai`, 'success');
     }
   };
-
+  
   const handleAddArea = (newArea) => {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
     setAreas(prev => [...prev, { id: areaId, ...newArea }]);
