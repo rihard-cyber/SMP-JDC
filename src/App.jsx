@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { hashPin, validateSession } from './utils/security';
+import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, loadAllComplaintsFromFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -411,6 +412,26 @@ export default function App() {
     }
   }, [complaints]);
 
+  // Firebase real-time subscription untuk complaints
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+
+    const unsub = subscribeComplaints((firebaseData) => {
+      if (!firebaseData) return;
+      setComplaints(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try { localStorage.setItem('smpjdc_complaints', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -538,9 +559,19 @@ export default function App() {
       return updated;
     });
     addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
+
+    // Firebase sync (background)
+    addComplaintToFirestore(complaint).then(firebaseId => {
+      if (firebaseId) {
+        setComplaints(prev => prev.map(c =>
+          c.id === complaint.id ? { ...c, firebaseId } : c
+        ));
+      }
+    });
   };
   
   const handleUpdateComplaint = (id, updates) => {
+    const target = complaints.find(c => c.id === id);
     setComplaints(prev => {
       const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
       try {
@@ -552,6 +583,11 @@ export default function App() {
     });
     if (updates.status === 'Selesai') {
       addToast(`Komplain #${id} ditandai selesai`, 'success');
+    }
+
+    // Firebase sync (background)
+    if (target?.firebaseId) {
+      updateComplaintInFirestore(target.firebaseId, updates);
     }
   };
   
