@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { 
-  Search, 
-  Download, 
   FileSpreadsheet, 
   FileText, 
-  Check, 
   AlertTriangle,
-  RefreshCw,
   Eye,
   Filter,
   Clock
 } from 'lucide-react';
 
 export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus }) {
+  const [selectedLog, setSelectedLog] = useState(null);
+  
   // SLA Timer helper
   const getSLATimer = (startDateStr, status) => {
     if (status === 'Closed') {
@@ -31,27 +29,25 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
   const [filterOfficer, setFilterOfficer] = useState('All');
   const [filterDate, setFilterDate] = useState('');
   const [filterKondisi, setFilterKondisi] = useState('All');
+  const [filterKategori, setFilterKategori] = useState('All');
 
-  // Detailed Modal preview of single log
-  const [selectedLog, setSelectedLog] = useState(null);
-
-  // Filtered reports calculation
   const filteredReports = reports.filter(r => {
     const matchShift = filterShift === 'All' || r.shift === filterShift;
     const matchFloor = filterFloor === 'All' || r.lantai === filterFloor;
     const matchOfficer = filterOfficer === 'All' || r.userName === filterOfficer;
     const matchDate = !filterDate || r.timestamp.startsWith(filterDate);
+    const matchKategori = filterKategori === 'All' || (r.kategori || '') === filterKategori;
     const matchKondisi = filterKondisi === 'All' || 
       (filterKondisi === 'Aman' && r.kondisi === 'Aman dan Kondusif') ||
       (filterKondisi === 'Temuan' && r.kondisi !== 'Aman dan Kondusif');
 
-    return matchShift && matchFloor && matchOfficer && matchDate && matchKondisi;
+    return matchShift && matchFloor && matchOfficer && matchDate && matchKategori && matchKondisi;
   });
 
   // Export to CSV/Excel simulator
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "ID,Waktu,Petugas,Gedung,Lantai,Zona,Titik,Shift,Kondisi,Keterangan,GPS Valid,Device,IP\n";
+    csvContent += "ID,Waktu,Petugas,Gedung,Lantai,Zona,Titik,Shift,Kategori,Kode Temuan,Temuan,Status,Keterangan,GPS Valid,Device,IP\n";
 
     filteredReports.forEach(r => {
       const row = [
@@ -63,11 +59,14 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
         r.zona,
         r.titik,
         r.shift,
-        r.kondisi,
+        r.kategori || '-',
+        r.kodeTemuan || '-',
+        r.temuan || r.kondisi || '-',
+        r.status || '-',
         `"${r.keterangan || ''}"`,
-        r.antiFraud.gpsValid ? "YES" : "NO",
-        r.antiFraud.device,
-        r.antiFraud.ip
+        r.antiFraud?.gpsValid ? "YES" : "NO",
+        r.antiFraud?.device || '-',
+        r.antiFraud?.ip || '-'
       ].join(",");
       csvContent += row + "\n";
     });
@@ -75,7 +74,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `laporan_patroli_jdc_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `laporan_keamanan_smpjdc_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -90,16 +89,15 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* 1. FILTER CONTROLLER BAR */}
-      <div className="glass-panel" style={{ padding: '1.25rem' }}>
-        <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+      <div className="glass-panel panel-body">
+        <h4 className="section-title" style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
           <Filter size={16} /> Filter & Cari Laporan
         </h4>
         
-        <div className="grid-cols-5" style={{ gap: '0.85rem' }}>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>SHIFT</span>
-            <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="modern-select" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}>
+        <div className="form-grid-6">
+          <div className="form-field">
+            <span className="form-label">SHIFT</span>
+            <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="form-select form-select-sm">
               <option value="All">Semua Shift</option>
               <option value="Pagi">Shift Pagi</option>
               <option value="Siang">Shift Siang</option>
@@ -107,52 +105,61 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>LANTAI</span>
-            <select value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} className="modern-select" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}>
+          <div className="form-field">
+            <span className="form-label">LANTAI</span>
+            <select value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} className="form-select form-select-sm">
               <option value="All">Semua Lantai</option>
-              <option value="B1">Basement B1</option>
+              <option value="Basement">Basement</option>
               <option value="1">Lantai 1</option>
               <option value="2">Lantai 2</option>
               <option value="3">Lantai 3</option>
               <option value="4">Lantai 4</option>
               <option value="5">Lantai 5</option>
               <option value="6">Lantai 6</option>
-              <option value="7">Lantai 7</option>
-              <option value="Outdoor">Area Luar</option>
+              <option value="Halaman Depan">Halaman Depan</option>
+              <option value="Halaman Samping Kanan">Halaman Samping Kanan</option>
+              <option value="Pos 00">Pos 00</option>
+              <option value="R. Teknik">R. Teknik</option>
+              <option value="Halaman Belakang">Halaman Belakang</option>
+              <option value="Halaman Samping Kiri">Halaman Samping Kiri</option>
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>PETUGAS</span>
-            <select value={filterOfficer} onChange={(e) => setFilterOfficer(e.target.value)} className="modern-select" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}>
+          <div className="form-field">
+            <span className="form-label">PETUGAS</span>
+            <select value={filterOfficer} onChange={(e) => setFilterOfficer(e.target.value)} className="form-select form-select-sm">
               <option value="All">Semua Petugas</option>
-              {users.filter(u => u.jabatan === 'Petugas Security').map(u => (
+              {users.filter(u => ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).map(u => (
                 <option key={u.id} value={u.nama}>{u.nama}</option>
               ))}
             </select>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>TANGGAL</span>
-            <input 
-              type="date" 
-              value={filterDate} 
-              onChange={(e) => setFilterDate(e.target.value)} 
-              className="modern-input" 
-              style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
-            />
+          <div className="form-field">
+            <span className="form-label">TANGGAL</span>
+            <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="form-input form-input-sm" />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>STATUS AREA</span>
-            <select value={filterKondisi} onChange={(e) => setFilterKondisi(e.target.value)} className="modern-select" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}>
-              <option value="All">Semua Kondisi</option>
-              <option value="Aman">Aman & Kondusif</option>
-              <option value="Temuan">Memiliki Temuan</option>
+          <div className="form-field">
+            <span className="form-label">KATEGORI</span>
+            <select value={filterKategori} onChange={(e) => setFilterKategori(e.target.value)} className="form-select form-select-sm">
+              <option value="All">Semua Kategori</option>
+              <option value="Tenant & Ruang Sewa">Tenant & Ruang Sewa</option>
+              <option value="Fasilitas Gedung">Fasilitas Gedung</option>
+              <option value="Gangguan Operasional">Gangguan Operasional</option>
+              <option value="Event & Aktivitas Khusus">Event & Aktivitas</option>
+              <option value="Lain-Lain">Lain-Lain</option>
             </select>
           </div>
 
+          <div className="form-field">
+            <span className="form-label">STATUS</span>
+            <select value={filterKondisi} onChange={(e) => setFilterKondisi(e.target.value)} className="form-select form-select-sm">
+              <option value="All">Semua Status</option>
+              <option value="Aman">Aman</option>
+              <option value="Temuan">Temuan</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -162,190 +169,107 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
           <AlertTriangle size={18} /> Tindak Lanjut Notifikasi Temuan
         </h3>
         
-        <div className="grid-cols-2">
-          {findings.map(find => (
-            <div 
-              key={find.id} 
-              className="glass-panel finding-card" 
-              style={{ 
-                borderLeft: `4px solid ${
-                  find.status === 'Open' ? 'var(--color-danger)' : 
-                  find.status === 'On Progress' ? 'var(--color-warning)' : 'var(--color-success)'
-                }`
-              }}
-            >
-              {find.foto && (
-                <img 
-                  src={find.foto} 
-                  alt={find.kategori} 
-                  className="finding-card-img"
-                />
-              )}
-              
-              <div className="finding-card-content">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span className="badge" style={{ 
-                      background: find.status === 'Open' ? 'rgba(239, 68, 68, 0.15)' : find.status === 'On Progress' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                      color: find.status === 'Open' ? 'var(--color-danger)' : find.status === 'On Progress' ? 'var(--color-warning)' : 'var(--color-success)',
-                      fontSize: '0.65rem'
-                    }}>
-                      {find.status}
-                    </span>
-                    <span className="badge" style={{ 
-                      background: find.severity === 'Tinggi' ? 'rgba(239, 68, 68, 0.2)' : find.severity === 'Sedang' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                      color: find.severity === 'Tinggi' ? 'var(--color-danger)' : find.severity === 'Sedang' ? 'var(--color-warning)' : 'var(--color-primary)',
-                      fontSize: '0.65rem',
-                      fontWeight: 700
-                    }}>
-                      {find.severity || 'Rendah'}
-                    </span>
+        <div className="form-grid-2">
+          {findings.map(find => {
+            const statusBorderColor = find.status === 'Open' ? 'var(--color-danger)' : find.status === 'On Progress' ? 'var(--color-warning)' : 'var(--color-success)';
+            return (
+              <div key={find.id} className="glass-panel finding-card" style={{ borderLeft: `4px solid ${statusBorderColor}` }}>
+                {find.foto && <img src={find.foto} alt={find.kategori} className="finding-card-img" />}
+                <div className="finding-card-content">
+                  <div className="flex-between">
+                    <div className="flex-row" style={{ gap: '0.3rem' }}>
+                      <span className={`badge badge-${find.status === 'Open' ? 'danger' : find.status === 'On Progress' ? 'warning' : 'success'}`} style={{ fontSize: '0.65rem' }}>{find.status}</span>
+                      <span className={`badge badge-${find.severity === 'Tinggi' ? 'danger' : find.severity === 'Sedang' ? 'warning' : 'info'}`} style={{ fontSize: '0.65rem', fontWeight: 700 }}>{find.severity || 'Rendah'}</span>
+                    </div>
+                    <span className="text-muted-sm">{new Date(find.tanggal).toLocaleDateString('id-ID')}</span>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(find.tanggal).toLocaleDateString('id-ID')}
-                  </span>
-                </div>
-                
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{find.kategori}</h4>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 600 }}>{find.area}</p>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>"{find.detail}"</p>
-                
-                {/* Live SLA Countdown Timer */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.3rem', 
-                  flexWrap: 'wrap',
-                  fontSize: '0.7rem', 
-                  color: find.status === 'Closed' ? 'var(--color-success)' : 'var(--color-warning)',
-                  fontWeight: 600
-                }}>
-                  <Clock size={12} />
-                  <span>{getSLATimer(find.tanggal, find.status)}</span>
-                </div>
-
-                <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Pelapor: {find.pelapor}</p>
- 
-                {/* Status Updater */}
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Ubah Status:</span>
-                  <select 
-                    value={find.status} 
-                    onChange={(e) => onUpdateFindingStatus(find.id, e.target.value)}
-                    className="modern-select"
-                    style={{ width: '110px', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
-                  >
-                    <option value="Open">Open</option>
-                    <option value="On Progress">On Progress</option>
-                    <option value="Closed">Closed</option>
-                  </select>
+                  <h4 className="finding-card-title">{find.kategori}</h4>
+                  <p className="finding-card-area">{find.area}</p>
+                  <p className="finding-card-detail">"{find.detail}"</p>
+                  <div className={`finding-card-timer ${find.status === 'Closed' ? 'timer-success' : 'timer-warning'}`}>
+                    <Clock size={12} />
+                    <span>{getSLATimer(find.tanggal, find.status)}</span>
+                  </div>
+                  <p className="finding-card-pelapor">Pelapor: {find.pelapor}</p>
+                  <div className="finding-card-actions">
+                    <span className="finding-card-actions-label">Ubah Status:</span>
+                    <select value={find.status} onChange={(e) => onUpdateFindingStatus(find.id, e.target.value)} className="form-select form-select-sm" style={{ width: '110px' }}>
+                      <option value="Open">Open</option>
+                      <option value="On Progress">On Progress</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
- 
+            );
+          })}
           {findings.length === 0 && (
-            <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-              Tidak ada temuan kendala aktif.
-            </div>
+            <div className="empty-state" style={{ gridColumn: 'span 2' }}>Tidak ada temuan kendala aktif.</div>
           )}
         </div>
       </div>
 
       {/* 3. REPORTS DATA TABLE */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+      <div className="glass-panel panel-body">
+        <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
           <h3 style={{ fontSize: '1.1rem' }}>Log Laporan Patroli Keamanan ({filteredReports.length})</h3>
-          
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button onClick={handleExportCSV} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', flex: '1 1 auto' }}>
-              <FileSpreadsheet size={16} /> Export Excel (CSV)
-            </button>
-            <button onClick={handleExportPDF} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', flex: '1 1 auto' }}>
-              <FileText size={16} /> Cetak PDF
-            </button>
+          <div className="flex-row" style={{ gap: '0.5rem' }}>
+            <button onClick={handleExportCSV} className="btn-secondary btn-full"><FileSpreadsheet size={16} /> Export Excel (CSV)</button>
+            <button onClick={handleExportPDF} className="btn-primary btn-full"><FileText size={16} /> Cetak PDF</button>
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+        <div className="table-wrap">
+          <table className="table-data">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-glass)', color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '0.75rem' }}>ID</th>
-                <th style={{ padding: '0.75rem' }}>Waktu / Shift</th>
-                <th style={{ padding: '0.75rem' }}>Nama Petugas</th>
-                <th style={{ padding: '0.75rem' }}>Lokasi Checkpoint</th>
-                <th style={{ padding: '0.75rem' }}>Kondisi</th>
-                <th style={{ padding: '0.75rem' }}>Anti-Kecurangan</th>
-                <th style={{ padding: '0.75rem', textAlign: 'right' }}>Detail</th>
+              <tr>
+                <th>Waktu</th>
+                <th>Petugas</th>
+                <th>Lokasi</th>
+                <th>Kategori</th>
+                <th>Temuan</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Detail</th>
               </tr>
             </thead>
             <tbody>
               {filteredReports.map((report, idx) => (
-                <tr 
-                  key={report.id} 
-                  style={{ 
-                    borderBottom: '1px solid rgba(255,255,255,0.03)', 
-                    background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' 
-                  }}
-                >
-                  <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontWeight: 'bold' }}>{report.id}</td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ fontWeight: 600 }}>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                      {new Date(report.timestamp).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </div>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Shift {report.shift}</span>
+                <tr key={report.id} className={idx % 2 === 0 ? 'row-even' : ''}>
+                  <td>
+                    <div className="td-label">{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</div>
+                    <div className="td-sub">{new Date(report.timestamp).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                    <span className="td-meta">Shift {report.shift}</span>
                   </td>
-                  <td style={{ padding: '0.75rem', fontWeight: 600 }}>{report.userName}</td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ fontWeight: 600 }}>{report.titik}</div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                      Lt. {report.lantai} ({report.zona})
+                  <td>
+                    <span className="td-label">{report.userName}</span>
+                    <div className="td-meta">Shift {report.shift}</div>
+                  </td>
+                  <td>
+                    <div className="td-mono">{report.titik}</div>
+                    <span className="td-meta">{['1','2','3','4','5','6'].includes(report.lantai) ? `Lt. ${report.lantai}` : report.lantai} ({report.zona})</span>
+                  </td>
+                  <td>
+                    <span className="td-primary">{report.kategori || '-'}</span>
+                    {report.kodeTemuan && <div className="td-meta">{report.kodeTemuan}</div>}
+                  </td>
+                  <td style={{ maxWidth: '150px' }}>
+                    <span>{report.temuan || report.kondisi || '-'}</span>
+                  </td>
+                  <td>
+                    <span className={`badge badge-${report.status === 'critical' ? 'danger' : report.status === 'temuan' ? 'warning' : 'success'}`}>
+                      {report.status === 'critical' ? 'Critical' : report.status === 'temuan' ? 'Temuan' : 'Normal'}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <span className="badge" style={{ 
-                      background: report.kondisi === 'Aman dan Kondusif' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                      color: report.kondisi === 'Aman dan Kondusif' ? 'var(--color-success)' : 'var(--color-danger)',
-                      border: `1px solid ${report.kondisi === 'Aman dan Kondusif' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
-                    }}>
-                      {report.kondisi}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', fontSize: '0.7rem' }}>
-                      <span style={{ color: report.antiFraud.gpsValid ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
-                        ● GPS: {report.antiFraud.gpsValid ? 'Valid' : 'Invalid'} ({report.antiFraud.radius}m)
-                      </span>
-                      <span style={{ color: 'var(--text-muted)' }}>● Token: Verified</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                    <button 
-                      onClick={() => setSelectedLog(report)}
-                      style={{
-                        background: 'rgba(59,130,246,0.1)',
-                        border: 'none',
-                        color: 'var(--color-primary)',
-                        padding: '0.3rem 0.6rem',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.75rem',
-                        fontWeight: 600
-                      }}
-                    >
-                      <Eye size={12} style={{ marginRight: '0.2rem' }} /> Lihat
+                  <td style={{ textAlign: 'right' }}>
+                    <button onClick={() => setSelectedLog(report)} className="btn-icon-primary" style={{ fontSize: '0.75rem' }}>
+                      <Eye size={12} /> Lihat
                     </button>
                   </td>
                 </tr>
               ))}
-
               {filteredReports.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    Tidak ada laporan ditemukan dengan filter tersebut.
-                  </td>
+                  <td colSpan="7" className="empty-state">Tidak ada laporan ditemukan dengan filter tersebut.</td>
                 </tr>
               )}
             </tbody>
@@ -355,48 +279,63 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
       {/* 4. DETAILED LOG MODAL */}
       {selectedLog && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '500px', maxWidth: '90%', display: 'flex', flexDirection: 'column', gap: '1.2rem', animation: 'scale-up 0.25s' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Detail Patroli #{selectedLog.id}</h3>
+        <div className="modal-overlay">
+          <div className="glass-panel modal-panel">
+            <h3 className="modal-title">Detail Patroli #{selectedLog.id}</h3>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Waktu Scan:</span>
-                <span style={{ fontWeight: 600 }}>{new Date(selectedLog.timestamp).toLocaleString('id-ID')} WIB</span>
+            <div className="modal-body">
+              <div className="modal-row">
+                <span className="modal-label">Waktu Scan:</span>
+                <span className="modal-value">{new Date(selectedLog.timestamp).toLocaleString('id-ID')} WIB</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Petugas Security:</span>
-                <span style={{ fontWeight: 600 }}>{selectedLog.userName}</span>
+              <div className="modal-row">
+                <span className="modal-label">Petugas Patroli:</span>
+                <span className="modal-value">{selectedLog.userName}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Area Pos:</span>
-                <span style={{ fontWeight: 600 }}>{selectedLog.titik} (Lt.{selectedLog.lantai} {selectedLog.zona})</span>
+              <div className="modal-row">
+                <span className="modal-label">Area Pos:</span>
+                <span className="modal-value">{selectedLog.titik} ({['1','2','3','4','5','6'].includes(selectedLog.lantai) ? `Lt.${selectedLog.lantai}` : selectedLog.lantai} {selectedLog.zona})</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Kondisi Checkpoint:</span>
-                <span style={{ fontWeight: 700, color: selectedLog.kondisi === 'Aman dan Kondusif' ? 'var(--color-success)' : 'var(--color-danger)' }}>{selectedLog.kondisi}</span>
+              <div className="modal-row">
+                <span className="modal-label">Kategori:</span>
+                <span className="td-primary">{selectedLog.kategori || '-'}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', background: 'rgba(0,0,0,0.2)', padding: '0.6rem', borderRadius: '6px' }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Keterangan Laporan:</span>
-                <p style={{ fontSize: '0.8rem', fontStyle: 'italic' }}>"{selectedLog.keterangan || '-'}"</p>
+              {selectedLog.kodeTemuan && (
+                <div className="modal-row">
+                  <span className="modal-label">Kode Temuan:</span>
+                  <span className="modal-value" style={{ fontFamily: 'monospace' }}>{selectedLog.kodeTemuan}</span>
+                </div>
+              )}
+              <div className="modal-row">
+                <span className="modal-label">Temuan:</span>
+                <span className="modal-value" style={{ fontWeight: 700 }}>{selectedLog.temuan || selectedLog.kondisi || '-'}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">Status:</span>
+                <span className={`badge badge-${selectedLog.status === 'critical' ? 'danger' : selectedLog.status === 'temuan' ? 'warning' : 'success'}`}>
+                  {selectedLog.status === 'critical' ? 'Critical' : selectedLog.status === 'temuan' ? 'Temuan' : 'Normal'}
+                </span>
+              </div>
+              <div className="modal-keterangan">
+                <span className="modal-label-sm">Keterangan Laporan:</span>
+                <p className="modal-keterangan-text">"{selectedLog.keterangan || '-'}"</p>
               </div>
             </div>
 
             {selectedLog.foto && (
               <div>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', display: 'block', marginBottom: '0.35rem' }}>Bukti Foto Temuan:</span>
-                <img src={selectedLog.foto} alt="Bukti temuan" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-glass)' }} />
+                <span className="modal-label-sm">Bukti Foto Temuan:</span>
+                <img src={selectedLog.foto} alt="Bukti temuan" className="modal-foto" />
               </div>
             )}
 
-            {/* Anti-Fraud Audit Trail */}
-            <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(59,130,246,0.03)', fontSize: '0.75rem' }}>
-              <h5 style={{ fontWeight: 700, marginBottom: '0.4rem', color: 'var(--color-primary)' }}>Audit Anti-Kecurangan</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <div>GPS Validation: <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>RADIUS OK ({selectedLog.antiFraud.radius} meter)</span></div>
-                <div>Token Lokasi: <span style={{ fontFamily: 'monospace' }}>{selectedLog.antiFraud.dynamicToken}</span></div>
-                <div>Spesifikasi HP: <span>{selectedLog.antiFraud.device}</span></div>
-                <div>IP & Jaringan: <span>{selectedLog.antiFraud.ip}</span></div>
+            <div className="modal-audit">
+              <h5 className="modal-audit-title">Audit Anti-Kecurangan</h5>
+              <div className="modal-audit-body">
+                <div>GPS Validation: <span className="audit-ok">{selectedLog.antiFraud?.radius ? `RADIUS OK (${selectedLog.antiFraud.radius} meter)` : 'Tidak tersedia'}</span></div>
+                <div>Token Lokasi: <span className="audit-mono">{selectedLog.antiFraud?.dynamicToken || '-'}</span></div>
+                <div>Spesifikasi HP: <span>{selectedLog.antiFraud?.device || '-'}</span></div>
+                <div>IP & Jaringan: <span>{selectedLog.antiFraud?.ip || '-'}</span></div>
               </div>
             </div>
 

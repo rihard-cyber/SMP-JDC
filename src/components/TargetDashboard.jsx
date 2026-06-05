@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
 import { 
   Target, 
-  TrendingUp, 
   Award, 
   Clock, 
-  CheckCircle2, 
-  AlertTriangle,
+  Zap,
   Building,
   User,
-  Zap,
   Activity
 } from 'lucide-react';
 
-export default function TargetDashboard({ reports, findings, areas }) {
-  const [perspective, setPerspective] = useState('tenant'); // 'tenant' | 'guard'
+export default function TargetDashboard({ reports, findings, areas, currentUser, isClient }) {
+  const [perspective, setPerspective] = useState('tenant');
   const [selectedGuard, setSelectedGuard] = useState('Ahmad Rafli');
 
   // Statistics calculation for compliance
@@ -57,22 +54,24 @@ export default function TargetDashboard({ reports, findings, areas }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* PERSPECTIVE SWITCHER */}
-      <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-        <div className="perspective-container">
-          <button
-            onClick={() => setPerspective('tenant')}
-            className={`perspective-btn ${perspective === 'tenant' ? 'active' : ''}`}
-          >
-            <Building size={16} /> Admin Tenant (SLA)
-          </button>
-          <button
-            onClick={() => setPerspective('guard')}
-            className={`perspective-btn ${perspective === 'guard' ? 'active' : ''}`}
-          >
-            <User size={16} /> Anggota Patroli (Personal)
-          </button>
+      {!isClient && (
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <div className="perspective-container">
+            <button
+              onClick={() => setPerspective('tenant')}
+              className={`perspective-btn ${perspective === 'tenant' ? 'active' : ''}`}
+            >
+              <Building size={16} /> Admin Tenant (SLA)
+            </button>
+            <button
+              onClick={() => setPerspective('guard')}
+              className={`perspective-btn ${perspective === 'guard' ? 'active' : ''}`}
+            >
+              <User size={16} /> Anggota Patroli (Personal)
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 1. PERSPEKTIF ADMIN TENANT (SLA TARGETS) */}
       {perspective === 'tenant' && (
@@ -93,7 +92,7 @@ export default function TargetDashboard({ reports, findings, areas }) {
                 <div style={{ width: `${complianceRate}%`, height: '100%', background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)', borderRadius: '4px' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                {uniqueVisitedToday} dari {totalAreas} titik checkpoint JDC telah dipatroli hari ini.
+                {uniqueVisitedToday} dari {totalAreas} titik checkpoint SMPJDC telah dipatroli hari ini.
               </p>
             </div>
 
@@ -126,7 +125,7 @@ export default function TargetDashboard({ reports, findings, areas }) {
                 <div style={{ width: '96%', height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)', borderRadius: '4px' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Penyelesaian kendala JDC memenuhi batas kesepakatan SLA.
+                Penyelesaian kendala SMPJDC memenuhi batas kesepakatan SLA.
               </p>
             </div>
 
@@ -135,23 +134,28 @@ export default function TargetDashboard({ reports, findings, areas }) {
           {/* JDC Compliance Details list */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Activity size={18} className="text-primary" /> Target & Pencapaian Per Lantai JDC
+              <Activity size={18} className="text-primary" /> Target & Pencapaian Per Lantai SMPJDC
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {['B1', '1', '2', '3', '4', '5', '6', '7'].map(floorKey => {
+              {['Basement', '1', '2', '3', '4', '5', '6', 'Halaman Depan', 'Halaman Samping Kanan', 'Pos 00', 'R. Teknik', 'Halaman Belakang', 'Halaman Samping Kiri'].map(floorKey => {
                 const floorAreas = areas.filter(a => a.lantai === floorKey);
                 if (floorAreas.length === 0) return null;
 
                 const floorConfig = {
-                  'B1': { name: 'Basement B1 (Area Parkir & Logistik)', target: '3 kali scan per shift' },
-                  '1': { name: 'Lantai 1 Lobby & Fasilitas Publik', target: '6 kali scan per shift' },
-                  '2': { name: 'Lantai 2 Koridor & Tenant', target: '4 kali scan per shift' },
-                  '3': { name: 'Lantai 3 Koridor & Tenant', target: '4 kali scan per shift' },
-                  '4': { name: 'Lantai 4 Koridor & Tenant', target: '4 kali scan per shift' },
-                  '5': { name: 'Lantai 5 Koridor & Tenant', target: '4 kali scan per shift' },
-                  '6': { name: 'Lantai 6 Koridor & Tenant', target: '4 kali scan per shift' },
-                  '7': { name: 'Lantai 7 Server & Office Suite', target: '4 kali scan per shift' }
+                  'Basement': { name: 'Basement', target: '2 kali scan per shift' },
+                  '1': { name: 'Lantai 1', target: '2 kali scan per shift' },
+                  '2': { name: 'Lantai 2', target: '2 kali scan per shift' },
+                  '3': { name: 'Lantai 3', target: '2 kali scan per shift' },
+                  '4': { name: 'Lantai 4', target: '2 kali scan per shift' },
+                  '5': { name: 'Lantai 5', target: '2 kali scan per shift' },
+                  '6': { name: 'Lantai 6', target: '2 kali scan per shift' },
+                  'Halaman Depan': { name: 'Halaman Depan', target: '5 kali scan per shift' },
+                  'Halaman Samping Kanan': { name: 'Halaman Samping Kanan', target: '1 kali scan per shift' },
+                  'Pos 00': { name: 'Pos 00', target: '1 kali scan per shift' },
+                  'R. Teknik': { name: 'R. Teknik', target: '1 kali scan per shift' },
+                  'Halaman Belakang': { name: 'Halaman Belakang', target: '3 kali scan per shift' },
+                  'Halaman Samping Kiri': { name: 'Halaman Samping Kiri', target: '1 kali scan per shift' }
                 };
 
                 const config = floorConfig[floorKey] || { name: `Lantai ${floorKey}`, target: '4 kali scan per shift' };
@@ -209,7 +213,7 @@ export default function TargetDashboard({ reports, findings, areas }) {
       )}
 
       {/* 2. PERSPEKTIF ANGGOTA PATROLI (PERSONAL TARGETS) */}
-      {perspective === 'guard' && (
+      {perspective === 'guard' && !isClient && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Guard Selector */}

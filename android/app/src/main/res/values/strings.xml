@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">JDC Sapujagat Patrol</string>
-    <string name="title_activity_main">JDC Sapujagat Patrol</string>
+    <string name="app_name">SMPJDC</string>
+    <string name="title_activity_main">SISTEM MANAGEMENT KEAMANAN JDC</string>
     <string name="package_name">com.jdc.sapujagat.patrol</string>
     <string name="custom_url_scheme">com.jdc.sapujagat.patrol</string>
 </resources>

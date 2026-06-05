@@ -3,19 +3,18 @@ import {
   Users, 
   MapPin, 
   Clock, 
-  ShieldAlert, 
   CheckCircle, 
   BarChart3, 
-  Eye, 
   AlertOctagon,
+  AlertTriangle,
   Sparkles,
   Zap,
-  AlertTriangle
+  Activity
 } from 'lucide-react';
 
 export default function ManagementDashboard({ reports, findings, areas, users, onUpdateStatus }) {
   const [graphFilter, setGraphFilter] = useState('hari'); // 'hari' | 'minggu' | 'bulan' | 'tahun'
-  const [selectedFloor, setSelectedFloor] = useState('7'); // B1, 1-7, Outdoor
+  const [selectedFloor, setSelectedFloor] = useState('Basement'); // Basement, 1-6, Halaman Depan, dll
   
   // 1. Calculations for Statistics
   const today = new Date().toISOString().split('T')[0];
@@ -74,9 +73,14 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
   // 3. AI Summary Generator
   const generateAISummary = () => {
     const unresolved = findings.filter(f => f.status !== 'Closed').length;
-    const critical = findings.filter(f => (f.kategori === 'CCTV Bermasalah' || f.kategori === 'Orang Mencurigakan') && f.status !== 'Closed').length;
+    const critical = findings.filter(f => (f.kategori === 'Gangguan Operasional' || f.severity === 'Tinggi') && f.status !== 'Closed').length;
+    const kategoriCount = {};
+    findings.filter(f => f.status !== 'Closed').forEach(f => {
+      kategoriCount[f.kategori || 'Lainnya'] = (kategoriCount[f.kategori || 'Lainnya'] || 0) + 1;
+    });
+    const kategoriSummary = Object.entries(kategoriCount).map(([k, v]) => `${k}: ${v}`).join('; ');
     
-    return `Morning Summary (JDC): Hari ini total patroli tercatat ${totalPatrolsToday} kali. Terdapat ${unresolved} temuan aktif, including ${critical} kendala keamanan kritikal (CCTV/Insiden). Seluruh checkpoint Lantai 7 telah dipatroli, namun Basement B1 menyisakan ${unvisitedAreas.filter(a => a.lantai === 'B1').length} zona belum diperiksa. Direkomendasikan patroli tambahan di area Parkir Motor.`;
+    return `Ringkasan SMPJDC: Hari ini total patroli tercatat ${totalPatrolsToday} kali. Terdapat ${unresolved} temuan aktif (${kategoriSummary}). ${critical} di antaranya berkategori kritis. Basement menyisakan ${unvisitedAreas.filter(a => a.lantai === 'Basement').length} zona belum diperiksa. Direkomendasikan patroli tambahan di area Parkir Motor.`;
   };
 
   // 4. Heatmap helper: status of an area
@@ -91,59 +95,79 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* 1. TOP STATS CARDS */}
-      <div className="grid-cols-5">
-        
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)' }}>
-            <Users size={24} />
+      {/* 1. KPI PATROLI */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <Activity size={16} /> KPI PATROLI HARI INI
+        </div>
+        <div className="grid-cols-4">
+          <div className="kpi-card">
+            <p className="kpi-label">Total Scan</p>
+            <h3 className="kpi-value">{totalPatrolsToday}</h3>
           </div>
-          <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL PATROLI HARI INI</p>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>{totalPatrolsToday} <span style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 500 }}>+12%</span></h3>
+          <div className="kpi-card">
+            <p className="kpi-label">Sudah Dipatroli</p>
+            <h3 className="kpi-value" style={{ color: 'var(--color-success)' }}>{patrolledAreasToday.size}</h3>
+          </div>
+          <div className="kpi-card">
+            <p className="kpi-label">Belum Dipatroli</p>
+            <h3 className="kpi-value" style={{ color: 'var(--color-danger)' }}>{areas.length - patrolledAreasToday.size}</h3>
+          </div>
+          <div className="kpi-card">
+            <p className="kpi-label">% Kepatuhan</p>
+            <h3 className="kpi-value" style={{ color: 'var(--color-primary)' }}>{areas.length > 0 ? Math.round((patrolledAreasToday.size / areas.length) * 100) : 0}%</h3>
           </div>
         </div>
+      </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--color-warning)' }}>
-            <ShieldAlert size={24} />
+      {/* 2. KPI TEMUAN */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <AlertTriangle size={16} /> KPI TEMUAN (By Severity)
+        </div>
+        <div className="grid-cols-4">
+          <div className="kpi-card" style={{ borderLeft: '3px solid #dc2626' }}>
+            <p className="kpi-label">Critical</p>
+            <h3 className="kpi-value" style={{ color: '#dc2626' }}>{findings.filter(f => f.severity === 'Kritis').length}</h3>
           </div>
-          <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL TEMUAN</p>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>{totalFindingsToday}</h3>
+          <div className="kpi-card" style={{ borderLeft: '3px solid #ef4444' }}>
+            <p className="kpi-label">High</p>
+            <h3 className="kpi-value" style={{ color: '#ef4444' }}>{findings.filter(f => f.severity === 'Tinggi').length}</h3>
+          </div>
+          <div className="kpi-card" style={{ borderLeft: '3px solid #f59e0b' }}>
+            <p className="kpi-label">Medium</p>
+            <h3 className="kpi-value" style={{ color: '#f59e0b' }}>{findings.filter(f => f.severity === 'Sedang').length}</h3>
+          </div>
+          <div className="kpi-card" style={{ borderLeft: '3px solid #3b82f6' }}>
+            <p className="kpi-label">Low</p>
+            <h3 className="kpi-value" style={{ color: '#3b82f6' }}>{findings.filter(f => f.severity === 'Rendah').length}</h3>
           </div>
         </div>
+      </div>
 
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)' }}>
-            <AlertOctagon size={24} />
+      {/* 3. KPI PERSONIL */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <Users size={16} /> KPI PERSONIL HARI INI
+        </div>
+        <div className="grid-cols-4">
+          <div className="kpi-card">
+            <p className="kpi-label">Hadir</p>
+            <h3 className="kpi-value" style={{ color: 'var(--color-success)' }}>{users.length - 2}</h3>
           </div>
-          <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL INSIDEN</p>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>{totalIncidents}</h3>
+          <div className="kpi-card">
+            <p className="kpi-label">Alpha</p>
+            <h3 className="kpi-value" style={{ color: '#ef4444' }}>0</h3>
+          </div>
+          <div className="kpi-card">
+            <p className="kpi-label">Sakit</p>
+            <h3 className="kpi-value" style={{ color: '#f59e0b' }}>1</h3>
+          </div>
+          <div className="kpi-card">
+            <p className="kpi-label">Izin</p>
+            <h3 className="kpi-value" style={{ color: '#3b82f6' }}>1</h3>
           </div>
         </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)' }}>
-            <CheckCircle size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>AREA AMAN</p>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>{safeAreasCount}</h3>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--color-danger)' }}>
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>AREA BERMASALAH</p>
-            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--color-danger)' }}>{problematicAreasCount}</h3>
-          </div>
-        </div>
-
       </div>
 
       {/* 2. REAL-TIME MONITORING & HEATMAP PATROLI */}
@@ -189,7 +213,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
                   </div>
                 </div>
                 <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 500 }}>
-                  Scan: <span style={{ color: 'var(--color-primary)' }}>{report.titik}</span> ({report.lantai !== 'Outdoor' ? `Lantai ${report.lantai}` : 'Area Luar'})
+                  Scan: <span style={{ color: 'var(--color-primary)' }}>{report.titik}</span> ({['1', '2', '3', '4', '5', '6'].includes(report.lantai) ? `Lantai ${report.lantai}` : report.lantai})
                 </p>
                 <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginTop: '0.2rem' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -220,7 +244,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
             
             {/* Floor switcher tabs */}
             <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px', overflowX: 'auto', maxWidth: '100%', gap: '2px', whiteSpace: 'nowrap' }}>
-              {['B1', '1', '2', '3', '4', '5', '6', '7', 'Outdoor'].map(floor => (
+              {['Basement', '1', '2', '3', '4', '5', '6', 'Halaman Depan', 'Halaman Samping Kanan', 'Pos 00', 'R. Teknik', 'Halaman Belakang', 'Halaman Samping Kiri'].map(floor => (
                 <button
                   key={floor}
                   onClick={() => setSelectedFloor(floor)}
@@ -237,7 +261,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
                     flexShrink: 0
                   }}
                 >
-                  {floor === 'Outdoor' ? 'Luar' : `Lt. ${floor}`}
+                  {['1', '2', '3', '4', '5', '6'].includes(floor) ? `Lt. ${floor}` : floor}
                 </button>
               ))}
             </div>
@@ -314,7 +338,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
               </div>
 
               <div className="glass-panel" style={{ padding: '0.75rem', fontSize: '0.8rem', background: 'transparent' }}>
-                <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Informasi Lantai {selectedFloor === 'Outdoor' ? 'Luar' : selectedFloor}</p>
+                <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Informasi Lantai {['1', '2', '3', '4', '5', '6'].includes(selectedFloor) ? `Lt. ${selectedFloor}` : selectedFloor}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '0.2rem 0' }}>
                   <span>Total Titik:</span>
                   <span style={{ fontWeight: 700 }}>{areas.filter(a => a.lantai === selectedFloor).length}</span>
@@ -527,7 +551,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, o
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Sparkles size={20} style={{ color: '#60a5fa' }} />
-            <h4 style={{ fontSize: '1.05rem', fontWeight: 800 }}>AI Security Summary - Sapujagat</h4>
+            <h4 style={{ fontSize: '1.05rem', fontWeight: 800 }}>AI Security Summary - SMPJDC</h4>
           </div>
           <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
             <Zap size={10} /> Auto-Generated
