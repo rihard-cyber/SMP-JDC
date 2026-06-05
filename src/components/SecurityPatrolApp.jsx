@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Clock, Check, AlertTriangle, QrCode, Shield, Wifi, WifiOff, Database, RefreshCw, ThumbsUp } from 'lucide-react';
+import { Camera, Clock, Check, AlertTriangle, QrCode, Shield, Wifi, WifiOff, Database, RefreshCw, ThumbsUp, MapPin } from 'lucide-react';
 import KATEGORI_TEMUAN, { STATUS_PATROLI as SEVERITY_LEVELS } from '../data/kategoriTemuan';
 
 export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onTriggerSOS }) {
@@ -19,6 +19,8 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
   const [deskripsi, setDeskripsi] = useState('');
   const [foto, setFoto] = useState(null);
   const [timeScan, setTimeScan] = useState(null);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [scanResult, setScanResult] = useState(null);
 
   useEffect(() => { localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue)); }, [queue]);
   useEffect(() => { if (online && queue.length > 0) { queue.forEach(r => onAddReport(r)); setQueue([]); } }, [online]);
@@ -72,7 +74,29 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
     setStep(4);
   };
 
-  const resetScan = () => { setArea(null); setStep(2); };
+  const handleBarcodeScan = () => {
+    const val = barcodeInput.trim();
+    if (!val) return;
+    const found = areas.find(a =>
+      a.qrCode.toLowerCase() === val.toLowerCase() ||
+      a.id.toLowerCase() === val.toLowerCase()
+    );
+    if (found) {
+      setScanResult(found);
+      setBarcodeInput('');
+    } else {
+      alert(`QR Code "${val}" tidak ditemukan. Pastikan kode yang dimasukkan benar.`);
+    }
+  };
+
+  const confirmScanResult = () => {
+    if (scanResult) {
+      handleScan(scanResult.id);
+      setScanResult(null);
+    }
+  };
+
+  const resetScan = () => { setArea(null); setScanResult(null); setBarcodeInput(''); setStep(2); };
 
   const labelSeverity = (v) => ({ low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' })[v] || v;
   const colorSeverity = (v) => ({ low: '#3b82f6', medium: '#f59e0b', high: '#ef4444', critical: '#dc2626' })[v] || '#3b82f6';
@@ -109,34 +133,81 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
             <div className="step-field">
               <label>SHIFT PATROLI</label>
               <select value={shift} onChange={e => setShift(e.target.value)} className="modern-select">
-                <option value="Pagi">Pagi (06:00-14:00)</option>
-                <option value="Siang">Siang (14:00-22:00)</option>
-                <option value="Malam">Malam (22:00-06:00)</option>
+                <option value="Pagi">Pagi (07:00-15:00)</option>
+                <option value="Siang">Siang (15:00-23:00)</option>
+                <option value="Malam">Malam (23:00-07:00)</option>
               </select>
             </div>
             <button onClick={() => setStep(2)} className="btn-primary btn-full">Mulai Tugas</button>
           </div>
         )}
 
-        {step === 2 && (
+        {step === 2 && !scanResult && (
           <div className="step-scan">
             <div className="scan-qr-area">
               <div className="scan-qr-icon"><QrCode size={48} /></div>
               <h3>Scan Barcode Checkpoint</h3>
-              <p>Arahkan kamera ke QR Code yang terpasang.</p>
+              <p>Arahkan kamera ke QR Code atau masukkan kode checkpoint.</p>
               <div className="step-field">
-                <label>PILIH LOKASI SCAN:</label>
-                <select onChange={e => handleScan(e.target.value)} className="modern-select" defaultValue="">
-                  <option value="" disabled>-- Pilih Area --</option>
-                  {['Basement B1','Lobby','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].map(fl => {
-                    const fa = areas.filter(a => a.lantai === fl);
-                    if (!fa.length) return null;
-                    return <optgroup key={fl} label={['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(fl)?`Lantai ${fl}`:fl}>
-                      {fa.map(a => <option key={a.id} value={a.id}>{a.titik}</option>)}
-                    </optgroup>;
-                  })}
-                </select>
+                <label>MASUKKAN KODE QR / BARCODE</label>
+                <div className="scan-input-group">
+                  <input type="text" value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleBarcodeScan()} placeholder="Cth: JDC-BSMT-B-1" className="modern-input" style={{ flex: 1 }} />
+                  <button onClick={handleBarcodeScan} className="btn-primary" style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}><QrCode size={16} /> Scan</button>
+                </div>
               </div>
+              <div className="step-hint">
+                <MapPin size={14} style={{ opacity: 0.5 }} />
+                <span>Atau pilih dari daftar checkpoint di bawah:</span>
+              </div>
+              <div className="scan-area-compact-list">
+                {[...areas].sort((a, b) => {
+                  const na = parseInt(a.nomorTitik, 10);
+                  const nb = parseInt(b.nomorTitik, 10);
+                  if (isNaN(na) && isNaN(nb)) return a.nomorTitik?.localeCompare(b.nomorTitik || '');
+                  if (isNaN(na)) return 1;
+                  if (isNaN(nb)) return -1;
+                  return na - nb;
+                }).map(a => (
+                  <button key={a.id} onClick={() => { setScanResult(a); }} className="scan-compact-item">
+                    <span className="scan-item-qr">{a.qrCode}</span>
+                    <span className="scan-item-name">{a.titik}</span>
+                    <span className="scan-item-floor">{['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && scanResult && (
+          <div className="step-scan-result">
+            <div className="scan-qr-area">
+              <div className="scan-success-icon"><Check size={40} /></div>
+              <h3>Checkpoint Ditemukan!</h3>
+              <div className="glass-panel scan-location-detail">
+                <div className="scan-detail-row">
+                  <span className="scan-detail-label">Kode QR</span>
+                  <span className="scan-detail-value mono">{scanResult.qrCode}</span>
+                </div>
+                <div className="scan-detail-row">
+                  <span className="scan-detail-label">Gedung</span>
+                  <span className="scan-detail-value">{scanResult.gedung}</span>
+                </div>
+                <div className="scan-detail-row">
+                  <span className="scan-detail-label">Lantai</span>
+                  <span className="scan-detail-value">{['1','2','3','4','5','6'].includes(scanResult.lantai) ? `Lantai ${scanResult.lantai}` : scanResult.lantai}</span>
+                </div>
+                <div className="scan-detail-row">
+                  <span className="scan-detail-label">Zona</span>
+                  <span className="scan-detail-value">Zona {scanResult.zona}</span>
+                </div>
+                <div className="scan-detail-row">
+                  <span className="scan-detail-label">Titik</span>
+                  <span className="scan-detail-value fw-700">{scanResult.titik}</span>
+                </div>
+              </div>
+              <button onClick={confirmScanResult} className="btn-primary btn-full">Lanjutkan Patroli</button>
+              <button onClick={() => setScanResult(null)} className="btn-secondary btn-full" style={{ marginTop: '0.3rem' }}>Kembali</button>
             </div>
           </div>
         )}
