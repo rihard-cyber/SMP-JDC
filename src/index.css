@@ -112,9 +112,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .glass-panel:hover {
   box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px var(--color-primary-glow);
+  transform: translateY(-2px);
 }
 .glass-panel:hover::before {
   animation-duration: 1.5s;
+}
+.glass-panel:active {
+  transform: translateY(0px) scale(0.98);
 }
 
 /* Typography styles */
@@ -182,7 +186,6 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   align-items: flex-start;
   padding: 1rem 0;
-  perspective: 1000px;
   overflow-x: hidden;
   width: 100%;
 }
@@ -198,7 +201,6 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transform: rotateY(2deg);
   transition: var(--transition-smooth);
   flex-shrink: 0;
 }
@@ -698,7 +700,6 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: flex-start;
   }
   .mobile-phone-frame {
-    transform: none;
     width: 320px;
     height: 680px;
     border-radius: 28px;
@@ -2460,6 +2461,119 @@ h1, h2, h3, h4, h5, h6 {
 .kpi-label { font-size: 0.65rem; color: var(--text-secondary); font-weight: 600; margin-bottom: 0.2rem; }
 .kpi-value { font-size: 1.5rem; font-weight: 800; }
 
+/* Finding Ticket Card Mobile */
+.finding-ticket {
+  border: 1px solid var(--border-glass);
+  border-radius: 10px;
+  transition: all 0.2s;
+  background: var(--bg-glass);
+  width: 100%;
+  min-width: 0;
+}
+.finding-ticket-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  align-items: center;
+  cursor: pointer;
+}
+.finding-ticket-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.finding-ticket-id {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  white-space: nowrap;
+}
+.finding-ticket-category {
+  font-weight: 600;
+  font-size: 0.82rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.finding-ticket-meta {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.finding-ticket-meta > * {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .finding-ticket-header {
+    grid-template-columns: 1fr auto;
+    gap: 0.35rem;
+    padding: 0.65rem 0.75rem;
+  }
+  .finding-ticket-category {
+    grid-column: 1 / -1;
+    font-size: 0.78rem;
+  }
+  .finding-ticket-meta {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .finding-ticket-meta > * {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+}
+
+/* Complaint stats grid responsive */
+.complaint-stats-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+@media (max-width: 480px) {
+  .complaint-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Complaint category grid responsive */
+.complaint-cat-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+@media (max-width: 360px) {
+  .complaint-cat-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Responsive filter tabs scroll */
+.filter-tabs-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-tabs-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ensure finding section glass-panel doesn't overflow on mobile */
+@media (max-width: 768px) {
+  .finding-section-panel {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .finding-section-panel {
+    padding: 0.75rem !important;
+  }
+}
+
 /* ============================
    RESPONSIVE FIXES — Rapi & Anti-Mencong
    ============================ */
@@ -2570,11 +2684,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Dashboard: prevent tables from overflowing */
-table {
+.table-data {
   min-width: 600px;
 }
 @media (max-width: 768px) {
-  table {
+  .table-data {
     min-width: 500px;
   }
   .main-content > div > div:last-child {
@@ -3009,6 +3123,10 @@ table {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+}
+
+[data-ripple], button, a, label, select, input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
 }
 
 /* Nav tab buttons */

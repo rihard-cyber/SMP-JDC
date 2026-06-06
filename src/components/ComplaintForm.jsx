@@ -354,7 +354,7 @@ export default function ComplaintForm({ onAddComplaint }) {
           {/* Category */}
           <div className="step-field">
             <label>KATEGORI KOMPLAIN <span style={{ color: 'var(--color-danger)' }}>*</span></label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
+            <div className="complaint-cat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
               {CATEGORIES.map(c => (
                 <button key={c.id} type="button" onClick={() => { setCategory(c.id); setErrors(p => ({ ...p, category: '' })); }} style={{
                   padding: '0.5rem 0.4rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,

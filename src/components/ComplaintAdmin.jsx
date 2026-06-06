@@ -50,7 +50,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
   return (
     <div>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+      <div className="complaint-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
         {[
           { label: 'Total', value: stats.all, color: '#3b82f6' },
           { label: 'Baru', value: stats.Baru, color: '#3b82f6' },
@@ -93,20 +93,22 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
 
       {/* Filter */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+        <div style={{ position: 'relative', flex: '1 1 140px', minWidth: 120 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari tiket/nama/tenant..." className="modern-input" style={{ paddingLeft: '2rem', fontSize: '0.78rem' }} />
         </div>
-        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-          {['all', 'Baru', 'Diterima', 'Diproses', 'Selesai'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
-              border: `1.5px solid ${filter === f ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-              background: filter === f ? 'rgba(59,130,246,0.12)' : 'transparent',
-              color: filter === f ? 'var(--color-primary)' : 'var(--text-secondary)',
-              cursor: 'pointer', fontFamily: 'var(--font-sans)'
-            }}>{f === 'all' ? 'Semua' : f}</button>
-          ))}
+        <div className="filter-tabs-wrap">
+          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+            {['all', 'Baru', 'Diterima', 'Diproses', 'Selesai'].map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
+                border: `1.5px solid ${filter === f ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                background: filter === f ? 'rgba(59,130,246,0.12)' : 'transparent',
+                color: filter === f ? 'var(--color-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer', fontFamily: 'var(--font-sans)'
+              }}>{f === 'all' ? 'Semua' : f}</button>
+            ))}
+          </div>
         </div>
       </div>
 

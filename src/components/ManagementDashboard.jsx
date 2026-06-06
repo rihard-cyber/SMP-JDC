@@ -261,18 +261,20 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
       </div>
 
       {/* ── 5. TABEL TEMUAN + KIRIM WA PER TEMUAN ────────────────────────── */}
-      <div className="glass-panel" style={{ padding:'1.5rem' }}>
+      <div className="glass-panel finding-section-panel" style={{ padding:'1.5rem' }}>
         {/* Header + Filter Tabs */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'1rem', marginBottom:'1.25rem' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.75rem', marginBottom:'1.25rem' }}>
           <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
             <ClipboardList size={18} className="text-primary"/> Daftar Tiket Temuan & Disposisi WA
           </h3>
-          <div style={{ display:'flex', gap:'0.25rem', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'10px' }}>
-            {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
-              <button key={tab} style={tabStyle(tab)} onClick={() => setActiveTab(tab)}>
-                {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}
-              </button>
-            ))}
+          <div className="filter-tabs-wrap">
+            <div style={{ display:'flex', gap:'0.25rem', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'10px' }}>
+              {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
+                <button key={tab} style={tabStyle(tab)} onClick={() => setActiveTab(tab)}>
+                  {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -295,63 +297,56 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
               return (
                 <div
                   key={finding.id}
+                  className="finding-ticket"
                   style={{
-                    border: `1px solid ${waAlreadySent ? 'rgba(16,185,129,0.2)' : 'var(--border-glass)'}`,
+                    borderColor: waAlreadySent ? 'rgba(16,185,129,0.2)' : undefined,
                     borderLeft: `4px solid ${contact.color}`,
-                    borderRadius:'10px',
-                    background: waAlreadySent ? 'rgba(16,185,129,0.03)' : 'transparent',
-                    overflow:'hidden',
-                    transition:'all 0.2s'
+                    background: waAlreadySent ? 'rgba(16,185,129,0.03)' : undefined
                   }}
                 >
                   {/* Row Header */}
                   <div
-                    style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.85rem 1rem', cursor:'pointer', flexWrap:'wrap' }}
+                    className="finding-ticket-header"
                     onClick={() => setExpandedFinding(isExpanded ? null : finding.id)}
                   >
                     {/* Dept Badge */}
-                    <span style={{ fontSize:'0.72rem', fontWeight:700, color: contact.color, background:`${contact.color}18`, padding:'0.2rem 0.5rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
+                    <span className="finding-ticket-badge" style={{ color: contact.color, background:`${contact.color}18` }}>
                       {contact.emoji} {dept}
                     </span>
 
                     {/* ID */}
-                    <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', fontFamily:'monospace', whiteSpace:'nowrap' }}>
+                    <span className="finding-ticket-id">
                       #{finding.id?.slice(-6)}
                     </span>
 
                     {/* Kategori */}
-                    <span style={{ fontWeight:600, fontSize:'0.85rem', flex:1, minWidth:'120px' }}>
+                    <span className="finding-ticket-category">
                       {finding.kategori}
                     </span>
 
-                    {/* Area */}
-                    <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:'0.25rem', flex:2, minWidth:'120px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      <MapPin size={11}/> {finding.area}
-                    </span>
-
-                    {/* Severity */}
-                    <span style={{ fontSize:'0.7rem', fontWeight:700, color: sevColor, background:`${sevColor}18`, padding:'0.2rem 0.5rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
-                      {finding.severity || 'Rendah'}
-                    </span>
-
-                    {/* Status */}
-                    <span style={{ fontSize:'0.7rem', fontWeight:700, color: statusCfg.color, background: statusCfg.bg, padding:'0.2rem 0.6rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
-                      {statusCfg.label}
-                    </span>
-
-                    {/* WA Status */}
-                    {waAlreadySent ? (
-                      <span style={{ fontSize:'0.7rem', color:'#10b981', display:'flex', alignItems:'center', gap:'0.2rem', whiteSpace:'nowrap' }}>
-                        <CheckCircle2 size={12}/> Terkirim
+                    {/* Meta badges */}
+                    <div className="finding-ticket-meta">
+                      {/* Severity */}
+                      <span style={{ fontSize:'0.7rem', fontWeight:700, color: sevColor, background:`${sevColor}18`, padding:'0.2rem 0.5rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
+                        {finding.severity || 'Rendah'}
                       </span>
-                    ) : (
-                      <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', whiteSpace:'nowrap' }}>Belum dikirim</span>
-                    )}
-
-                    {/* Expand icon */}
-                    <span style={{ color:'var(--text-muted)', marginLeft:'auto' }}>
-                      {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                    </span>
+                      {/* Status */}
+                      <span style={{ fontSize:'0.7rem', fontWeight:700, color: statusCfg.color, background: statusCfg.bg, padding:'0.2rem 0.6rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
+                        {statusCfg.label}
+                      </span>
+                      {/* WA Status */}
+                      {waAlreadySent ? (
+                        <span style={{ fontSize:'0.7rem', color:'#10b981', display:'flex', alignItems:'center', gap:'0.2rem', whiteSpace:'nowrap' }}>
+                          <CheckCircle2 size={12}/> Terkirim
+                        </span>
+                      ) : (
+                        <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', whiteSpace:'nowrap' }}>Belum dikirim</span>
+                      )}
+                      {/* Expand icon */}
+                      <span style={{ color:'var(--text-muted)', display:'flex', alignItems:'center' }}>
+                        {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Expanded Row */}
@@ -359,12 +354,12 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                     <div style={{ borderTop:'1px solid var(--border-glass)', padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
                       
                       {/* Detail */}
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'1.5rem' }}>
-                        <div style={{ flex:2, minWidth:'200px' }}>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'1rem' }}>
+                        <div style={{ flex:2, minWidth:'160px' }}>
                           <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginBottom:'0.25rem' }}>DETAIL KEJADIAN</p>
-                          <p style={{ fontSize:'0.88rem', lineHeight:1.6 }}>"{finding.detail}"</p>
+                          <p style={{ fontSize:'0.88rem', lineHeight:1.6, wordBreak:'break-word' }}>"{finding.detail}"</p>
                         </div>
-                        <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem', fontSize:'0.78rem', color:'var(--text-secondary)', minWidth:'160px' }}>
+                        <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem', fontSize:'0.78rem', color:'var(--text-secondary)', minWidth:'120px' }}>
                           <div><strong>Pelapor:</strong> {finding.pelapor}</div>
                           <div><strong>Tanggal:</strong> {new Date(finding.tanggal).toLocaleString('id-ID')}</div>
                           <div><strong>Dept:</strong> {contact.emoji} {dept}</div>

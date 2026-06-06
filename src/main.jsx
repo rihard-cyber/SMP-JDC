@@ -2,6 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import './utils/ripple.js'
+import { initRipple } from './utils/ripple.js'
+initRipple()
 
 class ErrorBoundary extends React.Component {
   constructor(props) {

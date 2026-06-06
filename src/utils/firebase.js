@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from 'firebase/analytics';
 import {
   getFirestore,
   collection,
@@ -14,6 +15,7 @@ import {
 import firebaseConfig, { isFirebaseConfigured } from './firebaseConfig';
 
 let db = null;
+let analytics = null;
 let initialized = false;
 
 export const initFirebase = () => {
@@ -28,6 +30,7 @@ export const initFirebase = () => {
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+    analytics = getAnalytics(app);
     console.log('[Firebase] Terhubung:', firebaseConfig.projectId);
   } catch (e) {
     console.warn('[Firebase] Gagal init:', e);
@@ -35,6 +38,8 @@ export const initFirebase = () => {
   }
   return db;
 };
+
+export const getAnalyticsInstance = () => analytics;
 
 // Subscribe real-time ke koleksi complaints
 export const subscribeComplaints = (callback) => {
