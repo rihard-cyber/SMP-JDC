@@ -5,6 +5,7 @@ import {
   collection,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   onSnapshot,
   query,
@@ -41,15 +42,14 @@ export const initFirebase = () => {
 
 export const getAnalyticsInstance = () => analytics;
 
-// Subscribe real-time ke koleksi complaints
-export const subscribeComplaints = (callback) => {
+// ─── Helper: buat subscription real-time ───
+const createSubscriber = (collectionName, callback, orderField = 'createdAt') => {
   const database = initFirebase();
   if (!database) {
-    callback(null); // Firebase tidak aktif
+    callback(null);
     return () => {};
   }
-
-  const q = query(collection(db, 'complaints'), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, collectionName), orderBy(orderField, 'desc'));
   return onSnapshot(q, (snapshot) => {
     const list = [];
     snapshot.forEach((doc) => {
@@ -57,51 +57,54 @@ export const subscribeComplaints = (callback) => {
     });
     callback(list);
   }, (error) => {
-    console.warn('[Firebase] Gagal baca complaints:', error);
+    console.warn(`[Firebase] Gagal baca ${collectionName}:`, error);
     callback(null);
   });
 };
 
-// Tambah komplain ke Firestore
-export const addComplaintToFirestore = async (complaint) => {
+const createAdder = (collectionName) => async (data) => {
   const database = initFirebase();
   if (!database) return null;
-
   try {
-    const docRef = await addDoc(collection(db, 'complaints'), {
-      ...complaint,
+    const docRef = await addDoc(collection(db, collectionName), {
+      ...data,
       firebaseSavedAt: serverTimestamp()
     });
-    console.log('[Firebase] Komplain tersimpan:', docRef.id);
     return docRef.id;
   } catch (e) {
-    console.warn('[Firebase] Gagal simpan:', e);
+    console.warn(`[Firebase] Gagal simpan ${collectionName}:`, e);
     return null;
   }
 };
 
-// Update komplain di Firestore
-export const updateComplaintInFirestore = async (firebaseId, updates) => {
+const createUpdater = (collectionName) => async (firebaseId, updates) => {
   const database = initFirebase();
   if (!database) return;
-
   try {
-    await updateDoc(doc(db, 'complaints', firebaseId), {
+    await updateDoc(doc(db, collectionName, firebaseId), {
       ...updates,
       updatedAt: new Date().toISOString()
     });
   } catch (e) {
-    console.warn('[Firebase] Gagal update:', e);
+    console.warn(`[Firebase] Gagal update ${collectionName}:`, e);
   }
 };
 
-// Load semua komplain dari Firestore (one-time, fallback)
-export const loadAllComplaintsFromFirestore = async () => {
+const createDeleter = (collectionName) => async (firebaseId) => {
+  const database = initFirebase();
+  if (!database) return;
+  try {
+    await deleteDoc(doc(db, collectionName, firebaseId));
+  } catch (e) {
+    console.warn(`[Firebase] Gagal hapus ${collectionName}:`, e);
+  }
+};
+
+const createLoader = (collectionName, orderField = 'createdAt') => async () => {
   const database = initFirebase();
   if (!database) return null;
-
   try {
-    const q = query(collection(db, 'complaints'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, collectionName), orderBy(orderField, 'desc'));
     const snapshot = await getDocs(q);
     const list = [];
     snapshot.forEach((doc) => {
@@ -109,7 +112,61 @@ export const loadAllComplaintsFromFirestore = async () => {
     });
     return list;
   } catch (e) {
-    console.warn('[Firebase] Gagal load all:', e);
+    console.warn(`[Firebase] Gagal load ${collectionName}:`, e);
     return null;
   }
 };
+
+// ─── Complaints ───
+export const subscribeComplaints = (callback) =>
+  createSubscriber('complaints', callback);
+
+export const addComplaintToFirestore = createAdder('complaints');
+
+export const updateComplaintInFirestore = createUpdater('complaints');
+
+export const loadAllComplaintsFromFirestore = createLoader('complaints');
+
+// ─── Patrol Reports ───
+export const subscribeReports = (callback) =>
+  createSubscriber('patrol_reports', callback, 'timestamp');
+
+export const addReportToFirestore = createAdder('patrol_reports');
+
+export const updateReportInFirestore = createUpdater('patrol_reports');
+
+export const deleteReportFromFirestore = createDeleter('patrol_reports');
+
+// ─── Findings ───
+export const subscribeFindings = (callback) =>
+  createSubscriber('findings', callback);
+
+export const addFindingToFirestore = createAdder('findings');
+
+export const updateFindingInFirestore = createUpdater('findings');
+
+// ─── Attendance Logs ───
+export const subscribeAttendanceLogs = (callback) =>
+  createSubscriber('attendance_logs', callback, 'tanggal');
+
+export const addAttendanceLogToFirestore = createAdder('attendance_logs');
+
+export const updateAttendanceLogInFirestore = createUpdater('attendance_logs');
+
+// ─── Mutasi Logs ───
+export const subscribeMutasiLogs = (callback) =>
+  createSubscriber('mutasi_logs', callback);
+
+export const addMutasiLogToFirestore = createAdder('mutasi_logs');
+
+export const updateMutasiLogInFirestore = createUpdater('mutasi_logs');
+
+export const deleteMutasiLogFromFirestore = createDeleter('mutasi_logs');
+
+// ─── Users ───
+export const subscribeUsers = (callback) =>
+  createSubscriber('users', callback, 'nrp');
+
+export const addUserToFirestore = createAdder('users');
+
+export const updateUserInFirestore = createUpdater('users');

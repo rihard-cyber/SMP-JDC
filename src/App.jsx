@@ -11,7 +11,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { hashPin, validateSession } from './utils/security';
-import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, loadAllComplaintsFromFirestore } from './utils/firebase';
+import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
+  subscribeReports, addReportToFirestore,
+  subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
+  subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
+  subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
+  addUserToFirestore, updateUserInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -543,6 +548,82 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Firebase real-time subscription untuk patrol reports
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeReports((firebaseData) => {
+      if (!firebaseData) return;
+      setReports(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try { localStorage.setItem('sapujagat_reports', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk findings
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeFindings((firebaseData) => {
+      if (!firebaseData) return;
+      setFindings(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try { localStorage.setItem('sapujagat_findings', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk attendance logs
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeAttendanceLogs((firebaseData) => {
+      if (!firebaseData) return;
+      setAttendanceLogs(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try { localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk mutasi logs
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeMutasiLogs((firebaseData) => {
+      if (!firebaseData) return;
+      setMutasiLogs(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try { localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -599,10 +680,18 @@ export default function App() {
     setReports(prev => [reportData, ...prev]);
     addToast(`Patroli sukses disubmit di ${newReport.titik} (${newReport.kondisi})`, 'success');
 
+    addReportToFirestore(reportData).then(firebaseId => {
+      if (firebaseId) {
+        setReports(prev => prev.map(r =>
+          r.id === reportId ? { ...r, firebaseId } : r
+        ));
+      }
+    });
+
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
       const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
       const dept = mapDepartment(newReport.kondisi, newReport.keterangan || '');
-      setFindings(prev => [{
+      const findingData = {
         id: findingId,
         reportId,
         kategori: newReport.kondisi,
@@ -616,31 +705,53 @@ export default function App() {
         department: dept,
         waStatus: 'Belum Dikirim',
         waSentAt: null
-      }, ...prev]);
+      };
+      setFindings(prev => [findingData, ...prev]);
+      addFindingToFirestore(findingData).then(firebaseId => {
+        if (firebaseId) {
+          setFindings(prev => prev.map(f =>
+            f.id === findingId ? { ...f, firebaseId } : f
+          ));
+        }
+      });
       addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
   };
 
   const updateFindingStatus = (findingId, newStatus) => {
+    let updatedFinding = null;
     setFindings(prev => prev.map(f => {
       if (f.id === findingId) {
         addToast(`Status temuan ${f.kategori} diubah ke ${newStatus}`, 'info');
-        return { ...f, status: newStatus };
+        updatedFinding = { ...f, status: newStatus };
+        if (updatedFinding.firebaseId) {
+          updateFindingInFirestore(updatedFinding.firebaseId, { status: newStatus });
+        }
+        return updatedFinding;
       }
       return f;
     }));
   };
 
   const dispatchFinding = (findingId, dept) => {
+    let updatedFinding = null;
     setFindings(prev => prev.map(f => {
       if (f.id === findingId) {
         addToast(`Tiket didisposisikan ke ${dept}`, 'info');
-        return { 
+        updatedFinding = { 
           ...f, 
           department: dept, 
           waStatus: `Terkirim (${dept})`,
           waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
         };
+        if (updatedFinding.firebaseId) {
+          updateFindingInFirestore(updatedFinding.firebaseId, {
+            department: dept,
+            waStatus: `Terkirim (${dept})`,
+            waSentAt: updatedFinding.waSentAt
+          });
+        }
+        return updatedFinding;
       }
       return f;
     }));
@@ -648,12 +759,24 @@ export default function App() {
 
   const handleAddMutasi = (log) => {
     const id = `mut-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    setMutasiLogs(prev => [{ id, ...log }, ...prev]);
+    const mutasiData = { id, ...log };
+    setMutasiLogs(prev => [mutasiData, ...prev]);
+    addMutasiLogToFirestore(mutasiData).then(firebaseId => {
+      if (firebaseId) {
+        setMutasiLogs(prev => prev.map(m =>
+          m.id === id ? { ...m, firebaseId } : m
+        ));
+      }
+    });
     addToast('Catatan mutasi berhasil disimpan', 'success');
   };
 
   const handleDeleteMutasi = (id) => {
+    const target = mutasiLogs.find(l => l.id === id);
     setMutasiLogs(prev => prev.filter(l => l.id !== id));
+    if (target?.firebaseId) {
+      deleteMutasiLogFromFirestore(target.firebaseId);
+    }
     addToast('Catatan mutasi dihapus', 'info');
   };
 
@@ -720,6 +843,13 @@ export default function App() {
       email: newUser.email || ''
     };
     setUsers(prev => [...prev, userData]);
+    addUserToFirestore(userData).then(firebaseId => {
+      if (firebaseId) {
+        setUsers(prev => prev.map(u =>
+          u.id === userId ? { ...u, firebaseId } : u
+        ));
+      }
+    });
     if (newUser.pin) {
       localStorage.setItem(`smpjdc_pin_${userId}`, hashPin(newUser.pin));
     }
@@ -1040,10 +1170,22 @@ export default function App() {
                     const updated = [...prev];
                     updated[existingIndex] = { id: prev[existingIndex].id, ...newAttendance };
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil diperbarui`, 'success');
+                    const fbId = prev[existingIndex].firebaseId;
+                    if (fbId) {
+                      updateAttendanceLogInFirestore(fbId, newAttendance);
+                    }
                     return updated;
                   } else {
+                    const entry = { id, ...newAttendance };
+                    addAttendanceLogToFirestore(entry).then(firebaseId => {
+                      if (firebaseId) {
+                        setAttendanceLogs(prev => prev.map(a =>
+                          a.id === id ? { ...a, firebaseId } : a
+                        ));
+                      }
+                    });
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil disimpan`, 'success');
-                    return [...prev, { id, ...newAttendance }];
+                    return [...prev, entry];
                   }
                 });
               }} 
