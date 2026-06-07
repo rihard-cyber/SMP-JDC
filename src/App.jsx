@@ -48,6 +48,7 @@ import LaporForm from './components/LaporForm';
 import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
 import ComplaintAdmin from './components/ComplaintAdmin';
+import BottomNav from './components/BottomNav';
 
 const INITIAL_USERS = [];
 const DB_VERSION_KEY = 'smpjdc_db_version';
@@ -1095,6 +1096,13 @@ export default function App() {
           </footer>
         </div>
       </main>
+
+      <BottomNav
+        currentTab={currentTab}
+        onNavClick={handleNavClick}
+        onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+        user={currentUser}
+      />
 
       {activeSOS && (
         <div className="panic-overlay">
