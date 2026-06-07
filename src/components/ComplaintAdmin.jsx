@@ -12,9 +12,20 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
   const [showQR, setShowQR] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
-  const complaintUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'complaint';
+  const [customBaseUrl, setCustomBaseUrl] = useState(() => {
+    const saved = localStorage.getItem('smpjdc_custom_complaint_url');
+    if (saved) return saved;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('::1') || origin.startsWith('file:')) {
+      return 'https://rihard-cyber.github.io/SMP-JDC/';
+    }
+    return origin + pathname;
+  });
+
+  const complaintUrl = customBaseUrl + (customBaseUrl.includes('?') ? '&' : '?') + 'complaint';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(complaintUrl)}`;
+  const isUrlLocalhost = customBaseUrl.includes('localhost') || customBaseUrl.includes('127.0.0.1') || customBaseUrl.includes('::1');
 
   const statusColor = (s) => ({
     Baru: '#3b82f6', Diterima: '#f59e0b', Diproses: '#8b5cf6', Selesai: '#10b981'
@@ -71,6 +82,21 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
         </button>
         {showQR && (
           <div className="glass-panel" style={{ marginTop: '0.75rem', padding: '1.25rem', textAlign: 'center' }}>
+            {isUrlLocalhost && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px dashed rgba(239, 68, 68, 0.4)',
+                color: '#ef4444',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.72rem',
+                marginBottom: '0.85rem',
+                textAlign: 'left',
+                lineHeight: '1.4'
+              }}>
+                <strong>⚠️ Peringatan Host Localhost:</strong> URL komplain saat ini mengarah ke <code>localhost</code> (kemungkinan karena dijalankan di Android/Simulator). Jika dicetak/discan oleh tenant menggunakan handphone mereka, halaman tidak akan bisa dibuka. Silakan sesuaikan <strong>URL Base Website Publik</strong> di bawah agar mengarah ke domain hosting online Anda (seperti Github Pages atau Vercel).
+              </div>
+            )}
             <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontWeight: 600 }}>
               SCAN QR CODE UNTUK MEMBUKA FORM KOMPLAIN
             </p>
@@ -78,7 +104,8 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', wordBreak: 'break-all', marginBottom: '0.5rem' }}>
               <code>{complaintUrl}</code>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem' }}>
               <button onClick={() => { navigator.clipboard?.writeText(complaintUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
                 className="btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <Copy size={12} /> {copied ? 'Tersalin!' : 'Salin Link'}
@@ -86,6 +113,41 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
               <a href={qrApiUrl} download="smpjdc-complaint-qr.png" className="btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}>
                 <Download size={12} /> Download QR
               </a>
+            </div>
+
+            <div style={{ padding: '0.75rem', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', textAlign: 'left' }}>
+              <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.35rem' }}>
+                URL BASE WEBSITE PUBLIK (Untuk QR Code)
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  value={customBaseUrl}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomBaseUrl(val);
+                    localStorage.setItem('smpjdc_custom_complaint_url', val);
+                  }}
+                  placeholder="https://rihard-cyber.github.io/SMP-JDC/"
+                  className="modern-input"
+                  style={{ flex: 1, fontSize: '0.75rem', padding: '0.35rem 0.5rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaultUrl = 'https://rihard-cyber.github.io/SMP-JDC/';
+                    setCustomBaseUrl(defaultUrl);
+                    localStorage.setItem('smpjdc_custom_complaint_url', defaultUrl);
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.7rem', whiteSpace: 'nowrap' }}
+                >
+                  Reset Default
+                </button>
+              </div>
+              <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                * Tautan komplain di atas akan otomatis disesuaikan dan diakhiri dengan <code>?complaint</code>
+              </p>
             </div>
           </div>
         )}
