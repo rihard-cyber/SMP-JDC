@@ -1,13 +1,14 @@
 /* =========================================================
    CORE STABILIZER - ANTI LOMPAT & ANTI MELEBAR
+   Pastikan kode ini berada di urutan paling atas CSS kamu!
    ========================================================= */
 
-/* 1. MENCEGAH LOMPAT KARENA SCROLLBAR (Scrollbar Gutter) */
+/* 1. MENCEGAH LOMPAT KARENA SCROLLBAR (Akar masalah utama) */
 html {
     /* Memaksa ruang scrollbar selalu disiapkan. 
        Jadi saat pindah halaman panjang ke pendek, web tidak geser ke kiri/kanan */
-    overflow-y: scroll !important; 
     scrollbar-gutter: stable !important; 
+    overflow-y: scroll !important; /* Fallback untuk browser lama */
 }
 
 /* 2. MENGUNCI UKURAN ELEMEN (Anti-Melebar ke samping) */
@@ -23,34 +24,17 @@ body {
     padding: 0;
     width: 100%;
     max-width: 100vw;
-    /* Mencegah halaman bisa digeser ke kiri/kanan (melebar) */
+    /* Mencegah halaman bisa digeser ke kiri/kanan (melebar) secara tidak sengaja */
     overflow-x: hidden !important; 
-    position: relative;
 }
 
 /* 4. MENCEGAH LOMPAT SAAT MENU/TOMBOL DIKLIK (Focus & Active States) */
-a, button, .nav-link, .menu-item {
+a, button, .nav-link, .menu-item, [role="button"] {
     /* Mencegah munculnya border biru/hitam bawaan browser saat diklik 
-       yang sering membuat elemen membesar 1-2px dan mendorong elemen lain */
+       yang sering membuat elemen membesar 1-2px dan mendorong layout */
     outline: none !important;
-    -webkit-tap-highlight-color: transparent; /* Hilangkan blok warna saat ditap di HP */
-}
-
-/* Tetap menjaga aksesibilitas (untuk user yang pakai tombol Tab di keyboard) */
-a:focus-visible, button:focus-visible {
-    outline: 2px solid #3b82f6 !important; /* Sesuaikan warna biru dengan tema Anda */
-    outline-offset: -2px !important; /* Outline ke dalam agar tidak menambah lebar */
-}
-
-/* 5. STABILISATOR GAMBAR & TABEL (Agar tidak menembus container) */
-img, svg, video, canvas, audio, iframe, embed, object {
-    display: block;
-    max-width: 100%;
-    height: auto;
-}
-table {
-    max-width: 100%;
-    table-layout: auto;
+    -webkit-tap-highlight-color: transparent !important; /* Hilangkan blok warna saat ditap di HP */
+    box-shadow: none !important; /* Opsional: matikan shadow saat diklik jika bikin melar */
 }
 
 /* SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC: Modern Design Tokens & Styling */
