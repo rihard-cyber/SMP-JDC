@@ -20,7 +20,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
-  addUserToFirestore, updateUserInFirestore } from './utils/firebase';
+  subscribeUsers, addUserToFirestore, updateUserInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -766,6 +766,28 @@ export default function App() {
           if (!exists) merged.push(local);
         });
         try { localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk users
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeUsers((firebaseData) => {
+      if (!firebaseData) return;
+      setUsers(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(u => u.id === local.id || (u.firebaseId && u.firebaseId === local.firebaseId));
+          if (!exists) merged.push(local);
+        });
+        try {
+          localStorage.setItem('sapujagat_users', JSON.stringify(merged));
+          signUserData(merged);
+        } catch (e) {}
         return merged;
       });
     });

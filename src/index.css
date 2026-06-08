@@ -104,6 +104,7 @@ h1, h2, h3, h4, h5, h6 {
     transparent 180deg, var(--color-primary) 240deg, var(--color-primary-glow) 300deg, transparent 360deg);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   animation: ga 4s linear infinite;
   pointer-events: none;
@@ -2090,6 +2091,7 @@ h1, h2, h3, h4, h5, h6 {
   background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   animation: ga 2s linear infinite;
   pointer-events: none;
@@ -2451,6 +2453,7 @@ h1, h2, h3, h4, h5, h6 {
   background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   animation: ga 2s linear infinite;
   pointer-events: none;
@@ -2925,6 +2928,7 @@ h1, h2, h3, h4, h5, h6 {
   background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   animation: ga 2s linear infinite;
   pointer-events: none;
