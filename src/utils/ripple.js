@@ -36,11 +36,29 @@ export function initRipple() {
       }
     }
 
+    .glass-panel:hover {
+      box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px rgba(59,130,246,0.5);
+      transform: translateY(-2px);
+    }
+    .glass-panel:hover::before {
+      animation-duration: 1.5s;
+    }
+    .glass-panel:active {
+      transform: translateY(0px) scale(0.98);
+    }
+
     .press-effect {
       transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     }
     .press-effect:active {
       transform: scale(0.96) !important;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spin {
+      animation: spin 0.8s linear infinite;
     }
   `
   document.head.appendChild(style)
@@ -50,7 +68,7 @@ export function initRipple() {
 
 function handleRipple(e) {
   const target = e.target.closest(
-    'button, a, .glass-panel, .nav-tab-btn, .status-btn, .severity-btn, .decision-btn, .mutasi-kat-btn, .scan-compact-item, .finding-card, [data-ripple]'
+    'button:not([data-no-ripple]), a:not([data-no-ripple]), .glass-panel, .nav-tab-btn, .status-btn, .severity-btn, .decision-btn, .mutasi-kat-btn, .scan-compact-item, .finding-card, [data-ripple]'
   )
   if (!target) return
 

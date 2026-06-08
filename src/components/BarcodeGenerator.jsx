@@ -60,7 +60,7 @@ const SHIFT_OPTIONS = [
   { value: 'Malam', label: 'Malam (22:00 - 06:00)' }
 ];
 
-export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser }) {
+export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, addToast }) {
   // Single Area Creator state
   const [floor, setFloor] = useState('1');
   const [floorCustom, setFloorCustom] = useState('');
@@ -120,6 +120,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
   const [bulkDownloadReady, setBulkDownloadReady] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const canvasRef = useRef(null);
 
@@ -144,10 +145,14 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
   };
 
   const handleDownloadQR = async (area) => {
+    if (downloadingId) return
+    setDownloadingId(area.id)
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
     
     try {
-      const response = await fetch(qrUrl);
+      const response = await fetch(qrUrl, { signal: controller.signal });
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -157,15 +162,13 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      if (addToast) addToast(`QR ${area.qrCode} berhasil didownload`, 'success');
     } catch (err) {
       console.error('Download QR failed:', err);
-      const link = document.createElement('a');
-      link.download = `${area.qrCode}.png`;
-      link.href = qrUrl;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (addToast) addToast('Gagal download QR, coba lagi', 'danger');
+    } finally {
+      clearTimeout(timeout)
+      setDownloadingId(null)
     }
   };
 
@@ -173,10 +176,12 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
     
     const printWin = window.open('', '_blank', 'width=400,height=600');
-    if (!printWin) {
-      alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
+    if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
+      if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
+      else alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
       return;
     }
+    if (addToast) addToast('Menyiapkan cetak QR...', 'info');
     printWin.document.write(`
       <html>
         <head>
@@ -225,15 +230,18 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
 
   const handlePrintAllQRs = () => {
     if (areas.length === 0) {
-      alert('Tidak ada master area untuk dicetak!');
+      if (addToast) addToast('Tidak ada master area untuk dicetak!', 'warning');
+      else alert('Tidak ada master area untuk dicetak!');
       return;
     }
     
     const printWin = window.open('', '_blank', 'width=500,height=700');
-    if (!printWin) {
-      alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
+    if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
+      if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
+      else alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
       return;
     }
+    if (addToast) addToast('Menyiapkan cetak semua QR...', 'info');
     
     let htmlContent = `
       <html>
@@ -560,7 +568,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
               <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
               <span>Daftar Master Area Aktif SMPJDC ({areas.length})</span>
             </h3>
-            <button type="button" onClick={handlePrintAllQRs} className="btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto' }}>
+            <button type="button" onClick={handlePrintAllQRs} className="btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto' }} data-no-ripple>
               <Printer size={14} /> Cetak Semua Barcode QR
             </button>
           </div>
@@ -590,8 +598,8 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
                     <td className="td-mono" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{area.qrCode}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary"><Download size={14} /></button>
-                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon"><Printer size={14} /></button>
+                        <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary" data-no-ripple>{downloadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Download size={14} />}</button>
+                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon" data-no-ripple><Printer size={14} /></button>
                       </div>
                     </td>
                   </tr>

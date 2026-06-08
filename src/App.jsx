@@ -1496,7 +1496,7 @@ export default function App() {
           )}
 
           {currentTab === 'barcodes' && (isGodMode || (isAdmin && !isClient)) && (
-            <BarcodeGenerator areas={areas} onAddArea={handleAddArea} users={users} onAddUser={handleAddUser} />
+            <BarcodeGenerator areas={areas} onAddArea={handleAddArea} users={users} onAddUser={handleAddUser} addToast={addToast} />
           )}
 
           {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
