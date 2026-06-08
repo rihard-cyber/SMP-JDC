@@ -13,7 +13,8 @@ import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
-import { hashPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
+import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
+import { compressImage } from './utils/image';
 import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
   subscribeReports, addReportToFirestore,
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
@@ -41,7 +42,9 @@ import {
   Check,
   Key,
   FileText,
-  Database
+  Database,
+  Camera,
+  Lock
 } from 'lucide-react';
 import ManagementDashboard from './components/ManagementDashboard';
 import SecurityPatrolApp from './components/SecurityPatrolApp';
@@ -147,6 +150,30 @@ export default function App() {
   const [verifMethod, setVerifMethod] = useState('email');
   const [verifLoading, setVerifLoading] = useState(false);
   const [verifError, setVerifError] = useState('');
+
+  // Custom Profile Update States
+  const [tempAvatar, setTempAvatar] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [activeProfileTab, setActiveProfileTab] = useState('info'); // info | photo | pin | email
+
+  useEffect(() => {
+    if (showProfileModal && currentUser) {
+      setTempAvatar(currentUser.avatar || '');
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+      setProfileError('');
+      setProfileSuccess('');
+      setActiveProfileTab('info');
+      setNewEmail(currentUser.email || '');
+      setVerifStep('idle');
+      setVerifError('');
+    }
+  }, [showProfileModal, currentUser]);
 
   const handleSendVerification = () => {
     if (!newEmail.includes('@') || !newEmail.includes('.')) {
@@ -962,8 +989,88 @@ export default function App() {
   };
 
   const handleUpdateUser = (userId, updates) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+    setUsers(prev => {
+      const user = prev.find(u => u.id === userId);
+      if (user && user.firebaseId) {
+        updateUserInFirestore(user.firebaseId, updates);
+      }
+      return prev.map(u => u.id === userId ? { ...u, ...updates } : u);
+    });
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser(prev => ({ ...prev, ...updates }));
+    }
     addToast(`Data user berhasil diperbarui!`, 'success');
+  };
+
+  const handleUpdateAvatar = async () => {
+    setProfileError('');
+    setProfileSuccess('');
+    if (!tempAvatar) {
+      setProfileError('Pilih atau upload foto terlebih dahulu.');
+      return;
+    }
+    
+    try {
+      const updatedUsers = users.map(u =>
+        u.id === currentUser.id ? { ...u, avatar: tempAvatar } : u
+      );
+      
+      setUsers(updatedUsers);
+      setCurrentUser(prev => ({ ...prev, avatar: tempAvatar }));
+      localStorage.setItem('sapujagat_users', JSON.stringify(updatedUsers));
+      signUserData(updatedUsers);
+      
+      if (currentUser.firebaseId) {
+        await updateUserInFirestore(currentUser.firebaseId, { avatar: tempAvatar });
+      }
+      
+      setProfileSuccess('Foto profil berhasil diperbarui!');
+      addToast('Foto profil berhasil diperbarui!', 'success');
+    } catch (e) {
+      console.error(e);
+      setProfileError('Gagal memperbarui foto profil.');
+    }
+  };
+
+  const handleUpdatePin = async () => {
+    setProfileError('');
+    setProfileSuccess('');
+    
+    if (!currentPin || !newPin || !confirmPin) {
+      setProfileError('Semua field PIN harus diisi.');
+      return;
+    }
+    
+    const storedPinHash = localStorage.getItem(`smpjdc_pin_${currentUser.id}`);
+    
+    if (storedPinHash && !verifyPin(currentPin, storedPinHash)) {
+      setProfileError('PIN saat ini salah.');
+      return;
+    }
+    
+    if (newPin.length < 4) {
+      setProfileError('PIN baru minimal 4 karakter.');
+      return;
+    }
+    
+    if (newPin !== confirmPin) {
+      setProfileError('Konfirmasi PIN baru tidak cocok.');
+      return;
+    }
+    
+    try {
+      const hashed = hashPin(newPin);
+      localStorage.setItem(`smpjdc_pin_${currentUser.id}`, hashed);
+      
+      setProfileSuccess('PIN berhasil diperbarui!');
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+      addToast('PIN keamanan berhasil diperbarui!', 'success');
+    } catch (e) {
+      console.error(e);
+      setProfileError('Gagal memperbarui PIN.');
+    }
   };
 
   const handleLogin = (user) => {
@@ -1428,73 +1535,220 @@ export default function App() {
       {showProfileModal && (
         <div className="sidebar-overlay" onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ zIndex: 200 }}>
           <div className="panic-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--border-radius-lg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Shield size={20} className="text-primary" /> Profil Saya
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800 }}>
+                <Shield size={20} className="text-primary" /> Pengaturan Profil
               </h3>
               <button onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.25rem' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)' }}>
-                <img src={currentUser.avatar} alt="" style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary)' }} />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{currentUser.nama}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{currentUser.jabatan} • NRP: {currentUser.nrp}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser.regu || '-'}</div>
-                </div>
+            {/* Modal Navigation Tabs */}
+            <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', whiteSpace: 'nowrap' }} className="filter-tabs-wrap">
+              <button onClick={() => { setActiveProfileTab('info'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'info' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'info' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Informasi</button>
+              <button onClick={() => { setActiveProfileTab('photo'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'photo' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'photo' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Foto Profil</button>
+              <button onClick={() => { setActiveProfileTab('pin'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'pin' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'pin' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>PIN Keamanan</button>
+              <button onClick={() => { setActiveProfileTab('email'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'email' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'email' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Verifikasi Email</button>
+            </div>
+
+            {/* Profile Notifications */}
+            {profileError && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', background: 'rgba(239, 68, 68, 0.1)', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)', marginBottom: '1rem', textAlign: 'left' }}>
+                ⚠️ {profileError}
               </div>
+            )}
+            {profileSuccess && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-success)', background: 'rgba(16, 185, 129, 0.1)', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.15)', marginBottom: '1rem', textAlign: 'left' }}>
+                ✅ {profileSuccess}
+              </div>
+            )}
 
-              {/* Email Section */}
-              <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <Mail size={16} className="text-primary" />
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Email & Verifikasi</span>
-                </div>
-
-                {verifStep === 'idle' && (
-                  <>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                      Email saat ini: <strong style={{ color: 'var(--text-primary)' }}>{currentUser.email || '(belum diatur)'}</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Tab: Info */}
+              {activeProfileTab === 'info' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--border-glass)' }}>
+                    <img src={currentUser.avatar} alt="" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--color-primary)' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop'; }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{currentUser.nama}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{currentUser.jabatan}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>NRP: {currentUser.nrp} • Regu: {currentUser.regu || '-'}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Masukkan email baru" className="modern-input" style={{ fontSize: '0.82rem' }} />
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={handleSendVerification} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                          <Key size={14} /> Kirim Kode Verifikasi
-                        </button>
-                      </div>
-                      {verifError && <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>{verifError}</div>}
-                    </div>
-                  </>
-                )}
-
-                {verifStep === 'verify' && (
-                  <>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                      Kode verifikasi telah dikirim ke <strong>{verifMethod === 'email' ? newEmail : 'WhatsApp'}</strong>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <input type="text" value={verifCode} onChange={e => setVerifCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Masukkan kode 6 digit" className="modern-input" style={{ fontSize: '1.1rem', textAlign: 'center', letterSpacing: '0.3em', fontWeight: 700 }} maxLength={6} />
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={handleVerifyCode} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                          <Check size={14} /> Verifikasi & Simpan
-                        </button>
-                      </div>
-                      {verifError && <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', background: 'rgba(239,68,68,0.1)', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>{verifError}</div>}
-                      <button onClick={() => { setVerifStep('idle'); setVerifError(''); setVerifCode(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', padding: '0.25rem' }}>← Kembali</button>
-                    </div>
-                  </>
-                )}
-
-                {verifStep === 'done' && (
-                  <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Email Berhasil Diperbarui!</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Email baru: <strong style={{ color: 'var(--color-primary)' }}>{newEmail}</strong></div>
                   </div>
-                )}
-              </div>
+                  
+                  <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(255, 255, 255, 0.01)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Status Akun:</span>
+                      <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>AKTIF / SECURE</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Email Terdaftar:</span>
+                      <span style={{ fontWeight: 600 }}>{currentUser.email || '(Belum disinkronkan)'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Sumber Sesi:</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser.firebaseId ? `Cloud (FB-${currentUser.firebaseId.slice(0,6)})` : 'Local Storage'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab: Photo */}
+              {activeProfileTab === 'photo' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '0.5rem' }}>
+                    <img src={tempAvatar} alt="Preview Avatar" style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--color-primary)', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop'; }} />
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Preview Foto Profil</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <label className="photo-upload-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px dashed var(--color-primary)', background: 'rgba(59, 130, 246, 0.05)', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem' }}>
+                      <Camera size={16} /> Ambil / Upload Foto Baru
+                      <input type="file" accept="image/*" onChange={e => {
+                        const f = e.target.files[0];
+                        if (f) {
+                          const r = new FileReader();
+                          r.onloadend = () => {
+                            compressImage(r.result, 400, 400, 0.6).then(compressed => setTempAvatar(compressed));
+                          };
+                          r.readAsDataURL(f);
+                        }
+                        e.target.value = '';
+                      }} hidden />
+                    </label>
+
+                    {/* Presets Grid */}
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Atau Pilih Avatar Default:</span>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between' }}>
+                        {[
+                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop',
+                          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&fit=crop',
+                          'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&fit=crop',
+                          'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&fit=crop',
+                          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&fit=crop'
+                        ].map((url, idx) => (
+                          <img 
+                            key={idx} 
+                            src={url} 
+                            alt="" 
+                            onClick={() => setTempAvatar(url)}
+                            style={{ 
+                              width: '42px', 
+                              height: '42px', 
+                              borderRadius: '50%', 
+                              objectFit: 'cover', 
+                              cursor: 'pointer', 
+                              border: tempAvatar === url ? '3.5px solid var(--color-primary)' : '2px solid transparent',
+                              transition: 'all 0.2s',
+                              opacity: tempAvatar === url ? 1 : 0.75
+                            }} 
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <button onClick={handleUpdateAvatar} className="btn-primary" style={{ width: '100%', padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                      Simpan Foto Profil
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab: PIN */}
+              {activeProfileTab === 'pin' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="form-field">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Lock size={12} /> PIN Keamanan Saat Ini</label>
+                    <input 
+                      type="password" 
+                      value={currentPin} 
+                      onChange={e => setCurrentPin(e.target.value.slice(0, 12))} 
+                      placeholder="Masukkan PIN saat ini" 
+                      className="modern-input" 
+                      style={{ fontSize: '0.82rem' }} 
+                    />
+                  </div>
+                  
+                  <div className="form-field">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Lock size={12} /> PIN Baru</label>
+                    <input 
+                      type="password" 
+                      value={newPin} 
+                      onChange={e => setNewPin(e.target.value.slice(0, 12))} 
+                      placeholder="Masukkan PIN baru" 
+                      className="modern-input" 
+                      style={{ fontSize: '0.82rem' }} 
+                    />
+                  </div>
+                  
+                  <div className="form-field">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Lock size={12} /> Konfirmasi PIN Baru</label>
+                    <input 
+                      type="password" 
+                      value={confirmPin} 
+                      onChange={e => setConfirmPin(e.target.value.slice(0, 12))} 
+                      placeholder="Ulangi PIN baru" 
+                      className="modern-input" 
+                      style={{ fontSize: '0.82rem' }} 
+                    />
+                  </div>
+
+                  <button onClick={handleUpdatePin} className="btn-primary" style={{ width: '100%', padding: '0.75rem', fontSize: '0.8rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                    Perbarui PIN Keamanan
+                  </button>
+                </div>
+              )}
+
+              {/* Tab: Email */}
+              {activeProfileTab === 'email' && (
+                <div className="glass-panel" style={{ padding: '1.25rem', background: 'rgba(255, 255, 255, 0.01)', border: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <Mail size={16} className="text-primary" />
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Email & Verifikasi</span>
+                  </div>
+
+                  {verifStep === 'idle' && (
+                    <>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                        Email saat ini: <strong style={{ color: 'var(--text-primary)' }}>{currentUser.email || '(belum diatur)'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Masukkan email baru" className="modern-input" style={{ fontSize: '0.82rem' }} />
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={handleSendVerification} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                            <Key size={14} /> Kirim Kode Verifikasi
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {verifStep === 'verify' && (
+                    <>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                        Kode verifikasi telah dikirim ke <strong>{verifMethod === 'email' ? newEmail : 'WhatsApp'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <input type="text" value={verifCode} onChange={e => setVerifCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Masukkan kode 6 digit" className="modern-input" style={{ fontSize: '1.1rem', textAlign: 'center', letterSpacing: '0.3em', fontWeight: 700 }} maxLength={6} />
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={handleVerifyCode} className="btn-primary" style={{ flex: 1, padding: '0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                            <Check size={14} /> Verifikasi & Simpan
+                          </button>
+                        </div>
+                        <button onClick={() => { setVerifStep('idle'); setVerifError(''); setVerifCode(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', padding: '0.25rem' }}>← Kembali</button>
+                      </div>
+                    </>
+                  )}
+
+                  {verifStep === 'done' && (
+                    <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Email Berhasil Diperbarui!</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Email baru: <strong style={{ color: 'var(--color-primary)' }}>{newEmail}</strong></div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
