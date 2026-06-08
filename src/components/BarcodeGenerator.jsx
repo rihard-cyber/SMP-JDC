@@ -303,16 +303,37 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
     printWin.document.close();
   };
 
-  const handleBulkGenerate = () => {
+  const handleBulkGenerate = async () => {
     setGenerating(true);
     setBulkDownloadReady(false);
     setGenProgress(0);
-    const interval = setInterval(() => {
-      setGenProgress(prev => {
-        if (prev >= 100) { clearInterval(interval); setGenerating(false); setBulkDownloadReady(true); return 100; }
-        return prev + 10;
-      });
-    }, 150);
+
+    const areasToGenerate = areas;
+    const total = areasToGenerate.length;
+
+    for (let i = 0; i < total; i++) {
+      const area = areasToGenerate[i];
+      const qrData = area.qrCode || `JDC-${area.zona || 'X'}-${area.nomorTitik}`;
+      try {
+        const resp = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `QR-${qrData.replace(/[^a-zA-Z0-9]/g, '-')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.warn('Gagal download QR untuk', qrData, e);
+      }
+      await new Promise(r => setTimeout(r, 200));
+      setGenProgress(Math.round(((i + 1) / total) * 100));
+    }
+
+    setGenerating(false);
+    setBulkDownloadReady(true);
   };
 
   return (

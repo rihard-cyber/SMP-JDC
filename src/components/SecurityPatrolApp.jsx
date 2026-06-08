@@ -45,7 +45,16 @@ export default function SecurityPatrolApp({
       console.error('Gagal menyimpan antrean offline ke localStorage:', e);
     }
   }, [queue]);
-  useEffect(() => { if (online && queue.length > 0) { queue.forEach(r => onAddReport(r)); setQueue([]); } }, [online]);
+  useEffect(() => {
+    if (online && queue.length > 0) {
+      queue.forEach(item => {
+        const data = item.data || item;
+        if (item.type === 'mutasi') onAddLog(data);
+        else onAddReport(data);
+      });
+      setQueue([]);
+    }
+  }, [online]);
 
   const [tab, setTab] = useState('patroli');
 
@@ -133,7 +142,8 @@ export default function SecurityPatrolApp({
           }).catch(err => {
             console.warn("Kamera scanner gagal aktif:", err);
             setScanLoading(false);
-            setScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan.`);
+            setScanning(false);
+            setScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan. Gunakan input manual di bawah.`);
           });
         } catch (e) {
           console.error("Html5Qrcode scanner failed to initialize:", e);
@@ -261,7 +271,7 @@ export default function SecurityPatrolApp({
       kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null,
       antiFraud: fraudData
     };
-    (online ? onAddReport(r) : setQueue(p => [...p, r]));
+    (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
     setStep(4);
   };
 
@@ -282,7 +292,7 @@ export default function SecurityPatrolApp({
       keterangan: deskripsi, foto,
       antiFraud: fraudData
     };
-    (online ? onAddReport(r) : setQueue(p => [...p, r]));
+    (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
     setStep(4);
   };
 
@@ -303,14 +313,19 @@ export default function SecurityPatrolApp({
     setMErrors({});
     
     const fraudData = await generateAntiFraudData(currentUser.id);
-    onAddLog({
+    const mutasiData = {
       waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       lokasi: mLokasi.trim(), uraian: mUraian.trim(), kategori: mKat,
       foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
       tanggal: todayStr, pelapor: currentUser.nama,
       antiFraud: fraudData
-    });
+    };
+    if (online) {
+      onAddLog(mutasiData);
+    } else {
+      setQueue(p => [...p, { type: 'mutasi', data: mutasiData }]);
+    }
     setMSent(true);
     setMLokasi(''); setMUraian(''); setMFoto(null);
     setTimeout(() => setMSent(false), 3000);

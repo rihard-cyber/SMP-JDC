@@ -97,11 +97,31 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
     window.open(buildWALink(finding, dept), '_blank', 'noopener');
   };
 
-  // ── Graph Data ─────────────────────────────────────────────────────────────
+  // ── Graph Data (dari data real) ──────────────────────────────────────────────
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  });
+  const hariNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const graphMinggu = last7Days.map(date => {
+    const dayReports = reports.filter(r => r.timestamp.startsWith(date));
+    const dayFindings = findings.filter(f => f.tanggal?.startsWith(date));
+    return { label: hariNames[new Date(date).getDay()], patrols: dayReports.length, findings: dayFindings.length };
+  });
+  const graphBulan = Array.from({length: 4}, (_, i) => {
+    const week = i + 1;
+    const weekReports = reports.filter(r => {
+      const d = new Date(r.timestamp);
+      const weekOfMonth = Math.ceil(d.getDate() / 7);
+      return weekOfMonth === week;
+    });
+    return { label: `M${week}`, patrols: weekReports.length, findings: 0 };
+  });
   const graphData = {
     hari:   { labels: ['00:00','04:00','08:00','12:00','16:00','20:00'], patrols: [2,1,8,12,10,4], findings: [0,0,1,2,1,0] },
-    minggu: { labels: ['Sen','Sel','Rab','Kam','Jum','Sab','Min'],       patrols: [28,32,40,35,45,18,12], findings: [2,3,5,2,4,1,0] },
-    bulan:  { labels: ['M1','M2','M3','M4'],                             patrols: [120,145,130,155], findings: [12,18,8,10] },
+    minggu: { labels: graphMinggu.map(g => g.label), patrols: graphMinggu.map(g => g.patrols), findings: graphMinggu.map(g => g.findings) },
+    bulan:  { labels: graphBulan.map(g => g.label), patrols: graphBulan.map(g => g.patrols), findings: graphBulan.map(g => g.findings) },
     tahun:  { labels: ['Jan','Mar','Mei','Jul','Sep','Nov'],              patrols: [520,610,680,590,710,800], findings: [45,52,38,41,62,50] },
   };
   const activeGraph = graphData[graphFilter];
@@ -144,9 +164,9 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   // ── Security Health Score ───────────────────────────────────────────────────
   const patrolPct = areas.length > 0 ? (patrolledAreasToday.size / areas.length) * 100 : 0;
   const attendancePct = kpiHadir > 0 || kpiAlpha > 0 || kpiSakit > 0 || kpiIzin > 0
-    ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 100;
-  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 100;
-  const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 100;
+    ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 0;
+  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 0;
+  const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 0;
   const healthScore = Math.round(
     (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
   );
@@ -386,9 +406,12 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                 <span style={{ fontSize:'0.7rem', color:'var(--text-secondary)', fontWeight:600 }}>{selectedFindings.length} dipilih</span>
                 {Object.entries(WA_CONTACTS).filter(([dept]) => dept !== 'semua').map(([dept, info]) => (
                   <button key={dept} onClick={() => {
-                    selectedFindings.forEach(id => {
+                    selectedFindings.forEach((id, idx) => {
                       const f = findings.find(fi => fi.id === id);
                       if (f && onDispatchFinding) onDispatchFinding(id, dept);
+                      if (f) {
+                        setTimeout(() => window.open(buildWALink(f, dept), '_blank', 'noopener'), idx * 300);
+                      }
                     });
                     setSelectedFindings([]);
                   }} style={{
@@ -495,7 +518,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
 
                     {/* ID */}
                     <span className="finding-ticket-id">
-                      #{finding.id?.slice(-6)}
+                      #{String(finding.id).slice(-6)}
                     </span>
 
                     {/* Kategori */}
@@ -992,14 +1015,32 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-                    {c.status !== 'Selesai' && DEPARTMENTS.map(d => (
-                      <button key={d} onClick={() => onUpdateComplaint && onUpdateComplaint(c.id, {
-                        department: d, status: 'Diproses',
-                        history: [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }],
-                        waStatus: `Terkirim (${d})`,
-                        waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-                        updatedAt: new Date().toISOString()
-                      })} style={{
+                    {c.status !== 'Selesai' && DEPARTMENTS.map(d => {
+                      const contact = WA_CONTACTS[d] || WA_CONTACTS.Keamanan;
+                      const waMsg = encodeURIComponent(
+                        `*📋 KOMPLAIN MASUK - SMPJDC*\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                        `${contact.emoji} *Disposisi ke: ${contact.nama}*\n\n` +
+                        `🆔 *Tiket:* ${c.ticketId}\n` +
+                        `📌 *Kategori:* ${c.category}\n` +
+                        `👤 *Pelapor:* ${c.name}\n` +
+                        `🏢 *Tenant:* ${c.tenant} • Lt.${c.floor}\n` +
+                        `📝 *Deskripsi:* ${c.description}\n\n` +
+                        `⚡ *Mohon segera ditindaklanjuti!*\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                        `_Sistem Manajemen Keamanan JDC_`
+                      );
+                      return (
+                      <button key={d} onClick={() => {
+                        onUpdateComplaint && onUpdateComplaint(c.id, {
+                          department: d, status: 'Diproses',
+                          history: [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }],
+                          waStatus: `Terkirim (${d})`,
+                          waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                          updatedAt: new Date().toISOString()
+                        });
+                        window.open(`https://api.whatsapp.com/send?phone=${contact.nomor}&text=${waMsg}`, '_blank', 'noopener');
+                      }} style={{
                         padding: '0.25rem 0.5rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
                         border: '1px solid var(--border-glass)', cursor: 'pointer',
                         background: 'transparent', color: 'var(--text-secondary)',
@@ -1007,7 +1048,8 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                       }}>
                         <Send size={9}/> {d}
                       </button>
-                    ))}
+                      );
+                    })}
                     <button onClick={() => onUpdateComplaint && onUpdateComplaint(c.id, {
                       status: 'Selesai',
                       history: [...(c.history || []), { status: 'Selesai', timestamp: new Date().toISOString(), note: 'Ditandai selesai dari Dashboard' }],

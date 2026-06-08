@@ -29,9 +29,22 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
   const closedFindings = findings.filter(f => f.status === 'Closed');
   const slaCompliance = findings.length > 0
     ? Math.round((closedFindings.length / findings.length) * 100) + '%'
-    : '100%';
-  const avgSlaTime = closedFindings.length > 0
-    ? '±2 Jam'
+    : '0%';
+  const avgSlaMinutes = closedFindings.length > 0 ? (() => {
+    const durations = closedFindings.map(f => {
+      const tgl = f.tanggal || f.createdAt;
+      const closedAt = f.closedAt || f.updatedAt;
+      if (tgl && closedAt) {
+        return (new Date(closedAt) - new Date(tgl)) / (1000 * 60);
+      }
+      return null;
+    }).filter(d => d !== null);
+    if (durations.length === 0) return null;
+    const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+    return avg;
+  })() : null;
+  const avgSlaTime = avgSlaMinutes !== null
+    ? (avgSlaMinutes < 60 ? `${Math.round(avgSlaMinutes)} Menit` : `${(avgSlaMinutes / 60).toFixed(1)} Jam`)
     : '—';
 
   return (
@@ -106,7 +119,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                 <span className="badge badge-success">Target 90%</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ width: '96%', height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)', borderRadius: '4px' }} />
+                <div style={{ width: `${parseInt(slaCompliance) || 0}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)', borderRadius: '4px' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
                 Penyelesaian kendala SMPJDC memenuhi batas kesepakatan SLA.

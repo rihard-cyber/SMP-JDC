@@ -49,7 +49,7 @@ const createSubscriber = (collectionName, callback, orderField = 'createdAt') =>
     callback(null);
     return () => {};
   }
-  const q = query(collection(db, collectionName), orderBy(orderField, 'desc'));
+  const q = query(collection(database, collectionName), orderBy(orderField, 'desc'));
   return onSnapshot(q, (snapshot) => {
     const list = [];
     snapshot.forEach((doc) => {
@@ -66,8 +66,9 @@ const createAdder = (collectionName) => async (data) => {
   const database = initFirebase();
   if (!database) return null;
   try {
-    const docRef = await addDoc(collection(db, collectionName), {
+    const docRef = await addDoc(collection(database, collectionName), {
       ...data,
+      createdAt: serverTimestamp(),
       firebaseSavedAt: serverTimestamp()
     });
     return docRef.id;
@@ -81,7 +82,7 @@ const createUpdater = (collectionName) => async (firebaseId, updates) => {
   const database = initFirebase();
   if (!database) return;
   try {
-    await updateDoc(doc(db, collectionName, firebaseId), {
+    await updateDoc(doc(database, collectionName, firebaseId), {
       ...updates,
       updatedAt: new Date().toISOString()
     });
@@ -94,7 +95,7 @@ const createDeleter = (collectionName) => async (firebaseId) => {
   const database = initFirebase();
   if (!database) return;
   try {
-    await deleteDoc(doc(db, collectionName, firebaseId));
+    await deleteDoc(doc(database, collectionName, firebaseId));
   } catch (e) {
     console.warn(`[Firebase] Gagal hapus ${collectionName}:`, e);
   }
@@ -104,7 +105,7 @@ const createLoader = (collectionName, orderField = 'createdAt') => async () => {
   const database = initFirebase();
   if (!database) return null;
   try {
-    const q = query(collection(db, collectionName), orderBy(orderField, 'desc'));
+    const q = query(collection(database, collectionName), orderBy(orderField, 'desc'));
     const snapshot = await getDocs(q);
     const list = [];
     snapshot.forEach((doc) => {

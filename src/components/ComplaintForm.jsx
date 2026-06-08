@@ -166,7 +166,7 @@ export default function ComplaintForm({ onAddComplaint }) {
             border: '2px solid rgba(59,130,246,0.2)',
             animation: 'pulse 2s infinite'
           }}>
-            <img src="logo.png" alt="SMPJDC" className="logo-3d-spin" style={{ width: 60, height: 'auto' }} />
+            <img src="./logo.png" alt="SMPJDC" className="logo-3d-spin" style={{ width: 60, height: 'auto' }} />
           </div>
           <div className="hud-ring ring-outer" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 200, height: 200, opacity: 0.2 }}></div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
@@ -337,7 +337,7 @@ export default function ComplaintForm({ onAddComplaint }) {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.5rem', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <img src="logo.png" alt="SMPJDC" className="logo-3d" style={{ height: 32, width: 'auto' }} />
+            <img src="./logo.png" alt="SMPJDC" className="logo-3d" style={{ height: 32, width: 'auto' }} />
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 800, lineHeight: 1.2 }}>SMPJDC</h2>
               <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sistem Komplain Terpadu</p>

@@ -62,7 +62,7 @@ import ComplaintAdmin from './components/ComplaintAdmin';
 import BottomNav from './components/BottomNav';
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '4.1-fullregu';
+const CURRENT_DB_VERSION = '5.0-stable';
 
 const INITIAL_AREAS = [
   { id: 'bsmt-b-1', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement', nomorTitik: '1', zona: 'B', titik: 'Depan R. Electric', qrCode: 'JDC-BSMT-B-1' },
@@ -272,8 +272,7 @@ export default function App() {
   const clearSOS = React.useCallback(() => {
     if (sosAudio) {
       try {
-        sosAudio.osc.stop();
-        sosAudio.audioCtx.close();
+        sosAudio.stop();
       } catch (e) {}
       setSosAudio(null);
     }
@@ -416,21 +415,28 @@ export default function App() {
 
       // Version mismatch — merge semua user default, jangan hapus data existing
       const BASE_USERS = [
-        { id: 1, nrp: '10001', nama: 'Richard', role: 'Admin Super', regu: '' },
-        { id: 2, nrp: '10002', nama: 'Pak Kusnan', role: 'Manajemen', regu: '' },
-        { id: 3, nrp: '10003', nama: 'Agus Siraitin', role: 'SPV', regu: '' },
-        { id: 4, nrp: '20001', nama: 'Wahyudi', role: 'Danru', regu: 'Regu A' },
-        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', role: 'Wadanru', regu: 'Regu A' },
-        { id: 6, nrp: '20003', nama: 'Agus Hendraya', role: 'Danru', regu: 'Regu B' },
-        { id: 7, nrp: '20004', nama: 'Suparlan', role: 'Wadanru', regu: 'Regu B' },
-        { id: 8, nrp: '20005', nama: 'Sutrijono', role: 'Danru', regu: 'Regu C' },
-        { id: 9, nrp: '20006', nama: 'Dedy K', role: 'Wadanru', regu: 'Regu C' },
-        { id: 10, nrp: '20007', nama: 'M. Iqbal', role: 'Danru', regu: 'Regu D' },
-        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', role: 'Wadanru', regu: 'Regu D' },
+        { id: 1, nrp: '10001', nama: 'Richard', jabatan: 'Admin Super', regu: '' },
+        { id: 2, nrp: '10002', nama: 'Pak Kusnan', jabatan: 'Manajemen', regu: '' },
+        { id: 3, nrp: '10003', nama: 'Agus Siraitin', jabatan: 'SPV', regu: '' },
+        { id: 4, nrp: '20001', nama: 'Wahyudi', jabatan: 'Danru', regu: 'Regu A' },
+        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', jabatan: 'Wadanru', regu: 'Regu A' },
+        { id: 6, nrp: '20003', nama: 'Agus Hendraya', jabatan: 'Danru', regu: 'Regu B' },
+        { id: 7, nrp: '20004', nama: 'Suparlan', jabatan: 'Wadanru', regu: 'Regu B' },
+        { id: 8, nrp: '20005', nama: 'Sutrijono', jabatan: 'Danru', regu: 'Regu C' },
+        { id: 9, nrp: '20006', nama: 'Dedy K', jabatan: 'Wadanru', regu: 'Regu C' },
+        { id: 10, nrp: '20007', nama: 'M. Iqbal', jabatan: 'Danru', regu: 'Regu D' },
+        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', jabatan: 'Wadanru', regu: 'Regu D' },
       ];
       const existingMap = {};
       if (Array.isArray(parsed)) {
-        parsed.forEach(u => { existingMap[u.nrp] = u; });
+        parsed.forEach(u => {
+          // Migrasi: ubah 'role' ke 'jabatan' jika masih pakai field lama
+          if (u.role && !u.jabatan) {
+            u.jabatan = u.role;
+            delete u.role;
+          }
+          existingMap[u.nrp] = u;
+        });
       }
       BASE_USERS.forEach(bu => {
         if (!existingMap[bu.nrp]) {
@@ -775,18 +781,35 @@ export default function App() {
   const playSOSSiren = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
-      osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 1.0);
-      osc.loop = true;
       gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start();
-      return { osc, gain, audioCtx };
+      let osc = null;
+      let sirenInterval = null;
+
+      const startOsc = () => {
+        if (osc) { try { osc.stop(); } catch(e) {} }
+        osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+        osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 1.0);
+        osc.connect(gain);
+        osc.start();
+        osc.onended = () => { osc = null; };
+      };
+
+      startOsc();
+      sirenInterval = setInterval(startOsc, 1000);
+
+      return {
+        audioCtx,
+        stop: () => {
+          clearInterval(sirenInterval);
+          if (osc) { try { osc.stop(); } catch(e) {} }
+          try { audioCtx.close(); } catch(e) {}
+        }
+      };
     } catch (e) {
       return null;
     }
@@ -806,7 +829,7 @@ export default function App() {
   };
 
   const handleAddReport = (newReport) => {
-    const reportId = `rep-${Math.floor(1000 + Math.random() * 9000)}`;
+    const reportId = `rep-${Date.now()}-${Math.floor(Math.random() * 90000)}`;
     const reportData = { id: reportId, ...newReport };
     setReports(prev => [reportData, ...prev]);
     addToast(`Patroli sukses disubmit di ${newReport.titik} (${newReport.kondisi})`, 'success');
