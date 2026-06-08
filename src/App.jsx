@@ -419,14 +419,14 @@ export default function App() {
         { id: 1, nrp: '10001', nama: 'Richard', role: 'Admin Super', regu: '' },
         { id: 2, nrp: '10002', nama: 'Pak Kusnan', role: 'Manajemen', regu: '' },
         { id: 3, nrp: '10003', nama: 'Agus Siraitin', role: 'SPV', regu: '' },
-        { id: 4, nrp: '20001', nama: 'Wahyudi', role: 'Danru', regu: 'A' },
-        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', role: 'Wadanru', regu: 'A' },
-        { id: 6, nrp: '20003', nama: 'Agus Hendraya', role: 'Danru', regu: 'B' },
-        { id: 7, nrp: '20004', nama: 'Suparlan', role: 'Wadanru', regu: 'B' },
-        { id: 8, nrp: '20005', nama: 'Sutrijono', role: 'Danru', regu: 'C' },
-        { id: 9, nrp: '20006', nama: 'Dedy K', role: 'Wadanru', regu: 'C' },
-        { id: 10, nrp: '20007', nama: 'M. Iqbal', role: 'Danru', regu: 'D' },
-        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', role: 'Wadanru', regu: 'D' },
+        { id: 4, nrp: '20001', nama: 'Wahyudi', role: 'Danru', regu: 'Regu A' },
+        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', role: 'Wadanru', regu: 'Regu A' },
+        { id: 6, nrp: '20003', nama: 'Agus Hendraya', role: 'Danru', regu: 'Regu B' },
+        { id: 7, nrp: '20004', nama: 'Suparlan', role: 'Wadanru', regu: 'Regu B' },
+        { id: 8, nrp: '20005', nama: 'Sutrijono', role: 'Danru', regu: 'Regu C' },
+        { id: 9, nrp: '20006', nama: 'Dedy K', role: 'Wadanru', regu: 'Regu C' },
+        { id: 10, nrp: '20007', nama: 'M. Iqbal', role: 'Danru', regu: 'Regu D' },
+        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', role: 'Wadanru', regu: 'Regu D' },
       ];
       const existingMap = {};
       if (Array.isArray(parsed)) {

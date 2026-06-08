@@ -86,11 +86,26 @@ export default function UserManagement({ users, onAddUser, onUpdateUser }) {
     (u.regu || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const groupedByRegu = {};
+  const HIERARCHY_LABELS = { 'Admin Super': 'Admin', 'Manajemen': 'Manajemen', 'SPV': 'SPV' };
+  const HIERARCHY_ORDER = ['Admin', 'Manajemen', 'SPV', 'Regu A', 'Regu B', 'Regu C', 'Regu D'];
+
+  const groupedByHierarchy = {};
   filteredUsers.forEach(u => {
-    const g = u.regu || 'Tanpa Regu';
-    if (!groupedByRegu[g]) groupedByRegu[g] = [];
-    groupedByRegu[g].push(u);
+    let g = HIERARCHY_LABELS[u.jabatan];
+    if (!g) {
+      const raw = u.regu || '';
+      g = raw.startsWith('Regu ') ? raw : (raw ? `Regu ${raw}` : 'Lainnya');
+    }
+    if (!groupedByHierarchy[g]) groupedByHierarchy[g] = [];
+    groupedByHierarchy[g].push(u);
+  });
+  const hierarchyKeys = Object.keys(groupedByHierarchy).sort((a, b) => {
+    const ia = HIERARCHY_ORDER.indexOf(a);
+    const ib = HIERARCHY_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
   });
 
   return (
@@ -293,18 +308,21 @@ export default function UserManagement({ users, onAddUser, onUpdateUser }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {Object.entries(groupedByRegu).map(([regu, members]) => (
-            <div key={regu} className="glass-panel" style={{ padding: '0', overflow: 'hidden', background: 'rgba(255,255,255,0.02)' }}>
+          {hierarchyKeys.map(key => {
+            const members = groupedByHierarchy[key];
+            const isRegu = key.startsWith('Regu ');
+            return (
+            <div key={key} className="glass-panel" style={{ padding: '0', overflow: 'hidden', background: 'rgba(255,255,255,0.02)' }}>
               <div
-                onClick={() => setReguBuka(prev => ({ ...prev, [regu]: !prev[regu] }))}
-                style={{ padding: '0.65rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(59,130,246,0.05)' }}
+                onClick={() => setReguBuka(prev => ({ ...prev, [key]: !prev[key] }))}
+                style={{ padding: '0.65rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', background: isRegu ? 'rgba(6,182,212,0.06)' : 'rgba(59,130,246,0.05)' }}
               >
-                {reguBuka[regu] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {reguBuka[key] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <Shield size={14} className="text-primary" />
-                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{regu}</span>
+                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{key}</span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{members.length} anggota</span>
               </div>
-              {reguBuka[regu] && members.map(u => (
+              {reguBuka[key] && members.map(u => (
                 <div key={u.id} style={{ padding: '0.5rem 1rem 0.5rem 2.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                   <img src={u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'} alt="" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(59,130,246,0.2)' }} />
                   
@@ -347,14 +365,15 @@ export default function UserManagement({ users, onAddUser, onUpdateUser }) {
                   )}
                 </div>
               ))}
-              {!reguBuka[regu] && (
+              {!reguBuka[key] && (
                 <div style={{ padding: '0.4rem 1rem 0.4rem 2.5rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   {members.slice(0, 3).map(m => m.nama).join(', ')}{members.length > 3 ? `, +${members.length - 3} lagi` : ''}
                 </div>
               )}
             </div>
-          ))}
-          {Object.keys(groupedByRegu).length === 0 && (
+          );
+          })}
+          {hierarchyKeys.length === 0 && (
             <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               {search ? 'Tidak ada user yang cocok.' : 'Belum ada user terdaftar.'}
             </div>
