@@ -133,7 +133,7 @@ export default function UserManagement({ users, onAddUser, onUpdateUser }) {
             <textarea
               value={anggotaInput}
               onChange={e => setAnggotaInput(e.target.value)}
-              placeholder={`Nama Anggota 1\nNama Anggota 2\nNama Anggota 3`}
+              placeholder={`Wahyudi\nFaizal Tanjung`}
               className="modern-input"
               style={{ height: '100px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }}
               required

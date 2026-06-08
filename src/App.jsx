@@ -62,7 +62,7 @@ import ComplaintAdmin from './components/ComplaintAdmin';
 import BottomNav from './components/BottomNav';
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '4.0-clean';
+const CURRENT_DB_VERSION = '4.1-fullregu';
 
 const INITIAL_AREAS = [
   { id: 'bsmt-b-1', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement', nomorTitik: '1', zona: 'B', titik: 'Depan R. Electric', qrCode: 'JDC-BSMT-B-1' },
@@ -414,15 +414,46 @@ export default function App() {
         return parsed;
       }
 
-      // Version mismatch — bersihkan data seed lama, hanya pertahankan user real
-      const oldSeedNrps = ['20001','20002','20003','20004','20005','20006','20007','20008'];
-      const oldSeedIds = [4,5,6,7,8,9,10,11];
-      const cleaned = Array.isArray(parsed) ? parsed.filter(u => !oldSeedNrps.includes(u.nrp)) : [];
-      oldSeedIds.forEach(id => localStorage.removeItem(`smpjdc_pin_${id}`));
-      localStorage.setItem('sapujagat_users', JSON.stringify(cleaned));
-      signUserData(cleaned);
+      // Version mismatch — merge semua user default, jangan hapus data existing
+      const BASE_USERS = [
+        { id: 1, nrp: '10001', nama: 'Richard', role: 'Admin Super', regu: '' },
+        { id: 2, nrp: '10002', nama: 'Pak Kusnan', role: 'Manajemen', regu: '' },
+        { id: 3, nrp: '10003', nama: 'Agus Siraitin', role: 'SPV', regu: '' },
+        { id: 4, nrp: '20001', nama: 'Wahyudi', role: 'Danru', regu: 'A' },
+        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', role: 'Wadanru', regu: 'A' },
+        { id: 6, nrp: '20003', nama: 'Agus Hendraya', role: 'Danru', regu: 'B' },
+        { id: 7, nrp: '20004', nama: 'Suparlan', role: 'Wadanru', regu: 'B' },
+        { id: 8, nrp: '20005', nama: 'Sutrijono', role: 'Danru', regu: 'C' },
+        { id: 9, nrp: '20006', nama: 'Dedy K', role: 'Wadanru', regu: 'C' },
+        { id: 10, nrp: '20007', nama: 'M. Iqbal', role: 'Danru', regu: 'D' },
+        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', role: 'Wadanru', regu: 'D' },
+      ];
+      const existingMap = {};
+      if (Array.isArray(parsed)) {
+        parsed.forEach(u => { existingMap[u.nrp] = u; });
+      }
+      BASE_USERS.forEach(bu => {
+        if (!existingMap[bu.nrp]) {
+          existingMap[bu.nrp] = { ...bu };
+        } else {
+          // Update Agus Siraitin to oversee all regus
+          if (bu.nrp === '10003') existingMap[bu.nrp].regu = '';
+        }
+      });
+      const merged = Object.values(existingMap);
+      merged.forEach(u => {
+        const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
+        if (!stored) {
+          localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(u.nrp));
+        } else if (stored && !stored.startsWith('h')) {
+          localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
+        }
+        delete u.pin;
+      });
+      localStorage.setItem('sapujagat_users', JSON.stringify(merged));
+      signUserData(merged);
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-      return cleaned;
+      return merged;
     } catch (e) {
       return [];
     }
