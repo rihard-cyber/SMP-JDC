@@ -144,79 +144,21 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
   };
 
   const handleDownloadQR = async (area) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(area.qrCode)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
     
     try {
-      // 1. Fetch image as blob
       const response = await fetch(qrUrl);
       const blob = await response.blob();
-      
-      // 2. Create local object URL
       const objectUrl = URL.createObjectURL(blob);
-      const img = new Image();
-      
-      img.onload = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 250, 290);
-        
-        // Draw barcode
-        ctx.drawImage(img, 25, 20, 200, 200);
-        
-        // Labels
-        ctx.fillStyle = '#0b0f19';
-        ctx.font = 'bold 12px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(area.qrCode, 125, 235);
-        
-        ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 10px Inter, sans-serif';
-        ctx.fillText(area.titik, 125, 253);
-        
-        ctx.fillStyle = '#64748b';
-        ctx.font = '8px Inter, sans-serif';
-        ctx.fillText(`${area.gedung} - ${['1','2','3','4','5','6'].includes(area.lantai) ? `Lt. ${area.lantai}` : area.lantai} (${area.zona})`, 125, 270);
-        
-        try {
-          const dataUrl = canvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.download = `${area.qrCode}.png`;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } catch (err) {
-          console.error('Canvas export failed:', err);
-          // Fallback to raw QR download
-          const fallbackLink = document.createElement('a');
-          fallbackLink.download = `${area.qrCode}.png`;
-          fallbackLink.href = objectUrl;
-          document.body.appendChild(fallbackLink);
-          fallbackLink.click();
-          document.body.removeChild(fallbackLink);
-        }
-        
-        URL.revokeObjectURL(objectUrl);
-      };
-      
-      img.onerror = () => {
-        const fallbackLink = document.createElement('a');
-        fallbackLink.download = `${area.qrCode}.png`;
-        fallbackLink.href = objectUrl;
-        document.body.appendChild(fallbackLink);
-        fallbackLink.click();
-        document.body.removeChild(fallbackLink);
-      };
-      
-      img.src = objectUrl;
-      
+      const link = document.createElement('a');
+      link.download = `${area.qrCode}.png`;
+      link.href = objectUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (err) {
-      console.error('Fetch QR code failed:', err);
-      // Fallback: raw api link
+      console.error('Download QR failed:', err);
       const link = document.createElement('a');
       link.download = `${area.qrCode}.png`;
       link.href = qrUrl;
@@ -230,21 +172,12 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
   const handlePrintQR = (area) => {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
     
-    // Remove existing print iframe
-    const oldFrame = document.getElementById('smpjdc-print-iframe');
-    if (oldFrame) oldFrame.remove();
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'smpjdc-print-iframe';
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0px';
-    iframe.style.height = '0px';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(`
+    const printWin = window.open('', '_blank', 'width=400,height=600');
+    if (!printWin) {
+      alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
+      return;
+    }
+    printWin.document.write(`
       <html>
         <head>
           <title>Cetak QR Checkpoint - ${area.qrCode}</title>
@@ -255,7 +188,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              height: 100vh;
+              min-height: 100vh;
               margin: 0;
               padding: 20px;
               box-sizing: border-box;
@@ -269,34 +202,25 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
               display: inline-block;
               background: #fff;
             }
-            img {
-              width: 280px;
-              height: 280px;
-              margin-bottom: 15px;
-            }
-            h2 {
-              margin: 0 0 5px 0;
-              font-size: 22px;
-              letter-spacing: 1px;
-            }
-            p {
-              margin: 0;
-              font-size: 14px;
-              color: #555;
-            }
+            img { width: 280px; height: 280px; margin-bottom: 15px; }
+            h2 { margin: 0 0 5px 0; font-size: 22px; letter-spacing: 1px; }
+            p { margin: 0; font-size: 14px; color: #555; }
+            @media print { body { -webkit-print-color-adjust: exact; } }
           </style>
         </head>
         <body>
           <div class="qr-card">
-            <img src="${qrUrl}" alt="QR Checkpoint" onload="window.focus(); setTimeout(function(){ window.print(); }, 400);" />
+            <img src="${qrUrl}" alt="QR Checkpoint" />
             <h2>${area.qrCode}</h2>
             <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
             <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
           </div>
+          <p style="margin-top: 20px; font-size: 12px; color: #999;">Tutup jendela ini setelah mencetak.</p>
+          <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
         </body>
       </html>
     `);
-    doc.close();
+    printWin.document.close();
   };
 
   const handlePrintAllQRs = () => {
@@ -305,20 +229,11 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
       return;
     }
     
-    // Remove existing print iframe
-    const oldFrame = document.getElementById('smpjdc-print-iframe');
-    if (oldFrame) oldFrame.remove();
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'smpjdc-print-iframe';
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0px';
-    iframe.style.height = '0px';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
+    const printWin = window.open('', '_blank', 'width=500,height=700');
+    if (!printWin) {
+      alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
+      return;
+    }
     
     let htmlContent = `
       <html>
@@ -338,7 +253,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              height: 100vh;
+              min-height: 100vh;
               box-sizing: border-box;
               text-align: center;
               padding: 40px;
@@ -350,24 +265,11 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
               display: inline-block;
               background: #fff;
             }
-            img {
-              width: 320px;
-              height: 320px;
-              margin-bottom: 20px;
-            }
-            h2 {
-              margin: 0 0 8px 0;
-              font-size: 26px;
-              letter-spacing: 1px;
-            }
-            p {
-              margin: 0;
-              font-size: 16px;
-              color: #444;
-            }
-            .print-page:last-child {
-              page-break-after: avoid;
-            }
+            img { width: 320px; height: 320px; margin-bottom: 20px; }
+            h2 { margin: 0 0 8px 0; font-size: 26px; letter-spacing: 1px; }
+            p { margin: 0; font-size: 16px; color: #444; }
+            .print-page:last-child { page-break-after: avoid; }
+            @media print { body { -webkit-print-color-adjust: exact; } }
           </style>
         </head>
         <body>
@@ -378,7 +280,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
       htmlContent += `
         <div class="print-page">
           <div class="qr-card">
-            <img src="${qrUrl}" alt="QR Checkpoint" />
+            <img src="${qrUrl}" alt="QR" />
             <h2>${area.qrCode}</h2>
             <p style="font-weight: bold; margin-bottom: 5px;">${area.titik}</p>
             <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
@@ -388,20 +290,17 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
     });
     
     htmlContent += `
-          <script>
-            window.onload = function() {
-              window.focus();
-              setTimeout(function() {
-                window.print();
-              }, 1200);
-            };
-          </script>
+      <script>
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 1500);
+        };
+      <\/script>
         </body>
       </html>
     `;
     
-    doc.write(htmlContent);
-    doc.close();
+    printWin.document.write(htmlContent);
+    printWin.document.close();
   };
 
   const handleBulkGenerate = () => {
@@ -532,8 +431,16 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 600 }}>
                   <Check size={18} /> <span>{bulkCount} Barcodes Siap Didownload!</span>
                 </div>
-                <button onClick={() => { alert(`📥 Mengunduh file zip smpjdc-${bulkCount}-barcodes.zip (Simulated Download)`); setBulkDownloadReady(false); }} className="btn-primary btn-full" style={{ background: 'var(--color-success)' }}>
-                  <Download size={16} /> Download ZIP
+                <button onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SMPJDC-BULK-${bulkCount}`;
+                  link.download = `smpjdc-${bulkCount}-barcodes.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  setBulkDownloadReady(false);
+                }} className="btn-primary btn-full" style={{ background: 'var(--color-success)' }}>
+                  <Download size={16} /> Download Sample PNG
                 </button>
               </div>
             ) : (
