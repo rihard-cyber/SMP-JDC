@@ -10,6 +10,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  limit,
   serverTimestamp,
   getDocs
 } from 'firebase/firestore';
@@ -43,13 +44,15 @@ export const initFirebase = () => {
 export const getAnalyticsInstance = () => analytics;
 
 // ─── Helper: buat subscription real-time ───
-const createSubscriber = (collectionName, callback, orderField = 'createdAt') => {
+const createSubscriber = (collectionName, callback, orderField = 'createdAt', opts = {}) => {
   const database = initFirebase();
   if (!database) {
     callback(null);
     return () => {};
   }
-  const q = query(collection(database, collectionName), orderBy(orderField, 'desc'));
+  let constraints = [orderBy(orderField, 'desc')];
+  if (opts.limit) constraints.push(limit(opts.limit));
+  const q = query(collection(database, collectionName), ...constraints);
   return onSnapshot(q, (snapshot) => {
     const list = [];
     snapshot.forEach((doc) => {
@@ -119,8 +122,8 @@ const createLoader = (collectionName, orderField = 'createdAt') => async () => {
 };
 
 // ─── Complaints ───
-export const subscribeComplaints = (callback) =>
-  createSubscriber('complaints', callback);
+export const subscribeComplaints = (callback, opts = {}) =>
+  createSubscriber('complaints', callback, 'createdAt', opts);
 
 export const addComplaintToFirestore = createAdder('complaints');
 
@@ -129,8 +132,8 @@ export const updateComplaintInFirestore = createUpdater('complaints');
 export const loadAllComplaintsFromFirestore = createLoader('complaints');
 
 // ─── Patrol Reports ───
-export const subscribeReports = (callback) =>
-  createSubscriber('patrol_reports', callback, 'timestamp');
+export const subscribeReports = (callback, opts = {}) =>
+  createSubscriber('patrol_reports', callback, 'timestamp', opts);
 
 export const addReportToFirestore = createAdder('patrol_reports');
 
@@ -139,24 +142,24 @@ export const updateReportInFirestore = createUpdater('patrol_reports');
 export const deleteReportFromFirestore = createDeleter('patrol_reports');
 
 // ─── Findings ───
-export const subscribeFindings = (callback) =>
-  createSubscriber('findings', callback);
+export const subscribeFindings = (callback, opts = {}) =>
+  createSubscriber('findings', callback, 'createdAt', opts);
 
 export const addFindingToFirestore = createAdder('findings');
 
 export const updateFindingInFirestore = createUpdater('findings');
 
 // ─── Attendance Logs ───
-export const subscribeAttendanceLogs = (callback) =>
-  createSubscriber('attendance_logs', callback, 'tanggal');
+export const subscribeAttendanceLogs = (callback, opts = {}) =>
+  createSubscriber('attendance_logs', callback, 'tanggal', opts);
 
 export const addAttendanceLogToFirestore = createAdder('attendance_logs');
 
 export const updateAttendanceLogInFirestore = createUpdater('attendance_logs');
 
 // ─── Mutasi Logs ───
-export const subscribeMutasiLogs = (callback) =>
-  createSubscriber('mutasi_logs', callback);
+export const subscribeMutasiLogs = (callback, opts = {}) =>
+  createSubscriber('mutasi_logs', callback, 'createdAt', opts);
 
 export const addMutasiLogToFirestore = createAdder('mutasi_logs');
 
@@ -165,8 +168,8 @@ export const updateMutasiLogInFirestore = createUpdater('mutasi_logs');
 export const deleteMutasiLogFromFirestore = createDeleter('mutasi_logs');
 
 // ─── Users ───
-export const subscribeUsers = (callback) =>
-  createSubscriber('users', callback, 'nrp');
+export const subscribeUsers = (callback, opts = {}) =>
+  createSubscriber('users', callback, 'nrp', opts);
 
 export const addUserToFirestore = createAdder('users');
 
@@ -221,5 +224,43 @@ export const clearAllPatrolDataInFirestore = async () => {
   } catch (e) {
     console.warn('[Firebase] Gagal membersihkan data:', e);
     return false;
+  }
+};
+
+export const deleteOldDataInFirestore = async (olderThanDays = 90) => {
+  const database = initFirebase();
+  if (!database) return { success: false, count: 0 };
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const cutoffStr = cutoff.toISOString();
+  const collections = [
+    { name: 'patrol_reports', dateField: 'timestamp' },
+    { name: 'findings', dateField: 'createdAt' },
+    { name: 'mutasi_logs', dateField: 'createdAt' },
+    { name: 'attendance_logs', dateField: 'tanggal' },
+    { name: 'complaints', dateField: 'createdAt' }
+  ];
+  let totalDeleted = 0;
+  try {
+    for (const { name, dateField } of collections) {
+      const allDocs = await getDocs(collection(database, name));
+      const deletePromises = [];
+      allDocs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const dateVal = data[dateField];
+        if (dateVal) {
+          const d = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+          if (d < cutoff) {
+            deletePromises.push(deleteDoc(docSnap.ref));
+          }
+        }
+      });
+      const results = await Promise.allSettled(deletePromises);
+      totalDeleted += results.filter(r => r.status === 'fulfilled').length;
+    }
+    return { success: true, count: totalDeleted };
+  } catch (e) {
+    console.warn('[Firebase] Gagal hapus data lama:', e);
+    return { success: false, count: totalDeleted };
   }
 };

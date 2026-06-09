@@ -9,7 +9,7 @@
  * =======================================================
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
@@ -21,7 +21,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
   subscribeUsers, addUserToFirestore, updateUserInFirestore, deleteUserFromFirestore, resetUsersInFirestore,
-  clearAllPatrolDataInFirestore } from './utils/firebase';
+  clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -47,9 +47,6 @@ import {
   Camera,
   Lock
 } from 'lucide-react';
-import ManagementDashboard from './components/ManagementDashboard';
-import SecurityPatrolApp from './components/SecurityPatrolApp';
-import BarcodeGenerator from './components/BarcodeGenerator';
 import ReportsExport from './components/ReportsExport';
 import TargetDashboard from './components/TargetDashboard';
 import LoginPage from './components/LoginPage';
@@ -59,8 +56,12 @@ import AbsensiRegu from './components/AbsensiRegu';
 import LaporForm from './components/LaporForm';
 import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
-import ComplaintAdmin from './components/ComplaintAdmin';
 import BottomNav from './components/BottomNav';
+
+const ManagementDashboard = lazy(() => import('./components/ManagementDashboard'));
+const SecurityPatrolApp = lazy(() => import('./components/SecurityPatrolApp'));
+const BarcodeGenerator = lazy(() => import('./components/BarcodeGenerator'));
+const ComplaintAdmin = lazy(() => import('./components/ComplaintAdmin'));
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
 const CURRENT_DB_VERSION = '5.2-stable';
@@ -693,12 +694,12 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 500) merged.push(local);
         });
         try { localStorage.setItem('smpjdc_complaints', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 500 });
     return () => unsub();
   }, []);
 
@@ -712,12 +713,12 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 500) merged.push(local);
         });
         try { localStorage.setItem('sapujagat_reports', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 500 });
     return () => unsub();
   }, []);
 
@@ -731,12 +732,12 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 500) merged.push(local);
         });
         try { localStorage.setItem('sapujagat_findings', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 500 });
     return () => unsub();
   }, []);
 
@@ -750,12 +751,12 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 500) merged.push(local);
         });
         try { localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 500 });
     return () => unsub();
   }, []);
 
@@ -769,12 +770,12 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 500) merged.push(local);
         });
         try { localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(merged)); } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 500 });
     return () => unsub();
   }, []);
 
@@ -788,7 +789,7 @@ export default function App() {
         const merged = [...firebaseData];
         prev.forEach(local => {
           const exists = merged.find(u => u.id === local.id || (u.firebaseId && u.firebaseId === local.firebaseId));
-          if (!exists) merged.push(local);
+          if (!exists && merged.length < 200) merged.push(local);
         });
         try {
           localStorage.setItem('sapujagat_users', JSON.stringify(merged));
@@ -796,7 +797,7 @@ export default function App() {
         } catch (e) {}
         return merged;
       });
-    });
+    }, { limit: 200 });
     return () => unsub();
   }, []);
 
@@ -836,8 +837,20 @@ export default function App() {
           clearInterval(sirenInterval);
           if (osc) { try { osc.stop(); } catch(e) {} }
           try { audioCtx.close(); } catch(e) {}
-        }
-      };
+    }
+  };
+
+  const handleArchiveOldData = async () => {
+    const days = 90;
+    addToast(`Mengarsipkan data lebih dari ${days} hari...`, 'info');
+    const result = await deleteOldDataInFirestore(days);
+    if (result.success) {
+      addToast(`Berhasil menghapus ${result.count} dokumen lama! Data akan sinkron otomatis.`, 'success');
+      // Re-fetch akan terjadi otomatis via onSnapshot
+    } else {
+      addToast('Gagal mengarsipkan data. Periksa koneksi internet.', 'danger');
+    }
+  };
     } catch (e) {
       return null;
     }
@@ -1489,7 +1502,15 @@ export default function App() {
 
         <div className="animate-slide-up">
           {currentTab === 'dashboard' && (isGodMode || (isAdmin && !isClient)) && (
-            <ManagementDashboard reports={reports} findings={findings} areas={areas} users={users} attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} complaints={complaints} onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onUpdateComplaint={handleUpdateComplaint} />
+            <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Dashboard...</div>}>
+            <ManagementDashboard
+              reports={reports} findings={findings} areas={areas} users={users}
+              attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} complaints={complaints}
+              onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding}
+              onUpdateComplaint={handleUpdateComplaint}
+              onArchiveOldData={handleArchiveOldData}
+            />
+            </Suspense>
           )}
 
           {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
@@ -1534,7 +1555,9 @@ export default function App() {
           )}
 
           {currentTab === 'barcodes' && (isGodMode || (isAdmin && !isClient)) && (
+            <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat...</div>}>
             <BarcodeGenerator areas={areas} onAddArea={handleAddArea} users={users} onAddUser={handleAddUser} addToast={addToast} />
+            </Suspense>
           )}
 
           {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
@@ -1547,7 +1570,9 @@ export default function App() {
 
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
             <div className="mobile-simulator-container">
+              <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Panel Patroli...</div>}>
               <SecurityPatrolApp currentUser={currentUser} areas={areas} attendanceLogs={attendanceLogs} reports={reports} findings={findings} mutasiLogs={mutasiLogs} onAddReport={handleAddReport} onAddLog={handleAddMutasi} onTriggerSOS={triggerSOS} />
+              </Suspense>
             </div>
           )}
 
@@ -1566,7 +1591,9 @@ export default function App() {
           )}
 
           {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (
+            <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat...</div>}>
             <ComplaintAdmin complaints={complaints} onUpdateComplaint={handleUpdateComplaint} />
+            </Suspense>
           )}
 
           <footer className="app-footer">

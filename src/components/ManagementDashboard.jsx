@@ -39,7 +39,7 @@ const COMPLAINT_STATUS_COLOR = {
   Baru: '#3b82f6', Diterima: '#f59e0b', Diproses: '#8b5cf6', Selesai: '#10b981'
 };
 
-export default function ManagementDashboard({ reports, findings, areas, users, attendanceLogs = [], mutasiLogs = [], complaints = [], onUpdateStatus, onDispatchFinding, onUpdateComplaint }) {
+export default function ManagementDashboard({ reports, findings, areas, users, attendanceLogs = [], mutasiLogs = [], complaints = [], onUpdateStatus, onDispatchFinding, onUpdateComplaint, onArchiveOldData }) {
   const [graphFilter, setGraphFilter] = useState('hari');
   const [selectedFloor, setSelectedFloor] = useState('Basement');
   const [activeTab, setActiveTab] = useState('semua'); // 'semua' | 'Teknisi' | 'Cleaning' | 'Keamanan'
@@ -1260,6 +1260,25 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
           );
         })()}
       </div>
+
+      {/* ── 13. MANAJEMEN DATA ──────────────────────────────────────────── */}
+      {onArchiveOldData && (
+        <div className="glass-panel" style={{ padding: '1rem', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: 'var(--color-danger)', fontWeight: 700 }}>
+            <AlertTriangle size={14}/> MANAJEMEN DATA
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+            Hapus otomatis data laporan, temuan, mutasi, absensi, dan komplain yang lebih dari 90 hari untuk menjaga performa aplikasi tetap ringan.
+          </p>
+          <button onClick={onArchiveOldData} className="btn-primary" style={{
+            background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)',
+            width: '100%', padding: '0.6rem', fontSize: '0.8rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+          }}>
+            <Sparkles size={14}/> Arsipkan Data Lama (&gt; 90 Hari)
+          </button>
+        </div>
+      )}
 
     </div>
   );
