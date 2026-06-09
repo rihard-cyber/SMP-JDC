@@ -26,7 +26,8 @@ const KATEGORI_MUTASI = [
   { id: 'kehilangan', label: 'Kehilangan', icon: Search, color: '#f59e0b' },
   { id: 'kerusakan', label: 'Kerusakan', icon: Wrench, color: '#ef4444' },
   { id: 'gangguan', label: 'Gangguan', icon: AlertTriangle, color: '#dc2626' },
-  { id: 'emergency', label: 'Emergency', icon: Radio, color: '#7c3aed' }
+  { id: 'emergency', label: 'Emergency', icon: Radio, color: '#7c3aed' },
+  { id: '__lainnya__', label: 'Lainnya...', icon: X, color: '#6b7280' }
 ];
 
 export default function SecurityPatrolApp({
@@ -296,11 +297,59 @@ export default function SecurityPatrolApp({
 
   // ── Tab: Mutasi ──
   const [mKat, setMKat] = useState('informasi');
+  const [mKatLainnya, setMKatLainnya] = useState('');
   const [mLokasi, setMLokasi] = useState('');
   const [mUraian, setMUraian] = useState('');
   const [mFoto, setMFoto] = useState(null);
   const [mErrors, setMErrors] = useState({});
   const [mSent, setMSent] = useState(false);
+
+  // ── Tab: Temuan (Standalone) ──
+  const [tLokasi, setTLokasi] = useState('');
+  const [tKategori, setTKategori] = useState('');
+  const [tTemuan, setTTemuan] = useState('');
+  const [tSeverity, setTSeverity] = useState('low');
+  const [tDeskripsi, setTDeskripsi] = useState('');
+  const [tFoto, setTFoto] = useState(null);
+  const [tSent, setTSent] = useState(false);
+
+  const handleTemuanStandaloneSubmit = async (e) => {
+    e.preventDefault();
+    if (!tLokasi || !tKategori || !tTemuan) return;
+    const fraudData = await generateAntiFraudData(currentUser.id);
+    const selectedArea = areas.find(a => tLokasi.includes(a.titik));
+    const reportData = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      areaId: selectedArea?.id || 'manual',
+      titik: tLokasi,
+      lantai: selectedArea?.lantai || '-',
+      zona: selectedArea?.zona || '-',
+      gedung: selectedArea?.gedung || 'SMPJDC - Jakarta Design Center',
+      qrCode: selectedArea?.qrCode || 'MANUAL',
+      userName: currentUser.nama,
+      userId: currentUser.id,
+      nrp: currentUser.nrp,
+      kondisi: 'Ada Temuan',
+      keterangan: tDeskripsi,
+      severity: colorSeverity(tSeverity).replace('#','') === '10b981' ? 'Rendah' : tSeverity === 'medium' ? 'Sedang' : tSeverity === 'high' ? 'Tinggi' : 'Kritis',
+      foto: tFoto,
+      timestamp: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      shift: shift,
+      antiFraud: fraudData,
+      jabatan: currentUser.jabatan,
+      regu: currentUser.regu || ''
+    };
+    if (online) {
+      onAddReport(reportData);
+    } else {
+      setQueue(p => [...p, { type: 'report', data: reportData }]);
+    }
+    setTSent(true);
+    setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi('');
+    setTimeout(() => setTSent(false), 3000);
+  };
 
   const handleMutasiSubmit = async (e) => {
     e.preventDefault();
@@ -314,7 +363,8 @@ export default function SecurityPatrolApp({
     const mutasiData = {
       waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      lokasi: mLokasi.trim(), uraian: mUraian.trim(), kategori: mKat,
+      lokasi: mLokasi.trim(), uraian: mUraian.trim(),
+      kategori: mKat === '__lainnya__' ? `Lainnya: ${mKatLainnya.trim() || 'Custom'}` : mKat,
       foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
       tanggal: todayStr, pelapor: currentUser.nama,
       antiFraud: fraudData
@@ -325,7 +375,7 @@ export default function SecurityPatrolApp({
       setQueue(p => [...p, { type: 'mutasi', data: mutasiData }]);
     }
     setMSent(true);
-    setMLokasi(''); setMUraian(''); setMFoto(null);
+    setMLokasi(''); setMUraian(''); setMFoto(null); setMKat('informasi'); setMKatLainnya('');
     setTimeout(() => setMSent(false), 3000);
   };
 
@@ -377,6 +427,13 @@ export default function SecurityPatrolApp({
             color: tab === 'patroli' ? 'white' : 'var(--text-secondary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
           }}><QrCode size={14} /> Patroli</button>
+          <button onClick={() => setTab('temuan')} className={`mobile-tab ${tab === 'temuan' ? 'active' : ''}`} style={{
+            flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            background: tab === 'temuan' ? 'var(--color-primary)' : 'transparent',
+            color: tab === 'temuan' ? 'white' : 'var(--text-secondary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
+          }}><AlertTriangle size={14} /> Temuan</button>
           <button onClick={() => setTab('mutasi')} className={`mobile-tab ${tab === 'mutasi' ? 'active' : ''}`} style={{
             flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
             fontFamily: 'var(--font-sans)',
@@ -590,9 +647,14 @@ export default function SecurityPatrolApp({
                   <div className="step-field">
                     <label>FOTO</label>
                     {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
-                      : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
-                        <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
-                      </label>}
+                      : <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <label className="photo-upload-btn"><Camera size={14} /> 📷 Kamera
+                            <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                          <label className="photo-upload-btn" style={{ background: 'rgba(255,255,255,0.04)' }}><Camera size={14} /> 🖼 Galeri
+                            <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                        </div>}
                   </div>
                 </div>
                 <div className="form-actions">
@@ -629,6 +691,120 @@ export default function SecurityPatrolApp({
         )}
 
         {/* ============================================================ */}
+        {/* TAB: TEMUAN (Standalone) */}
+        {/* ============================================================ */}
+        {tab === 'temuan' && (
+          <div className="step-form">
+            {tSent && (
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', background: 'rgba(16,185,129,0.08)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <Check size={36} style={{ color: 'var(--color-success)', marginBottom: '0.5rem' }} />
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-success)' }}>Temuan Terkirim!</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Laporan temuan berhasil disimpan ke Dashboard.</p>
+                <button onClick={() => { setTSent(false); setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi(''); }} className="btn-secondary btn-full" style={{ marginTop: '0.75rem' }}>
+                  Buat Temuan Baru
+                </button>
+              </div>
+            )}
+            {!tSent && (
+              <form onSubmit={handleTemuanStandaloneSubmit}>
+                <div className="glass-panel form-section">
+                  <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN / KENDALA</h5>
+                  
+                  <div className="step-field">
+                    <label>LOKASI / AREA</label>
+                    <select value={tLokasi} onChange={e => setTLokasi(e.target.value)} className="modern-select" required>
+                      <option value="">-- Pilih Area --</option>
+                      {areas.map(a => (
+                        <option key={a.id} value={`${a.titik} (${a.zona} - ${['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai})`}>
+                          {a.titik} — {a.qrCode}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="step-field">
+                    <label>KATEGORI</label>
+                    <select value={tKategori} onChange={e => setTKategori(e.target.value)} className="modern-select" required>
+                      <option value="">-- Pilih --</option>
+                      {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="step-field">
+                    <label>JENIS TEMUAN</label>
+                    <select value={tTemuan} onChange={e => setTTemuan(e.target.value)} className="modern-select" disabled={!tKategori} required>
+                      <option value="">-- Pilih --</option>
+                      {daftarTemuan.filter(t => t.kategori === tKategori).map(t => (
+                        <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="step-field">
+                    <label>SEVERITY</label>
+                    <div className="severity-grid">
+                      {['low','medium','high','critical'].map(s => (
+                        <button key={s} type="button" onClick={() => setTSeverity(s)}
+                          className={`severity-btn ${tSeverity === s ? 'active' : ''}`}
+                          style={{
+                            '--c': colorSeverity(s), borderColor: tSeverity === s ? colorSeverity(s) : 'var(--border-glass)',
+                            background: tSeverity === s ? `${colorSeverity(s)}1A` : 'transparent',
+                            color: tSeverity === s ? colorSeverity(s) : 'var(--text-secondary)'
+                          }}>
+                          {labelSeverity(s)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="step-field">
+                    <label>DESKRIPSI</label>
+                    <textarea value={tDeskripsi} onChange={e => setTDeskripsi(e.target.value)} className="modern-input form-textarea" rows={3} placeholder="Jelaskan temuan / kendala..." />
+                  </div>
+
+                  <div className="step-field">
+                    <label>FOTO</label>
+                    {tFoto ? <div className="photo-preview"><img src={tFoto} alt="" /><button type="button" onClick={() => setTFoto(null)} className="photo-remove">X</button></div>
+                      : <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <label className="photo-upload-btn"><Camera size={14} /> 📷 Kamera
+                            <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setTFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                          <label className="photo-upload-btn" style={{ background: 'rgba(255,255,255,0.04)' }}><Camera size={14} /> 🖼 Galeri
+                            <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setTFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                        </div>}
+                  </div>
+                </div>
+                <button type="submit" className="btn-primary btn-full" style={{ padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                  <Send size={16} /> Kirim Temuan
+                </button>
+              </form>
+            )}
+
+            {/* Riwayat temuan terbaru */}
+            {myFindings.length > 0 && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h5 style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <History size={13} /> Riwayat Temuan Saya
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {myFindings.slice(0, 5).map(f => (
+                    <div key={f.id} className="glass-panel" style={{ padding: '0.5rem 0.65rem', fontSize: '0.7rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 700 }}>{f.kategori}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{new Date(f.tanggal).toLocaleDateString('id-ID')}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)' }}>📍 {f.area}</div>
+                      <div style={{ color: 'var(--text-primary)', marginTop: '0.15rem' }}>{f.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================ */}
         {/* TAB: MUTASI */}
         {/* ============================================================ */}
         {tab === 'mutasi' && (
@@ -650,7 +826,7 @@ export default function SecurityPatrolApp({
                     <label>KATEGORI</label>
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                       {KATEGORI_MUTASI.map(k => (
-                        <button key={k.id} type="button" onClick={() => setMKat(k.id)} style={{
+                        <button key={k.id} type="button" onClick={() => { setMKat(k.id); if (k.id !== '__lainnya__') setMKatLainnya(''); }} style={{
                           padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.67rem',
                           border: `1.5px solid ${mKat === k.id ? k.color : 'var(--border-glass)'}`,
                           background: mKat === k.id ? `${k.color}18` : 'transparent',
@@ -660,6 +836,10 @@ export default function SecurityPatrolApp({
                         }}>{k.label}</button>
                       ))}
                     </div>
+                    {mKat === '__lainnya__' && (
+                      <input type="text" value={mKatLainnya} onChange={e => setMKatLainnya(e.target.value)}
+                        placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.4rem', fontSize: '0.8rem' }} />
+                    )}
                   </div>
 
                   <div className="step-field">
@@ -679,9 +859,14 @@ export default function SecurityPatrolApp({
                   <div className="step-field">
                     <label>FOTO <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional)</span></label>
                     {mFoto ? <div className="photo-preview"><img src={mFoto} alt="" /><button type="button" onClick={() => setMFoto(null)} className="photo-remove">X</button></div>
-                      : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
-                        <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setMFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
-                      </label>}
+                      : <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <label className="photo-upload-btn"><Camera size={14} /> 📷 Kamera
+                            <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setMFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                          <label className="photo-upload-btn" style={{ background: 'rgba(255,255,255,0.04)' }}><Camera size={14} /> 🖼 Galeri
+                            <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setMFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
+                          </label>
+                        </div>}
                   </div>
                 </div>
 

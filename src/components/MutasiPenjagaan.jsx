@@ -8,7 +8,8 @@ const KATEGORI_MUTASI = [
   { id: 'kehilangan', label: 'Kehilangan', icon: Search, color: '#f59e0b' },
   { id: 'kerusakan', label: 'Kerusakan', icon: Wrench, color: '#ef4444' },
   { id: 'gangguan', label: 'Gangguan', icon: AlertTriangle, color: '#dc2626' },
-  { id: 'emergency', label: 'Emergency', icon: Radio, color: '#7c3aed' }
+  { id: 'emergency', label: 'Emergency', icon: Radio, color: '#7c3aed' },
+  { id: '__lainnya__', label: 'Lainnya...', icon: X, color: '#6b7280' }
 ];
 
 export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas }) {
@@ -16,6 +17,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
   const [lokasi, setLokasi] = useState('');
   const [uraian, setUraian] = useState('');
   const [kategori, setKategori] = useState('informasi');
+  const [kategoriLainnya, setKategoriLainnya] = useState('');
   const [foto, setFoto] = useState(null);
   const [search, setSearch] = useState('');
   const [filterKat, setFilterKat] = useState('');
@@ -44,7 +46,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       jamKejadian,
       lokasi,
       uraian: uraian.trim(),
-      kategori,
+      kategori: kategori === '__lainnya__' ? `Lainnya: ${kategoriLainnya.trim() || 'Custom'}` : kategori,
       foto,
       petugas: currentUser.nama,
       nrp: currentUser.nrp,
@@ -53,6 +55,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     setUraian('');
     setLokasi('');
     setKategori('informasi');
+    setKategoriLainnya('');
     setFoto(null);
     setJamKejadian(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   };
@@ -94,7 +97,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 {KATEGORI_MUTASI.map(k => {
                   const Icon = k.icon;
                   return (
-                    <button key={k.id} type="button" onClick={() => setKategori(k.id)}
+                    <button key={k.id} type="button" onClick={() => { setKategori(k.id); if (k.id !== '__lainnya__') setKategoriLainnya(''); }}
                       className={`mutasi-kat-btn ${kategori === k.id ? 'active' : ''}`}
                       style={{ 
                         '--kat-color': k.color, 
@@ -119,7 +122,14 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             <div className="step-field">
               <label>LAMPIRAN FOTO (OPSIONAL)</label>
               {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
-                : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto<input type="file" accept="image/*" capture="environment" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=> { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f)} e.target.value=''; }} hidden /></label>}
+                : <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <label className="photo-upload-btn"><Camera size={14} /> 📷 Kamera
+                      <input type="file" accept="image/*" capture="environment" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=> { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f)} e.target.value=''; }} hidden />
+                    </label>
+                    <label className="photo-upload-btn" style={{ background: 'rgba(255,255,255,0.04)' }}><Camera size={14} /> 🖼 Galeri
+                      <input type="file" accept="image/*" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=> { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f)} e.target.value=''; }} hidden />
+                    </label>
+                  </div>}
             </div>
             
             <button type="submit" className="btn-primary btn-full" style={{ padding: '0.65rem' }}><Send size={16} /> Catat Ke Mutasi</button>
@@ -140,8 +150,12 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 <option value="">Semua Kategori</option>
                 {KATEGORI_MUTASI.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
               </select>
+              </div>
+              {kategori === '__lainnya__' && (
+                <input type="text" value={kategoriLainnya} onChange={e => setKategoriLainnya(e.target.value)}
+                  placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.4rem', fontSize: '0.8rem' }} />
+              )}
             </div>
-          </div>
 
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
             <table className="mutasi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>

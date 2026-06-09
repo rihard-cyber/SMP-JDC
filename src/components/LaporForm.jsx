@@ -21,6 +21,7 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
   const [keterangan, setKeterangan] = useState('');
   const [foto, setFoto] = useState(null);
   const [katMutasi, setKatMutasi] = useState('informasi');
+  const [katMutasiLainnya, setKatMutasiLainnya] = useState('');
   const [lokasiMutasi, setLokasiMutasi] = useState('');
   const [uraianMutasi, setUraianMutasi] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +33,8 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
     { id: 'kehilangan', label: 'Kehilangan', color: '#f59e0b' },
     { id: 'kerusakan', label: 'Kerusakan', color: '#ef4444' },
     { id: 'gangguan', label: 'Gangguan', color: '#dc2626' },
-    { id: 'emergency', label: 'Emergency', color: '#7c3aed' }
+    { id: 'emergency', label: 'Emergency', color: '#7c3aed' },
+    { id: '__lainnya__', label: 'Lainnya...', color: '#6b7280' }
   ];
 
   const KONDISI_OPTIONS = [
@@ -92,7 +94,7 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
         jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         lokasi: lokasiMutasi,
         uraian: uraianMutasi,
-        kategori: katMutasi,
+        kategori: katMutasi === '__lainnya__' ? `Lainnya: ${katMutasiLainnya.trim() || 'Custom'}` : katMutasi,
         foto: foto,
         petugas: currentUser.nama,
         nrp: currentUser.nrp,
@@ -109,6 +111,7 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
     setLokasiMutasi('');
     setFoto(null);
     setAreaId('');
+    setKatMutasi('informasi'); setKatMutasiLainnya('');
     setTimeout(() => setDone(false), 3000);
   };
 
@@ -188,7 +191,7 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
                   <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>KATEGORI</label>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {KATEGORI_MUTASI.map(k => (
-                      <button key={k.id} type="button" onClick={() => setKatMutasi(k.id)} style={{
+                      <button key={k.id} type="button" onClick={() => { setKatMutasi(k.id); if (k.id !== '__lainnya__') setKatMutasiLainnya(''); }} style={{
                         padding: '0.35rem 0.6rem', borderRadius: '6px',
                         border: `1.5px solid ${katMutasi === k.id ? k.color : 'var(--border-glass)'}`,
                         background: katMutasi === k.id ? `${k.color}18` : 'transparent',
@@ -198,6 +201,10 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
                       }}>{k.label}</button>
                     ))}
                   </div>
+                  {katMutasi === '__lainnya__' && (
+                    <input type="text" value={katMutasiLainnya} onChange={e => setKatMutasiLainnya(e.target.value)}
+                      placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.3rem', fontSize: '0.8rem' }} />
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -224,24 +231,24 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
                     <button type="button" onClick={() => setFoto(null)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'var(--color-danger)', border: 'none', borderRadius: '50%', color: 'white', width: '18px', height: '18px', fontSize: '0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={10} /></button>
                   </div>
                 ) : (
-                  <label className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                    <Camera size={14} /> Ambil / Upload Foto
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={e => {
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <label className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                      <Camera size={14} /> 📷 Kamera
+                      <input type="file" accept="image/*" capture="environment" onChange={e => {
                         const f = e.target.files[0];
-                        if (f) {
-                          const r = new FileReader();
-                          r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); };
-                          r.readAsDataURL(f);
-                        }
+                        if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); }
                         e.target.value = '';
-                      }}
-                      hidden
-                    />
-                  </label>
+                      }} hidden />
+                    </label>
+                    <label className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', background: 'rgba(255,255,255,0.04)' }}>
+                      <Camera size={14} /> 🖼 Galeri
+                      <input type="file" accept="image/*" onChange={e => {
+                        const f = e.target.files[0];
+                        if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); }
+                        e.target.value = '';
+                      }} hidden />
+                    </label>
+                  </div>
                 )}
               </div>
             </div>
