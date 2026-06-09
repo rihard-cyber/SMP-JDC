@@ -289,6 +289,8 @@ export default function ManagementDashboard({
           position: relative;
           overflow: hidden;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          flex-direction: column;
         }
         .cyber-card:hover {
           transform: translateY(-3px);
@@ -460,7 +462,7 @@ export default function ManagementDashboard({
                 const totalAttendanceSum = kpiHadir + kpiAlpha + kpiSakit + kpiIzin || 1;
                 const presentPercentage = (kpiHadir / totalAttendanceSum) * 100;
                 return (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', height: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexGrow: 1 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem', color: '#94a3b8' }}>
                       <div className="cyber-info-item">
                         <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
@@ -552,7 +554,7 @@ export default function ManagementDashboard({
             {/* Widget 6: Target semi-circle gauge */}
             <div className="cyber-card">
               <div className="cyber-title"><CheckCircle size={12} className="cyber-title-accent"/> Pencapaian Target Kepatuhan</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexGrow: 1 }}>
                 <div style={{ position: 'relative', width: '110px', height: '70px', flexShrink: 0 }}>
                   <svg width="110" height="70" viewBox="0 0 120 70">
                     <defs>
@@ -584,7 +586,7 @@ export default function ManagementDashboard({
             {/* Widget 7: Opposite curves */}
             <div className="cyber-card">
               <div className="cyber-title"><Zap size={12} className="cyber-title-accent"/> Kinerja & Keaktifan Regu</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexGrow: 1 }}>
                 <div style={{ position: 'relative', width: '70px', height: '70px', flexShrink: 0 }}>
                   <svg width="70" height="70" viewBox="0 0 80 80">
                     <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" stroke="#1c203a" strokeWidth="5" strokeLinecap="round" />
