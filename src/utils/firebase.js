@@ -200,3 +200,24 @@ export const resetUsersInFirestore = async (defaultUsers) => {
     return false;
   }
 };
+
+export const clearAllPatrolDataInFirestore = async () => {
+  const database = initFirebase();
+  if (!database) return false;
+  const collections = ['patrol_reports', 'findings', 'mutasi_logs', 'attendance_logs', 'complaints'];
+  try {
+    for (const collName of collections) {
+      const q = query(collection(database, collName));
+      const snapshot = await getDocs(q);
+      const deletePromises = [];
+      snapshot.forEach((docSnapshot) => {
+        deletePromises.push(deleteDoc(docSnapshot.ref));
+      });
+      await Promise.all(deletePromises);
+    }
+    return true;
+  } catch (e) {
+    console.warn('[Firebase] Gagal membersihkan data:', e);
+    return false;
+  }
+};

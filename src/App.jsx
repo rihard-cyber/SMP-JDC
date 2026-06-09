@@ -20,7 +20,8 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
-  subscribeUsers, addUserToFirestore, updateUserInFirestore, resetUsersInFirestore } from './utils/firebase';
+  subscribeUsers, addUserToFirestore, updateUserInFirestore, resetUsersInFirestore,
+  clearAllPatrolDataInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -1065,6 +1066,26 @@ export default function App() {
     }
   };
 
+  const handleClearAllData = async () => {
+    addToast('Membersihkan seluruh data operasional di Firestore...', 'info');
+    const success = await clearAllPatrolDataInFirestore();
+    if (success) {
+      addToast('Seluruh data operasional di Firestore berhasil dibersihkan!', 'success');
+      setReports([]);
+      setFindings([]);
+      setMutasiLogs([]);
+      setAttendanceLogs([]);
+      setComplaints([]);
+      localStorage.setItem('sapujagat_reports', JSON.stringify([]));
+      localStorage.setItem('sapujagat_findings', JSON.stringify([]));
+      localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify([]));
+      localStorage.setItem('smpjdc_attendance_logs', JSON.stringify([]));
+      localStorage.setItem('smpjdc_complaints', JSON.stringify([]));
+    } else {
+      addToast('Gagal membersihkan data di Firestore. Periksa koneksi internet.', 'danger');
+    }
+  };
+
   const handleUpdateAvatar = async () => {
     setProfileError('');
     setProfileSuccess('');
@@ -1521,7 +1542,7 @@ export default function App() {
 
           {currentTab === 'backup' && isSuperAdmin && (
             <div style={{ padding: '1rem 0' }}>
-              <BackupRestore addToast={addToast} onResetUsers={handleResetUsers} />
+              <BackupRestore addToast={addToast} onResetUsers={handleResetUsers} onClearAllData={handleClearAllData} />
             </div>
           )}
 

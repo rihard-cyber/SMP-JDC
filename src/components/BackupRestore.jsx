@@ -7,7 +7,7 @@ const ALL_KEYS = [
   'smpjdc_db_version', 'smpjdc_session', 'smpjdc_login_attempts'
 ];
 
-export default function BackupRestore({ addToast, onResetUsers }) {
+export default function BackupRestore({ addToast, onResetUsers, onClearAllData }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const fileRef = useRef(null);
@@ -124,6 +124,34 @@ export default function BackupRestore({ addToast, onResetUsers }) {
               }}
             >
               <RefreshCw size={16} /> Reset User Database ke Default
+            </button>
+          </div>
+        )}
+
+        {onClearAllData && (
+          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+            <button
+              onClick={() => {
+                if (window.confirm('PERINGATAN KERAS! Tindakan ini akan menghapus SELURUH data laporan patroli, temuan, mutasi, absensi, dan komplain dari Firestore dan LocalStorage. Tindakan ini tidak dapat dibatalkan! Apakah Anda yakin?')) {
+                  onClearAllData();
+                }
+              }}
+              disabled={busy}
+              className="btn-danger"
+              style={{
+                width: '100%',
+                padding: '0.7rem',
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center',
+                gap: '0.4rem',
+                fontSize: '0.82rem',
+                background: 'rgba(239,68,68,0.15)',
+                color: 'var(--color-danger)',
+                border: '1px solid rgba(239,68,68,0.3)'
+              }}
+            >
+              <RefreshCw size={16} /> Hapus Semua Laporan & Temuan (Wipe Data)
             </button>
           </div>
         )}
