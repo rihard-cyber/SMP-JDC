@@ -17,9 +17,11 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Phone,
+  Shield
 } from 'lucide-react';
-import { getWAContacts, buildWAMessage, buildWALink, buildWARekap } from '../data/waContacts';
+import { getWAContacts, buildWAMessage, buildWALink } from '../data/waContacts';
 
 const SEVERITY_COLOR = {
   Kritis: '#dc2626',
@@ -39,16 +41,28 @@ const COMPLAINT_STATUS_COLOR = {
   Baru: '#3b82f6', Diterima: '#f59e0b', Diproses: '#8b5cf6', Selesai: '#10b981'
 };
 
-export default function ManagementDashboard({ reports, findings, areas, users, attendanceLogs = [], mutasiLogs = [], complaints = [], onUpdateStatus, onDispatchFinding, onUpdateComplaint, onArchiveOldData }) {
+export default function ManagementDashboard({ 
+  reports, 
+  findings, 
+  areas, 
+  users, 
+  attendanceLogs = [], 
+  mutasiLogs = [], 
+  complaints = [], 
+  onUpdateStatus, 
+  onDispatchFinding, 
+  onUpdateComplaint, 
+  onArchiveOldData 
+}) {
   const [graphFilter, setGraphFilter] = useState('hari');
   const [selectedFloor, setSelectedFloor] = useState('Basement');
   const [activeTab, setActiveTab] = useState('semua'); // 'semua' | 'Teknisi' | 'Cleaning' | 'Keamanan'
   const [expandedFinding, setExpandedFinding] = useState(null);
   const [showWASent, setShowWASent] = useState({});
   const [selectedFindings, setSelectedFindings] = useState([]);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [complaintFilter, setComplaintFilter] = useState('all');
   const [expandedComplaint, setExpandedComplaint] = useState(null);
+  const [activeCommandTab, setActiveCommandTab] = useState('temuan');
 
   const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
 
@@ -56,7 +70,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
     .filter(c => complaintFilter === 'all' || c.status === complaintFilter)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  // Load WA contacts dynamically from localStorage (updated via Settings)
+  // Load WA contacts dynamically from localStorage
   const WA_CONTACTS = getWAContacts();
 
   // ── Kalkulasi KPI ─────────────────────────────────────────────────────────
@@ -79,10 +93,6 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   }
 
   const totalFindingsOpen = findings.filter(f => f.status !== 'Closed').length;
-  const safeAreasCount = areas.filter(a => {
-    const ar = reportsToday.filter(r => r.areaId === a.id);
-    return ar.length > 0 && ar.every(r => r.kondisi === 'Aman dan Kondusif' || r.kondisi === 'Ada Aktivitas');
-  }).length;
   const unvisitedAreas = areas.filter(a => !patrolledAreasToday.has(a.id));
   const missedAreas = unvisitedAreas.slice(0, 4);
 
@@ -97,11 +107,10 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   // WA already sent count
   const waSentCount = dept => findings.filter(f => f.department === dept && f.waStatus?.startsWith('Terkirim')).length;
 
-  // ── Dispatch handler (bubbles up to App.jsx) ───────────────────────────────
+  // ── Dispatch handler ───────────────────────────────────────────────────────
   const handleDispatch = (finding, dept) => {
     if (onDispatchFinding) onDispatchFinding(finding.id, dept);
     setShowWASent(prev => ({ ...prev, [finding.id]: dept }));
-    // open WA
     window.open(buildWALink(finding, dept), '_blank', 'noopener');
   };
 
@@ -135,12 +144,6 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   const activeGraph = graphData[graphFilter];
   const maxPatrolVal = Math.max(...activeGraph.patrols) * 1.15;
 
-  // ── AI Summary ─────────────────────────────────────────────────────────────
-  // ── Complaints ──────────────────────────────────────────────────────────────
-  const complaintsNew = complaints.filter(c => c.status === 'Baru').length;
-  const complaintsActive = complaints.filter(c => c.status !== 'Selesai').length;
-  const recentComplaints = [...complaints].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
-
   // ── Attendance per Regu ────────────────────────────────────────────────────
   const reguList = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
   const reguAttendance = reguList.map(regu => {
@@ -171,10 +174,10 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
 
   // ── Security Health Score ───────────────────────────────────────────────────
   const patrolPct = areas.length > 0 ? (patrolledAreasToday.size / areas.length) * 100 : 0;
-  const attendancePct = kpiHadir > 0 || kpiAlpha > 0 || kpiSakit > 0 || kpiIzin > 0
-    ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 0;
-  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 0;
-  const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 0;
+  const attendancePct = (kpiHadir + kpiAlpha + kpiSakit + kpiIzin) > 0
+    ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 100;
+  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 100;
+  const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 100;
   const healthScore = Math.round(
     (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
   );
@@ -210,1075 +213,1261 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
     borderBottom: activeTab === tab ? `2px solid ${tab === 'semua' ? '#818cf8' : WA_CONTACTS[tab]?.color}` : '2px solid transparent'
   });
 
+  // ── Presence keaktifan status calculation ──────────────────────────────────
+  const statsKeaktifan = users.filter(u => ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).map(member => {
+    let isOnline = false;
+    if (member.lastActive) {
+      const diffMs = new Date() - new Date(member.lastActive);
+      isOnline = diffMs < 300000; // 5 minutes threshold
+    }
+    return isOnline;
+  });
+  const totalOnline = statsKeaktifan.filter(x => x).length;
+  const totalOffline = statsKeaktifan.filter(x => !x).length;
+  const totalActiveStaff = totalOnline + totalOffline || 1;
+  const onlinePct = (totalOnline / totalActiveStaff) * 100;
+
+  // ── Calculations for Widget 5 (Category Doughnut) ─────────────────────────
+  const catsCount = {
+    Fasilitas: findings.filter(f => f.kategori === 'Fasilitas').length + complaints.filter(c => c.category === 'Fasilitas').length,
+    Engineering: findings.filter(f => f.kategori === 'Engineering').length + complaints.filter(c => c.category === 'Engineering').length,
+    Cleaning: findings.filter(f => f.kategori === 'Cleaning').length + complaints.filter(c => c.category === 'Cleaning').length,
+    Keamanan: findings.filter(f => f.kategori === 'Keamanan').length + complaints.filter(c => c.category === 'Satpam').length,
+    Lainnya: findings.filter(f => f.kategori === '-' || f.kategori === 'Lainnya').length + complaints.filter(c => c.category === 'Lainnya').length
+  };
+  const totalCatSum = catsCount.Fasilitas + catsCount.Engineering + catsCount.Cleaning + catsCount.Keamanan + catsCount.Lainnya || 1;
+  const p1 = Math.round((catsCount.Fasilitas / totalCatSum) * 100);
+  const p2 = Math.round((catsCount.Engineering / totalCatSum) * 100);
+  const p3 = Math.round((catsCount.Cleaning / totalCatSum) * 100);
+  const p4 = Math.round((catsCount.Keamanan / totalCatSum) * 100);
+
+  const c1 = '#ec4899'; // Fasilitas
+  const c2 = '#8b5cf6'; // Engineering
+  const c3 = '#00f0ff'; // Cleaning
+  const c4 = '#3b82f6'; // Keamanan
+  const c5 = '#64748b'; // Lainnya
+
+  const doughnutGradientStr = `conic-gradient(
+    ${c1} 0% ${p1}%,
+    ${c2} ${p1}% ${p1+p2}%,
+    ${c3} ${p1+p2}% ${p1+p2+p3}%,
+    ${c4} ${p1+p2+p3}% ${p1+p2+p3+p4}%,
+    ${c5} ${p1+p2+p3+p4}% 100%
+  )`;
+
   return (
     <div className="management-dashboard-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <style>{`
+        /* Futuristic layout styles for Dashboard Hub */
+        .cyber-grid-container {
+          display: grid;
+          grid-template-columns: 2.2fr 1.2fr;
+          gap: 1.5rem;
+          width: 100%;
+        }
+        .cyber-left-col {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+        .cyber-right-col {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+        .cyber-row-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+        .cyber-card {
+          background: #111625;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 20px;
+          padding: 1.5rem;
+          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .cyber-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.15);
+          border-color: rgba(59, 130, 246, 0.3);
+        }
+        .cyber-card::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.03) 0%, transparent 70%);
+          pointer-events: none;
+        }
+        .cyber-title {
+          font-size: 0.72rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #94a3b8;
+          margin-bottom: 1.2rem;
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+        .cyber-title-accent {
+          color: var(--color-primary);
+        }
+        .cyber-radial-container {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+        .cyber-radial-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          font-size: 0.75rem;
+          color: #94a3b8;
+        }
+        .cyber-info-item {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+        .cyber-color-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        
+        /* Command Tab Panels styling */
+        .command-tab-bar {
+          display: flex;
+          gap: 0.4rem;
+          background: rgba(19, 27, 46, 0.6);
+          padding: 0.25rem;
+          border-radius: 12px;
+          border: 1px solid var(--border-glass);
+          margin-bottom: 1rem;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .command-tab-bar::-webkit-scrollbar {
+          display: none;
+        }
+        .command-tab-btn {
+          flex: 1;
+          padding: 0.65rem 1rem;
+          border: none;
+          background: transparent;
+          color: var(--text-secondary);
+          font-family: var(--font-sans);
+          font-weight: 700;
+          font-size: 0.8rem;
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.4rem;
+          transition: all 0.25s ease;
+          white-space: nowrap;
+        }
+        .command-tab-btn.active {
+          background: var(--color-primary);
+          color: white;
+          box-shadow: 0 0 12px var(--color-primary-glow);
+        }
+        .command-tab-btn:hover:not(.active) {
+          background: rgba(255, 255, 255, 0.03);
+          color: var(--text-primary);
+        }
 
-      {/* ── 1. KPI PATROLI ────────────────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:600 }}>
-          <Activity size={16}/> KPI PATROLI HARI INI
-        </div>
-        <div className="grid-cols-4">
-          {[
-            { label:'Total Scan',       val: totalPatrolsToday,                   color: 'var(--color-primary)' },
-            { label:'Sudah Dipatroli',  val: patrolledAreasToday.size,            color: 'var(--color-success)' },
-            { label:'Belum Dipatroli',  val: areas.length - patrolledAreasToday.size, color: 'var(--color-danger)' },
-            { label:'% Kepatuhan',      val: `${areas.length > 0 ? Math.round((patrolledAreasToday.size/areas.length)*100) : 0}%`, color:'var(--color-primary)' },
-          ].map(k => (
-            <div key={k.label} className="kpi-card">
-              <p className="kpi-label">{k.label}</p>
-              <h3 className="kpi-value" style={{ color: k.color }}>{k.val}</h3>
-            </div>
-          ))}
-        </div>
-      </div>
+        /* Slide-in animation for tab changes */
+        @keyframes slide-in-tab {
+          from { transform: translateY(15px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .command-tab-content {
+          animation: slide-in-tab 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
 
-      {/* ── 1B. SECURITY HEALTH SCORE ─────────────────────────────────────── */}
-      <div className="glass-panel" style={{
-        padding: '1.25rem 1.5rem',
-        background: `linear-gradient(135deg, ${healthColor}15 0%, ${healthColor}08 100%)`,
-        border: `1px solid ${healthColor}30`
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-              width: '64px', height: '64px', borderRadius: '50%',
-              background: `conic-gradient(${healthColor} ${healthScore * 3.6}deg, rgba(0,0,0,0.08) 0deg)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0
-            }}>
-              <div style={{
-                width: '52px', height: '52px', borderRadius: '50%',
-                background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: healthColor }}>{healthScore}</span>
-              </div>
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: healthColor }}>Security Health Score</h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-                Status: <strong style={{ color: healthColor }}>{healthLabel}</strong> — 
-                Patroli {Math.round(patrolPct)}% • 
-                Absensi {Math.round(attendancePct)}% • 
-                Temuan {Math.round(findingsClosed)}% • 
-                Komplain {Math.round(complaintsResolved)}%
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button onClick={() => {
-              const text = `🛡 *SECURITY HEALTH SCORE SMPJDC*\n━━━━━━━━━━━━━━━━━━\nSkor Kesehatan: ${healthScore}/100 (${healthLabel})\n\n📊 Patroli: ${Math.round(patrolPct)}% (${patrolledAreasToday.size}/${areas.length} area)\n👥 Absensi: ${Math.round(attendancePct)}%\n🔍 Temuan Selesai: ${Math.round(findingsClosed)}%\n📩 Komplain Selesai: ${Math.round(complaintsResolved)}%\n━━━━━━━━━━━━━━━━━━\n_Sistem Manajemen Keamanan JDC_`;
-              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-            }} style={{
-              padding: '0.35rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 700,
-              border: '1px solid #25D366', background: 'rgba(37,211,102,0.1)', color: '#25D366',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-sans)'
-            }}>
-              <Send size={11}/> Share WA
-            </button>
-            <button onClick={() => {
-              const el = document.querySelector('.management-dashboard-wrap');
-              if (!el) return;
-              const text = Array.from(el.querySelectorAll('h3, h4, p, span, strong')).map(e => e.textContent).join(' | ');
-              navigator.clipboard?.writeText(
-                `🛡 LAPORAN RINGKASAN SMPJDC\n${new Date().toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}\n\nSkor Kesehatan: ${healthScore}/100 (${healthLabel})\nPatroli: ${patrolledAreasToday.size}/${areas.length} area\nHadir: ${kpiHadir} personil\nTemuan Terbuka: ${totalFindingsOpen}\nKomplain Baru: ${complaintsNew}`
-              );
-            }} style={{
-              padding: '0.35rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 700,
-              border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-secondary)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-sans)'
-            }}>
-              <ClipboardList size={11}/> Salin
-            </button>
-          </div>
-        </div>
-      </div>
+        @media (max-width: 1024px) {
+          .cyber-grid-container {
+            grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 640px) {
+          .cyber-row-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 
-      {/* ── 2. KPI TEMUAN BY SEVERITY ─────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:600 }}>
-          <AlertTriangle size={16}/> KPI TEMUAN (By Severity)
-        </div>
-        <div className="grid-cols-4">
-          {[
-            { label:'Critical', sev:'Kritis', color:'#dc2626' },
-            { label:'High',     sev:'Tinggi', color:'#ef4444' },
-            { label:'Medium',   sev:'Sedang', color:'#f59e0b' },
-            { label:'Low',      sev:'Rendah', color:'#3b82f6' },
-          ].map(k => (
-            <div key={k.label} className="kpi-card" style={{ borderLeft:`3px solid ${k.color}` }}>
-              <p className="kpi-label">{k.label}</p>
-              <h3 className="kpi-value" style={{ color: k.color }}>{findings.filter(f=>f.severity===k.sev).length}</h3>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 3. KPI PERSONIL HARI INI ──────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding:'1.25rem' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:600 }}>
-          <Users size={16}/> KPI PERSONIL HARI INI
-          {todayAttendance && <span className="badge badge-info" style={{ fontSize:'0.6rem', marginLeft:'auto' }}>Regu: {todayAttendance.regu} | Shift: {todayAttendance.shift}</span>}
-        </div>
-        <div className="grid-cols-4">
-          {[
-            { label:'Hadir',  val: kpiHadir, color:'var(--color-success)' },
-            { label:'Alpha',  val: kpiAlpha, color:'#ef4444' },
-            { label:'Sakit',  val: kpiSakit, color:'#f59e0b' },
-            { label:'Izin',   val: kpiIzin,  color:'#3b82f6' },
-          ].map(k => (
-            <div key={k.label} className="kpi-card">
-              <p className="kpi-label">{k.label}</p>
-              <h3 className="kpi-value" style={{ color: k.color }}>{k.val}</h3>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 4. STATUS DISPOSISI + WA SUMMARY CARDS ────────────────────────── */}
-      <div className="glass-panel" style={{ padding:'1.25rem' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:600 }}>
-          <MessageCircle size={16}/> DISPOSISI TEMUAN & STATUS KIRIM WHATSAPP
-        </div>
-        <div className="grid-cols-3">
-          {Object.entries(WA_CONTACTS).map(([dept, info]) => {
-            const total    = findingsByDept[dept].length;
-            const open     = findingsByDept[dept].filter(f => f.status !== 'Closed').length;
-            const sent     = waSentCount(dept);
-            const pct      = total > 0 ? Math.round((sent/total)*100) : 0;
-            return (
-              <div key={dept} className="kpi-card" style={{ borderLeft:`3px solid ${info.color}`, background:`${info.color}08` }}>
-                <p className="kpi-label" style={{ display:'flex', alignItems:'center', gap:'0.3rem', fontSize:'0.82rem', fontWeight:700 }}>
-                  {info.emoji} {dept} <span style={{ marginLeft:'auto', fontWeight:400, fontSize:'0.7rem', color:'var(--text-muted)' }}>{info.nama}</span>
-                </p>
-                <h3 className="kpi-value" style={{ color: info.color, fontSize:'1.9rem', margin:'0.3rem 0' }}>
-                  {total} <span style={{ fontSize:'0.8rem', color:'var(--text-muted)', fontWeight:500 }}>Tiket</span>
-                </h3>
-                <div style={{ fontSize:'0.75rem', display:'flex', flexDirection:'column', gap:'0.2rem' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between' }}>
-                    <span style={{ color:'var(--text-secondary)' }}>Aktif / Open:</span>
-                    <strong style={{ color: open > 0 ? '#ef4444' : 'var(--color-success)' }}>{open}</strong>
+      {/* ── AESTHETICS DASHBOARD GRIDS ── */}
+      <div className="cyber-grid-container">
+        
+        {/* Left Column Section */}
+        <div className="cyber-left-col">
+          
+          {/* Row 1: concentric circles and attendance loop progress */}
+          <div className="cyber-row-grid">
+            
+            {/* Widget 1: Concentric rings */}
+            <div className="cyber-card">
+              <div className="cyber-title"><Activity size={12} className="cyber-title-accent"/> Persentase Operasional JDC</div>
+              <div className="cyber-radial-container">
+                <svg width="110" height="110" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                  <circle cx="50" cy="50" r="30" fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                  <circle cx="50" cy="50" r="20" fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                  
+                  {/* Rings */}
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ec4899" strokeWidth="6" 
+                    strokeDasharray="251.3" strokeDashoffset={251.3 - (patrolPct / 100) * 251.3} 
+                    strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                  <circle cx="50" cy="50" r="30" fill="transparent" stroke="#00f0ff" strokeWidth="6" 
+                    strokeDasharray="188.5" strokeDashoffset={188.5 - (attendancePct / 100) * 188.5} 
+                    strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                  <circle cx="50" cy="50" r="20" fill="transparent" stroke="#8b5cf6" strokeWidth="6" 
+                    strokeDasharray="125.7" strokeDashoffset={125.7 - (findingsClosed / 100) * 125.7} 
+                    strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                </svg>
+                <div className="cyber-radial-info">
+                  <div className="cyber-info-item">
+                    <div className="cyber-color-dot" style={{ background: '#ec4899' }} />
+                    <span>Patroli: <strong>{Math.round(patrolPct)}%</strong></span>
                   </div>
-                  <div style={{ display:'flex', justifyContent:'space-between' }}>
-                    <span style={{ color:'var(--text-secondary)' }}>Sudah Kirim WA:</span>
-                    <strong style={{ color:'var(--color-success)' }}>{sent} ({pct}%)</strong>
+                  <div className="cyber-info-item">
+                    <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
+                    <span>Absen: <strong>{Math.round(attendancePct)}%</strong></span>
                   </div>
-                  {/* Progress bar */}
-                  <div style={{ height:'4px', borderRadius:'99px', background:'rgba(0,0,0,0.08)', marginTop:'0.25rem', overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${pct}%`, background: info.color, borderRadius:'99px', transition:'width 0.5s' }}/>
+                  <div className="cyber-info-item">
+                    <div className="cyber-color-dot" style={{ background: '#8b5cf6' }} />
+                    <span>Temuan: <strong>{Math.round(findingsClosed)}%</strong></span>
                   </div>
-                  {/* Quick send to dept head */}
-                  {open > 0 && (
-                    <button
-                      onClick={() => {
-                        // Open WA ke kepala dept dengan summary semua tiket open
-                        const openItems = findingsByDept[dept].filter(f => f.status !== 'Closed');
-                        const summaryMsg = 
-                          `*${info.emoji} REKAP TIKET OPEN - SMPJDC*\n` +
-                          `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                          `Yth. ${info.nama},\n\n` +
-                          `Berikut tiket aktif yang perlu ditindaklanjuti:\n\n` +
-                          openItems.map((f,i) =>
-                            `${i+1}. [${f.severity||'Rendah'}] ${f.kategori}\n   📍 ${f.area}\n   📋 ${f.detail}\n`
-                          ).join('\n') +
-                          `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                          `Total: ${openItems.length} tiket aktif\n_Sistem Manajemen Keamanan JDC_`;
-                        window.open(`https://api.whatsapp.com/send?phone=${info.nomor}&text=${encodeURIComponent(summaryMsg)}`, '_blank', 'noopener');
-                      }}
-                      style={{
-                        marginTop:'0.5rem', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.4rem',
-                        background: `${info.color}22`, color: info.color, border:`1px solid ${info.color}44`,
-                        borderRadius:'6px', padding:'0.35rem 0.5rem', fontSize:'0.72rem', fontWeight:700,
-                        cursor:'pointer', width:'100%', transition:'all 0.2s'
-                      }}
-                    >
-                      <Send size={11}/> Kirim Rekap ke {dept === 'Teknisi' ? 'Ka. Teknik' : dept === 'Cleaning' ? 'Ka. Cleaning' : 'Ka. Security'}
-                    </button>
-                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 5. TABEL TEMUAN + KIRIM WA PER TEMUAN ────────────────────────── */}
-      <div className="glass-panel finding-section-panel" style={{ padding:'1.5rem' }}>
-        {/* Header + Filter Tabs + Bulk Forward */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.75rem', marginBottom:'1.25rem' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', flexWrap:'wrap' }}>
-            <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-              <ClipboardList size={18} className="text-primary"/> Daftar Tiket Temuan & Disposisi WA
-            </h3>
-            {selectedFindings.length > 0 && (
-              <div style={{ display:'flex', gap:'0.3rem', alignItems:'center' }}>
-                <span style={{ fontSize:'0.7rem', color:'var(--text-secondary)', fontWeight:600 }}>{selectedFindings.length} dipilih</span>
-                {Object.entries(WA_CONTACTS).filter(([dept]) => dept !== 'semua').map(([dept, info]) => (
-                  <button key={dept} onClick={() => {
-                    selectedFindings.forEach((id, idx) => {
-                      const f = findings.find(fi => fi.id === id);
-                      if (f && onDispatchFinding) onDispatchFinding(id, dept);
-                      if (f) {
-                        setTimeout(() => window.open(buildWALink(f, dept), '_blank', 'noopener'), idx * 300);
-                      }
-                    });
-                    setSelectedFindings([]);
-                  }} style={{
-                    padding:'0.25rem 0.5rem', fontSize:'0.6rem', borderRadius:'6px', fontWeight:700,
-                    border:`1px solid ${info.color}44`, background:`${info.color}12`, color: info.color,
-                    cursor:'pointer', display:'flex', alignItems:'center', gap:'0.2rem', fontFamily:'var(--font-sans)'
-                  }}>
-                    <Send size={9}/> Forward {selectedFindings.length} ke {dept}
-                  </button>
-                ))}
-                <button onClick={() => setSelectedFindings([])} style={{
-                  padding:'0.25rem 0.4rem', fontSize:'0.6rem', borderRadius:'6px', fontWeight:600,
-                  border:'1px solid var(--border-glass)', background:'transparent', color:'var(--text-muted)',
-                  cursor:'pointer', fontFamily:'var(--font-sans)'
-                }}>Batal</button>
-              </div>
-            )}
-          </div>
-          <div className="filter-tabs-wrap">
-            <div style={{ display:'flex', gap:'0.25rem', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'10px' }}>
-              {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
-                <button key={tab} style={tabStyle(tab)} onClick={() => setActiveTab(tab)}>
-                  {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}
-                </button>
-              ))}
             </div>
-          </div>
-        </div>
 
-        {/* Table */}
-        {filteredFindings.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'3rem', color:'var(--text-muted)' }}>
-            <CheckCircle2 size={40} style={{ opacity:0.4, marginBottom:'0.75rem' }}/>
-            <p style={{ fontSize:'0.9rem' }}>Tidak ada tiket temuan{activeTab !== 'semua' ? ` untuk departemen ${activeTab}` : ''} saat ini.</p>
-          </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-            {/* Select All Row */}
-            {filteredFindings.length > 1 && (
-              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.25rem 0.5rem', fontSize:'0.68rem', color:'var(--text-muted)' }}>
-                <div onClick={() => {
-                  if (selectedFindings.length === filteredFindings.length) {
-                    setSelectedFindings([]);
-                  } else {
-                    setSelectedFindings(filteredFindings.map(f => f.id));
-                  }
-                }} style={{
-                  width:'16px', height:'16px', borderRadius:'4px', flexShrink:0, cursor:'pointer',
-                  border: `2px solid ${selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-                  background: selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'transparent',
-                  display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s'
-                }}>
-                  {selectedFindings.length === filteredFindings.length && <Check size={10} color="white" strokeWidth={3}/>}
-                </div>
-                <span>Pilih semua ({filteredFindings.length} tiket)</span>
-              </div>
-            )}
-            {filteredFindings.map(finding => {
-              const dept     = finding.department || 'Keamanan';
-              const contact  = WA_CONTACTS[dept] || WA_CONTACTS.Keamanan;
-              const statusCfg = STATUS_COLOR[finding.status] || STATUS_COLOR['Open'];
-              const sevColor = SEVERITY_COLOR[finding.severity] || '#3b82f6';
-              const isExpanded = expandedFinding === finding.id;
-              const waAlreadySent = finding.waStatus?.startsWith('Terkirim');
-
-              return (
-                <div
-                  key={finding.id}
-                  className="finding-ticket"
-                  style={{
-                    borderColor: waAlreadySent ? 'rgba(16,185,129,0.2)' : undefined,
-                    borderLeft: `4px solid ${contact.color}`,
-                    background: waAlreadySent ? 'rgba(16,185,129,0.03)' : undefined
-                  }}
-                >
-                  {/* Row Header */}
-                  <div
-                    className="finding-ticket-header"
-                    onClick={(e) => {
-                      if (e.target.closest('.finding-checkbox')) return;
-                      setExpandedFinding(isExpanded ? null : finding.id);
-                    }}
-                  >
-                    {/* Checkbox for bulk select */}
-                    <div className="finding-checkbox" onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedFindings(prev =>
-                        prev.includes(finding.id) ? prev.filter(id => id !== finding.id) : [...prev, finding.id]
-                      );
-                    }} style={{
-                      width:'18px', height:'18px', borderRadius:'4px', flexShrink:0,
-                      border: `2px solid ${selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-                      background: selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'transparent',
-                      display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
-                      transition:'all 0.15s'
-                    }}>
-                      {selectedFindings.includes(finding.id) && <Check size={12} color="white" strokeWidth={3}/>}
-                    </div>
-
-                    {/* Dept Badge */}
-                    <span className="finding-ticket-badge" style={{ color: contact.color, background:`${contact.color}18` }}>
-                      {contact.emoji} {dept}
-                    </span>
-
-                    {/* ID */}
-                    <span className="finding-ticket-id">
-                      #{String(finding.id).slice(-6)}
-                    </span>
-
-                    {/* Kategori */}
-                    <span className="finding-ticket-category">
-                      {finding.kategori}
-                    </span>
-
-                    {/* Meta badges */}
-                    <div className="finding-ticket-meta">
-                      {/* Severity */}
-                      <span style={{ fontSize:'0.7rem', fontWeight:700, color: sevColor, background:`${sevColor}18`, padding:'0.2rem 0.5rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
-                        {finding.severity || 'Rendah'}
-                      </span>
-                      {/* Status */}
-                      <span style={{ fontSize:'0.7rem', fontWeight:700, color: statusCfg.color, background: statusCfg.bg, padding:'0.2rem 0.6rem', borderRadius:'99px', whiteSpace:'nowrap' }}>
-                        {statusCfg.label}
-                      </span>
-                      {/* WA Status */}
-                      {waAlreadySent ? (
-                        <span style={{ fontSize:'0.7rem', color:'#10b981', display:'flex', alignItems:'center', gap:'0.2rem', whiteSpace:'nowrap' }}>
-                          <CheckCircle2 size={12}/> Terkirim
-                        </span>
-                      ) : (
-                        <span style={{ fontSize:'0.7rem', color:'var(--text-muted)', whiteSpace:'nowrap' }}>Belum dikirim</span>
-                      )}
-                      {/* Expand icon */}
-                      <span style={{ color:'var(--text-muted)', display:'flex', alignItems:'center' }}>
-                        {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Expanded Row */}
-                  {isExpanded && (
-                    <div style={{ borderTop:'1px solid var(--border-glass)', padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
-                      
-                      {/* Detail */}
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'1rem' }}>
-                        <div style={{ flex:2, minWidth:'160px' }}>
-                          <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginBottom:'0.25rem' }}>DETAIL KEJADIAN</p>
-                          <p style={{ fontSize:'0.88rem', lineHeight:1.6, wordBreak:'break-word' }}>"{finding.detail}"</p>
-                        </div>
-                        <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem', fontSize:'0.78rem', color:'var(--text-secondary)', minWidth:'120px' }}>
-                          <div><strong>Pelapor:</strong> {finding.pelapor}</div>
-                          <div><strong>Tanggal:</strong> {new Date(finding.tanggal).toLocaleString('id-ID')}</div>
-                          <div><strong>Dept:</strong> {contact.emoji} {dept}</div>
-                          {finding.waSentAt && <div style={{ color:'#10b981' }}><strong>Terkirim:</strong> {finding.waSentAt}</div>}
-                        </div>
-                      </div>
-
-                      {/* Foto jika ada */}
-                      {finding.foto && (
-                        <div>
-                          <p style={{ fontSize:'0.72rem', color:'var(--text-muted)', marginBottom:'0.35rem' }}>FOTO BUKTI</p>
-                          <img src={finding.foto} alt="Foto Temuan" style={{ maxWidth:'180px', borderRadius:'8px', border:'1px solid var(--border-glass)' }}/>
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'0.6rem', alignItems:'center' }}>
-
-                        {/* Status Update */}
-                        <div style={{ display:'flex', gap:'0.4rem' }}>
-                          {['Open','In Progress','Closed'].map(s => (
-                            <button
-                              key={s}
-                              onClick={() => onUpdateStatus && onUpdateStatus(finding.id, s)}
-                              style={{
-                                padding:'0.3rem 0.7rem', fontSize:'0.72rem', borderRadius:'6px',
-                                border: finding.status === s ? `1.5px solid ${STATUS_COLOR[s]?.color}` : '1px solid var(--border-glass)',
-                                background: finding.status === s ? STATUS_COLOR[s]?.bg : 'transparent',
-                                color: finding.status === s ? STATUS_COLOR[s]?.color : 'var(--text-secondary)',
-                                cursor:'pointer', fontWeight: finding.status === s ? 700 : 400,
-                                transition:'all 0.15s'
-                              }}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div style={{ flex:1 }}/>
-
-                        {/* Dispatch ke dept lain */}
-                        <div style={{ display:'flex', gap:'0.4rem' }}>
-                          {Object.keys(WA_CONTACTS).filter(d => d !== dept).map(d => (
-                            <button
-                              key={d}
-                              onClick={() => handleDispatch({ ...finding, department: d }, d)}
-                              style={{
-                                padding:'0.3rem 0.65rem', fontSize:'0.72rem', borderRadius:'6px',
-                                border:`1px solid ${WA_CONTACTS[d].color}44`,
-                                background:`${WA_CONTACTS[d].color}12`,
-                                color: WA_CONTACTS[d].color,
-                                cursor:'pointer', fontWeight:600, display:'flex', alignItems:'center', gap:'0.3rem',
-                                transition:'all 0.15s'
-                              }}
-                            >
-                              <Send size={10}/> Forward ke {d}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Kirim WA ke dept yang sesuai */}
-                        <button
-                          onClick={() => handleDispatch(finding, dept)}
-                          style={{
-                            padding:'0.45rem 1rem', fontSize:'0.8rem', borderRadius:'8px',
-                            border:`1.5px solid ${waAlreadySent ? 'rgba(16,185,129,0.4)' : contact.color}`,
-                            background: waAlreadySent ? 'rgba(16,185,129,0.15)' : `${contact.color}22`,
-                            color: waAlreadySent ? '#10b981' : contact.color,
-                            cursor:'pointer', fontWeight:700,
-                            display:'flex', alignItems:'center', gap:'0.4rem',
-                            transition:'all 0.2s'
-                          }}
-                        >
-                          {waAlreadySent ? (
-                            <><CheckCircle2 size={14}/> Kirim Ulang WA ({dept})</>
-                          ) : (
-                            <><MessageCircle size={14}/> Kirim WA → {contact.nama.split(' ').slice(0,2).join(' ')}</>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Preview pesan WA */}
-                      <details style={{ fontSize:'0.75rem' }}>
-                        <summary style={{ cursor:'pointer', color:'var(--text-muted)', userSelect:'none', display:'flex', alignItems:'center', gap:'0.3rem' }}>
-                          <ExternalLink size={11}/> Preview isi pesan WA yang akan dikirim
-                        </summary>
-                        <pre style={{
-                          marginTop:'0.5rem', padding:'0.75rem', borderRadius:'8px',
-                          background:'rgba(0,0,0,0.2)', color:'var(--text-secondary)',
-                          whiteSpace:'pre-wrap', wordBreak:'break-word', fontSize:'0.72rem',
-                          lineHeight:1.6, fontFamily:'monospace',
-                          border:'1px solid var(--border-glass)'
-                        }}>
-                          {buildWAMessage(finding, dept)}
-                        </pre>
-                      </details>
-
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── 6. REAL-TIME MONITORING + HEATMAP ────────────────────────────── */}
-      <div className="grid-cols-3">
-
-        {/* Real-time feed */}
-        <div className="glass-panel" style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-              <Clock size={18} className="text-primary"/> Monitoring Real-Time
-            </h3>
-            <span className="badge badge-info pulse-primary">Live</span>
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:'0.85rem', flex:1, overflowY:'auto', maxHeight:'380px' }}>
-            {reports.slice(0,8).map(report => (
-              <div key={report.id} style={{
-                padding:'0.75rem', borderRadius:'8px',
-                borderLeft:`3px solid ${
-                  report.kondisi === 'Aman dan Kondusif' ? 'var(--color-success)' :
-                  report.kondisi === 'Ada Aktivitas' || report.kondisi === 'Renovasi' ? 'var(--color-warning)' : 'var(--color-danger)'
-                }`
-              }}>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.75rem', color:'var(--text-muted)' }}>
-                  <span style={{ fontWeight:600, color:'var(--text-primary)' }}>{report.userName}</span>
-                  <span style={{ fontWeight:600 }}>
-                    {new Date(report.timestamp).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' })} WIB
-                  </span>
-                </div>
-                <p style={{ fontSize:'0.8rem', marginTop:'0.2rem', fontWeight:500 }}>
-                  Scan: <span style={{ color:'var(--color-primary)' }}>{report.titik}</span>
-                  {' '}({['1','2','3','4','5','6'].includes(report.lantai) ? `Lantai ${report.lantai}` : report.lantai})
-                </p>
-                <div style={{ display:'flex', gap:'0.3rem', alignItems:'center', marginTop:'0.15rem' }}>
-                  <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>
-                    {report.keterangan || report.kondisi}
-                  </span>
-                  {report.kondisi !== 'Aman dan Kondusif' && report.kondisi !== 'Ada Aktivitas' && (
-                    <span className="badge" style={{
-                      background: report.severity === 'Kritis' ? 'rgba(220,38,38,0.2)' : report.severity === 'Tinggi' ? 'rgba(239,68,68,0.2)' : report.severity === 'Sedang' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
-                      color: SEVERITY_COLOR[report.severity] || '#3b82f6',
-                      fontSize:'0.6rem', padding:'0.05rem 0.25rem'
-                    }}>
-                      {report.severity || 'Rendah'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-            {reports.length === 0 && (
-              <div style={{ textAlign:'center', color:'var(--text-muted)', padding:'2rem', fontSize:'0.85rem' }}>
-                Belum ada data patroli hari ini.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Heatmap Patroli */}
-        <div className="glass-panel grid-span-2" style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem' }}>
-            <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-              <MapPin size={18} className="text-primary"/> Heatmap Patroli Gedung
-            </h3>
-            <div style={{ display:'flex', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'8px', overflowX:'auto', maxWidth:'100%', gap:'2px', whiteSpace:'nowrap' }}>
-              {['Basement','1','2','3','4','5','6','Halaman Depan','Halaman Samping Kanan','Pos 00','R. Teknik','Halaman Belakang','Halaman Samping Kiri'].map(floor => (
-                <button key={floor} onClick={() => setSelectedFloor(floor)} style={{
-                  border:'none', background: selectedFloor===floor ? 'var(--bg-tertiary)' : 'transparent',
-                  color: selectedFloor===floor ? 'var(--color-primary)' : 'var(--text-secondary)',
-                  padding:'0.35rem 0.75rem', fontSize:'0.8rem', borderRadius:'6px', cursor:'pointer',
-                  fontWeight:600, transition:'all 0.2s', flexShrink:0
-                }}>
-                  {['1','2','3','4','5','6'].includes(floor) ? `Lt. ${floor}` : floor}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-responsive" style={{ flex:1, alignItems:'center', width:'100%' }}>
-            <div style={{ flex:2, background:'rgba(0,0,0,0.2)', padding:'1.5rem', borderRadius:'10px', border:'1px solid var(--border-glass)' }}>
-              <div className="grid-cols-4" style={{ gap:'0.75rem' }}>
-                {areas.filter(a => a.lantai === selectedFloor).map(area => {
-                  const status = getAreaStatus(area.id);
-                  let colorClass = '#ef4444';
-                  let statusText = 'Belum Dipatroli';
-                  if (status === 'patrolled') { colorClass = '#10b981'; statusText = 'Aman / Sudah Dipatroli'; }
-                  else if (status === 'problematic') { colorClass = '#f59e0b'; statusText = 'Ada Temuan / Masalah'; }
-                  return (
-                    <div key={area.id} className="heatmap-cell" style={{
-                      background:`${colorClass}1A`, border:`2px solid ${colorClass}`,
-                      color: colorClass, height:'75px', display:'flex', flexDirection:'column',
-                      justifyContent:'center', alignItems:'center', borderRadius:'8px',
-                      textAlign:'center', padding:'0.25rem'
-                    }}>
-                      <span style={{ fontSize:'0.75rem', fontWeight:800 }}>{area.zona}</span>
-                      <span style={{ fontSize:'0.6rem', opacity:0.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%' }}>{area.titik}</span>
-                      <div className="tooltip"><strong>{area.titik}</strong>{`Status: ${statusText}\nZona: ${area.zona}`}</div>
-                    </div>
-                  );
-                })}
-                {areas.filter(a => a.lantai === selectedFloor).length === 0 && (
-                  <div style={{ gridColumn:'span 4', textAlign:'center', color:'var(--text-muted)', padding:'2rem' }}>
-                    Tidak ada area yang terdaftar di lantai ini.
-                  </div>
-                )}
-              </div>
-            </div>
-            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'1rem' }}>
-              <div className="glass-panel" style={{ padding:'0.75rem', display:'flex', flexDirection:'column', gap:'0.5rem', background:'transparent' }}>
-                <h5 style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>Keterangan Warna</h5>
-                {[['#10b981','Sudah Dipatroli (Aman)'],['#f59e0b','Ada Masalah / Temuan'],['#ef4444','Belum Dikunjungi']].map(([c,l]) => (
-                  <div key={l} style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.8rem' }}>
-                    <div style={{ width:'12px', height:'12px', borderRadius:'3px', background:c }}/><span>{l}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="glass-panel" style={{ padding:'0.75rem', fontSize:'0.8rem', background:'transparent' }}>
-                <p style={{ fontWeight:600, marginBottom:'0.25rem' }}>Informasi Lantai {['1','2','3','4','5','6'].includes(selectedFloor) ? `Lt. ${selectedFloor}` : selectedFloor}</p>
-                {[
-                  ['Total Titik', areas.filter(a => a.lantai === selectedFloor).length, null],
-                  ['Selesai Patroli', areas.filter(a => a.lantai === selectedFloor && getAreaStatus(a.id) !== 'unvisited').length, 'var(--color-success)'],
-                ].map(([l,v,c]) => (
-                  <div key={l} style={{ display:'flex', justifyContent:'space-between', borderBottom:'1px solid var(--border-glass)', padding:'0.2rem 0' }}>
-                    <span>{l}:</span><span style={{ fontWeight:700, color: c||'inherit' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 7. CHARTS + MISSED ZONES ──────────────────────────────────────── */}
-      <div className="grid-cols-3">
-
-        {/* SVG Chart */}
-        <div className="glass-panel grid-span-2" style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem' }}>
-            <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-              <BarChart3 size={18} className="text-primary"/> Statistik Trend Patroli vs Temuan
-            </h3>
-            <div style={{ display:'flex', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'8px' }}>
-              {['hari','minggu','bulan','tahun'].map(opt => (
-                <button key={opt} onClick={() => setGraphFilter(opt)} style={{
-                  border:'none', background: graphFilter===opt ? 'var(--bg-tertiary)' : 'transparent',
-                  color: graphFilter===opt ? 'var(--color-primary)' : 'var(--text-secondary)',
-                  padding:'0.35rem 0.75rem', fontSize:'0.8rem', borderRadius:'6px',
-                  cursor:'pointer', fontWeight:600, transition:'all 0.2s', textTransform:'capitalize'
-                }}>
-                  {opt === 'hari' ? 'Hari ini' : opt}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ position:'relative', height:'220px', width:'100%', padding:'1rem 0' }}>
-            <svg viewBox="0 0 600 200" style={{ width:'100%', height:'100%' }}>
-              {[20,70,120,170].map(y => <line key={y} x1="40" y1={y} x2="580" y2={y} stroke="var(--border-glass)" strokeWidth="1"/>)}
-              {activeGraph.patrols.map((val, idx) => {
-                const x = 70 + idx * (500 / (activeGraph.labels.length - 1 || 1));
-                const bh = (val/maxPatrolVal)*140;
-                const y = 170 - bh;
-                return (
-                  <g key={idx}>
-                    <rect x={x-10} y={y} width="20" height={bh} fill="url(#patrolGradient)" rx="4"/>
-                    <text x={x} y="190" fill="var(--text-secondary)" fontSize="9" textAnchor="middle">{activeGraph.labels[idx]}</text>
-                    <text x={x} y={y-5} fill="var(--text-primary)" fontSize="9" fontWeight="bold" textAnchor="middle">{val}</text>
-                  </g>
-                );
-              })}
+            {/* Widget 2: Attendance capsule loop */}
+            <div className="cyber-card">
+              <div className="cyber-title"><Users size={12} className="cyber-title-accent"/> Status Absensi & Kehadiran</div>
               {(() => {
-                const points = activeGraph.findings.map((val,idx) => {
-                  const x = 70 + idx * (500 / (activeGraph.labels.length-1||1));
-                  const y = 170 - (val/(maxPatrolVal/2))*140;
-                  return `${x},${y}`;
-                }).join(' ');
+                const totalAttendanceSum = kpiHadir + kpiAlpha + kpiSakit + kpiIzin || 1;
+                const presentPercentage = (kpiHadir / totalAttendanceSum) * 100;
                 return (
-                  <>
-                    <polyline fill="none" stroke="var(--color-danger)" strokeWidth="3" points={points} style={{ filter:'drop-shadow(0px 3px 3px var(--color-danger-glow))' }}/>
-                    {activeGraph.findings.map((val,idx) => {
-                      const x = 70 + idx * (500/(activeGraph.labels.length-1||1));
-                      const y = 170 - (val/(maxPatrolVal/2))*140;
-                      return <circle key={idx} cx={x} cy={y} r="4" fill="var(--color-danger)" stroke="white" strokeWidth="1.5"/>;
-                    })}
-                  </>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', height: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <div className="cyber-info-item">
+                        <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
+                        <span>Hadir: <strong style={{ color: '#00f0ff' }}>{kpiHadir}</strong></span>
+                      </div>
+                      <div className="cyber-info-item">
+                        <div className="cyber-color-dot" style={{ background: '#fbbf24' }} />
+                        <span>Sakit/Izin: <strong style={{ color: '#fbbf24' }}>{kpiSakit + kpiIzin}</strong></span>
+                      </div>
+                      <div className="cyber-info-item">
+                        <div className="cyber-color-dot" style={{ background: '#ec4899' }} />
+                        <span>Alpha: <strong style={{ color: '#ec4899' }}>{kpiAlpha}</strong></span>
+                      </div>
+                    </div>
+                    
+                    <div style={{ position: 'relative', width: '110px', height: '55px', flexShrink: 0 }}>
+                      <svg width="110" height="55" viewBox="0 0 120 60">
+                        <defs>
+                          <linearGradient id="capsuleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#00f0ff" />
+                            <stop offset="100%" stopColor="#ec4899" />
+                          </linearGradient>
+                        </defs>
+                        <path d="M 25,10 H 95 A 18,18 0 0,1 113,28 A 18,18 0 0,1 95,46 H 25 A 18,18 0 0,1 7,28 A 18,18 0 0,1 25,10 Z"
+                          fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                        <path d="M 25,10 H 95 A 18,18 0 0,1 113,28 A 18,18 0 0,1 95,46 H 25 A 18,18 0 0,1 7,28 A 18,18 0 0,1 25,10 Z"
+                          fill="transparent" stroke="url(#capsuleGrad)" strokeWidth="6" strokeLinecap="round"
+                          strokeDasharray="265" strokeDashoffset={265 - (presentPercentage / 100) * 265}
+                          style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                      </svg>
+                      <div style={{
+                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        fontSize: '0.75rem', fontWeight: 800, color: 'white'
+                      }}>
+                        {Math.round(presentPercentage)}%
+                      </div>
+                    </div>
+                  </div>
                 );
               })()}
-              <defs>
-                <linearGradient id="patrolGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6"/>
-                  <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0.3"/>
-                </linearGradient>
-              </defs>
-            </svg>
+            </div>
           </div>
-          <div style={{ display:'flex', gap:'1.5rem', justifyContent:'center', fontSize:'0.85rem' }}>
-            {[['var(--color-primary)','rect','Realisasi Patroli'],['var(--color-danger)','line','Jumlah Temuan/Kendala']].map(([c,t,l])=>(
-              <div key={l} style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                <div style={{ width:'15px', height: t==='rect'?'15px':'3px', borderRadius: t==='rect'?'3px':'0', background:c }}/>
-                <span>{l}</span>
+
+          {/* Row 2: Slanted Weekly Activity */}
+          <div className="cyber-card">
+            <div className="cyber-title"><BarChart3 size={12} className="cyber-title-accent"/> Aktivitas & Tren Patroli Mingguan</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.4rem', height: '125px', marginTop: '0.25rem' }}>
+              {graphMinggu.map((g, idx) => {
+                const heightPct = maxPatrolVal > 0 ? (g.patrols / maxPatrolVal) * 100 : 0;
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                    <div style={{
+                      width: '26px',
+                      height: '95px',
+                      background: 'rgba(255,255,255,0.01)',
+                      borderRadius: '6px',
+                      position: 'relative',
+                      transform: 'skewX(-12deg)',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255, 255, 255, 0.03)'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: `${Math.max(heightPct, 4)}%`,
+                        background: 'linear-gradient(to top, #db2777 0%, #ec4899 100%)',
+                        boxShadow: '0 0 10px #ec4899',
+                        borderRadius: '4px',
+                        transition: 'height 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.4rem', fontWeight: 700 }}>
+                      {g.label}
+                    </span>
+                    <span style={{ fontSize: '0.6rem', color: '#ec4899', fontWeight: 800 }}>
+                      {g.patrols}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Row 3: Target Kepatuhan & Connection Arcs */}
+          <div className="cyber-row-grid">
+            
+            {/* Widget 6: Target semi-circle gauge */}
+            <div className="cyber-card">
+              <div className="cyber-title"><CheckCircle size={12} className="cyber-title-accent"/> Pencapaian Target Kepatuhan</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', height: '100%' }}>
+                <div style={{ position: 'relative', width: '110px', height: '70px', flexShrink: 0 }}>
+                  <svg width="110" height="70" viewBox="0 0 120 70">
+                    <defs>
+                      <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M 10,65 A 50,50 0 0,1 110,65" fill="none" stroke="#1c203a" strokeWidth="8" strokeLinecap="round" />
+                    <path d="M 10,65 A 50,50 0 0,1 110,65" fill="none" stroke="url(#arcGrad)" strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray="157" strokeDashoffset={157 - (Math.min(patrolPct, 100) / 100) * 157}
+                      style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                  </svg>
+                  <div style={{
+                    position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+                    fontSize: '0.9rem', fontWeight: 900, color: 'white'
+                  }}>
+                    {Math.round(patrolPct)}%
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: '#94a3b8' }}>
+                  <div>Dipatroli: <strong>{patrolledAreasToday.size}</strong> pos</div>
+                  <div>Sisa: <strong style={{ color: '#ef4444' }}>{areas.length - patrolledAreasToday.size}</strong> pos</div>
+                  <div>Target: <strong style={{ color: '#00f0ff' }}>90%</strong></div>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Widget 7: Opposite curves */}
+            <div className="cyber-card">
+              <div className="cyber-title"><Zap size={12} className="cyber-title-accent"/> Kinerja & Keaktifan Regu</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', height: '100%' }}>
+                <div style={{ position: 'relative', width: '70px', height: '70px', flexShrink: 0 }}>
+                  <svg width="70" height="70" viewBox="0 0 80 80">
+                    <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" stroke="#1c203a" strokeWidth="5" strokeLinecap="round" />
+                    <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" stroke="#00f0ff" strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray="78.5" strokeDashoffset={78.5 - (onlinePct / 100) * 78.5} />
+                      
+                    <path d="M 55,65 A 25,25 0 0,0 55,15" fill="none" stroke="#1c203a" strokeWidth="5" strokeLinecap="round" />
+                    <path d="M 55,65 A 25,25 0 0,0 55,15" fill="none" stroke="#ec4899" strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray="78.5" strokeDashoffset={78.5 - ((100 - onlinePct) / 100) * 78.5} />
+                  </svg>
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.98rem', fontWeight: 900, color: healthColor }}>{healthScore}</div>
+                    <div style={{ fontSize: '0.5rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Score</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: '#94a3b8' }}>
+                  <div className="cyber-info-item">
+                    <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
+                    <span>Aktif: <strong style={{ color: 'white' }}>{totalOnline}</strong></span>
+                  </div>
+                  <div className="cyber-info-item">
+                    <div className="cyber-color-dot" style={{ background: '#ec4899' }} />
+                    <span>Pasif: <strong style={{ color: 'white' }}>{totalOffline}</strong></span>
+                  </div>
+                  <div style={{ fontSize: '0.65rem' }}>Indeks: <strong style={{ color: healthColor }}>{healthLabel}</strong></div>
+                </div>
+              </div>
+            </div>
+
           </div>
+
         </div>
 
-        {/* Missed Zones */}
-        <div className="glass-panel" style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-          <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem', color:'var(--color-danger)' }}>
-            <AlertOctagon size={18}/> Zona Belum Terjamah
-          </h3>
-          <div style={{ display:'flex', flexDirection:'column', gap:'0.85rem', flex:1 }}>
-            {missedAreas.map(area => (
-              <div key={area.id} className="glass-panel" style={{
-                padding:'0.8rem', background:'rgba(239,68,68,0.03)', border:'1px solid rgba(239,68,68,0.15)',
-                display:'flex', justifyContent:'space-between', alignItems:'center'
-              }}>
-                <div>
-                  <h4 style={{ fontSize:'0.85rem', fontWeight:700 }}>{area.titik}</h4>
-                  <p style={{ fontSize:'0.75rem', color:'var(--text-secondary)', marginTop:'0.1rem' }}>
-                    {area.gedung} - Lantai {area.lantai} ({area.zona})
-                  </p>
-                </div>
-                <span className="badge badge-danger">Belum</span>
-              </div>
-            ))}
-            {missedAreas.length === 0 && (
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, color:'var(--text-muted)' }}>
-                <CheckCircle size={32} color="var(--color-success)" style={{ marginBottom:'0.5rem' }}/>
-                <p style={{ fontSize:'0.85rem', textAlign:'center' }}>Hebat! Seluruh area telah dipatroli hari ini.</p>
-              </div>
-            )}
+        {/* Right Column Section */}
+        <div className="cyber-right-col">
+          
+          {/* Widget 3: Horizontal Progress Pills */}
+          <div className="cyber-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div className="cyber-title"><Shield size={12} className="cyber-title-accent"/> Kepatuhan Patroli Per Regu</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', justifyContent: 'center', flex: 1 }}>
+              {reguPatrol.map((r) => {
+                const totalAreas = areas.length || 1;
+                const covered = r.coveredAreas;
+                const pct = Math.min(Math.round((covered / totalAreas) * 100), 100);
+                return (
+                  <div key={r.regu} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                      <span style={{ fontWeight: 700, color: 'white' }}>{r.regu}</span>
+                      <span style={{ color: '#00f0ff', fontWeight: 800 }}>{pct}%</span>
+                    </div>
+                    <div style={{
+                      height: '14px',
+                      borderRadius: '999px',
+                      background: '#1c203a',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255, 255, 255, 0.03)',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.max(pct, 5)}%`,
+                        background: 'linear-gradient(90deg, #3b82f6 0%, #00f0ff 100%)',
+                        boxShadow: '0 0 6px #00f0ff',
+                        borderRadius: '999px',
+                        transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Widget 5: Category Doughnut chart */}
+          <div className="cyber-card">
+            <div className="cyber-title"><AlertTriangle size={12} className="cyber-title-accent"/> Kategori Temuan & Komplain</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ 
+                position: 'relative', width: '105px', height: '105px', borderRadius: '50%', 
+                background: doughnutGradientStr, display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                boxShadow: '0 0 15px rgba(0,0,0,0.5)', flexShrink: 0
+              }}>
+                <div style={{ 
+                  width: '75px', height: '75px', borderRadius: '50%', background: '#111625', 
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' 
+                }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white' }}>
+                    {findings.length + complaints.length}
+                  </span>
+                  <span style={{ fontSize: '0.52rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Laporan
+                  </span>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.35rem', width: '100%', justifyContent: 'space-between', fontSize: '0.62rem', flexWrap: 'wrap' }}>
+                <div className="cyber-info-item">
+                  <div className="cyber-color-dot" style={{ background: c1 }} />
+                  <span>Fas: <strong>{catsCount.Fasilitas}</strong></span>
+                </div>
+                <div className="cyber-info-item">
+                  <div className="cyber-color-dot" style={{ background: c2 }} />
+                  <span>Eng: <strong>{catsCount.Engineering}</strong></span>
+                </div>
+                <div className="cyber-info-item">
+                  <div className="cyber-color-dot" style={{ background: c3 }} />
+                  <span>Cln: <strong>{catsCount.Cleaning}</strong></span>
+                </div>
+                <div className="cyber-info-item">
+                  <div className="cyber-color-dot" style={{ background: c4 }} />
+                  <span>Kmn: <strong>{catsCount.Keamanan}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
+
       </div>
 
-      {/* ── 8. MUTASI TERBARU ──────────────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ClipboardList size={18} className="text-primary" /> Mutasi Penjagaan Terbaru
-          </h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{mutasiLogs.length} catatan</span>
-        </div>
-        {mutasiLogs.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {mutasiLogs.slice(0, 4).map((log, idx) => (
-              <div key={log.id || idx} style={{
-                padding: '0.7rem 0.85rem', borderRadius: '8px',
-                background: 'rgba(59,130,246,0.03)', border: '1px solid var(--border-glass)',
-                borderLeft: `3px solid ${
-                  log.kategori === 'Emergency' ? '#ef4444' :
-                  log.kategori === 'Kehilangan' ? '#f59e0b' :
-                  log.kategori === 'Kerusakan' ? '#f97316' :
-                  log.kategori === 'Gangguan' ? '#8b5cf6' : '#3b82f6'
-                }`
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{log.pelapor || '-'}</span>
-                  <span className="badge" style={{
-                    fontSize: '0.6rem', padding: '0.1rem 0.4rem',
-                    background: log.kategori === 'Emergency' ? 'rgba(239,68,68,0.15)' :
-                               log.kategori === 'Kehilangan' ? 'rgba(245,158,11,0.15)' :
-                               log.kategori === 'Kerusakan' ? 'rgba(249,115,22,0.15)' :
-                               log.kategori === 'Gangguan' ? 'rgba(139,92,246,0.15)' : 'rgba(59,130,246,0.15)',
-                    color: log.kategori === 'Emergency' ? '#ef4444' :
-                           log.kategori === 'Kehilangan' ? '#f59e0b' :
-                           log.kategori === 'Kerusakan' ? '#f97316' :
-                           log.kategori === 'Gangguan' ? '#8b5cf6' : '#3b82f6'
-                  }}>{log.kategori || 'Informasi'}</span>
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                  {log.uraian || log.deskripsi || '-'}
-                </p>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  {log.jamLaporan || log.jamKejadian || '-'} • {log.lokasi || log.pos || '-'}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Belum ada catatan mutasi penjagaan.
-          </div>
-        )}
-      </div>
-
-      {/* ── 9. AI SUMMARY CARD ────────────────────────────────────────────── */}
+      {/* ── AI SUMMARY SUMMARY CARD ── */}
       <div className="glass-panel" style={{
-        padding:'1.5rem',
-        background:'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(99,102,241,0.08) 100%)',
-        border:'1px solid rgba(59,130,246,0.2)'
+        padding: '1rem 1.25rem',
+        background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(99,102,241,0.08) 100%)',
+        border: '1px solid rgba(59,130,246,0.2)'
       }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'0.75rem' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-            <Sparkles size={20} style={{ color:'#60a5fa' }}/>
-            <h4 style={{ fontSize:'1.05rem', fontWeight:800 }}>AI Security Summary - SMPJDC</h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Sparkles size={16} style={{ color: '#60a5fa' }} />
+            <h4 style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>AI Security Summary - SMPJDC</h4>
           </div>
-          <span style={{ fontSize:'0.7rem', textTransform:'uppercase', letterSpacing:'0.05em', color:'#60a5fa', fontWeight:700, display:'flex', alignItems:'center', gap:'0.2rem' }}>
-            <Zap size={10}/> Auto-Generated
+          <span style={{ fontSize: '0.6rem', color: '#60a5fa', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Zap size={10} /> Auto-Generated
           </span>
         </div>
-        <p style={{ fontSize:'0.9rem', color:'var(--text-primary)', lineHeight:'1.6', fontStyle:'italic' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: '1.5', fontStyle: 'italic', margin: 0 }}>
           "{generateAISummary()}"
         </p>
       </div>
 
-      {/* ── 10. KOMPLAIN MASUK — FULL MANAGEMENT ──────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <MessageCircle size={18} className="text-primary"/>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Komplain Masuk & Management Tiket</h3>
-            <span className="badge badge-info pulse-primary" style={{ fontSize: '0.55rem' }}>Live</span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.7rem' }}>
-            {['all', 'Baru', 'Diproses', 'Selesai'].map(s => (
-              <button key={s} onClick={() => setComplaintFilter(s)} style={{
-                border: 'none', background: complaintFilter === s ? 'rgba(99,102,241,0.2)' : 'transparent',
-                color: complaintFilter === s ? '#818cf8' : 'var(--text-secondary)',
-                padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontWeight: complaintFilter === s ? 700 : 500,
-                fontSize: '0.7rem', transition: 'all 0.15s'
-              }}>
-                {s === 'all' ? `Semua (${complaints.length})` : `${s} (${s === 'Diproses' ? complaints.filter(c => c.status === 'Diproses' || c.status === 'Diterima').length : complaints.filter(c => c.status === s).length})`}
-              </button>
-            ))}
-          </div>
+      {/* ── COMMAND HUB & REAL-TIME OPERASIONAL TABS (Bottom Section) ── */}
+      <div>
+        <div className="command-tab-bar">
+          <button className={`command-tab-btn ${activeCommandTab === 'temuan' ? 'active' : ''}`} onClick={() => setActiveCommandTab('temuan')}>
+            📋 Tiket Temuan & Disposisi ({findings.length})
+          </button>
+          <button className={`command-tab-btn ${activeCommandTab === 'komplain' ? 'active' : ''}`} onClick={() => setActiveCommandTab('komplain')}>
+            📩 Komplain Tenant ({complaints.length})
+          </button>
+          <button className={`command-tab-btn ${activeCommandTab === 'patroli' ? 'active' : ''}`} onClick={() => setActiveCommandTab('patroli')}>
+            🗺️ Heatmap & Live Feed
+          </button>
+          <button className={`command-tab-btn ${activeCommandTab === 'mutasi' ? 'active' : ''}`} onClick={() => setActiveCommandTab('mutasi')}>
+            📝 Log Buku Mutasi ({mutasiLogs.length})
+          </button>
+          <button className={`command-tab-btn ${activeCommandTab === 'arsip' ? 'active' : ''}`} onClick={() => setActiveCommandTab('arsip')}>
+            ⚙️ Pengaturan & Arsip
+          </button>
         </div>
 
-        {filteredComplaints.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-            <CheckCircle2 size={36} style={{ opacity: 0.25, marginBottom: '0.5rem' }}/>
-            <p style={{ fontSize: '0.85rem' }}>Tidak ada komplain dengan status ini.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {filteredComplaints.map(c => {
-              const sc = COMPLAINT_STATUS_COLOR[c.status] || '#6b7280';
-              const isExpanded = expandedComplaint === c.id;
-              return (
-                <div key={c.id} style={{
-                  borderRadius: '10px', border: `1px solid ${c.status === 'Baru' ? 'rgba(59,130,246,0.3)' : 'var(--border-glass)'}`,
-                  background: c.status === 'Baru' ? 'rgba(59,130,246,0.04)' : 'var(--bg-secondary)',
-                  overflow: 'hidden', transition: 'all 0.2s'
-                }}>
-                  {/* Compact Header */}
-                  <div onClick={() => setExpandedComplaint(isExpanded ? null : c.id)} style={{
-                    padding: '0.7rem 0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap',
-                    borderBottom: isExpanded ? '1px solid var(--border-glass)' : 'none'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-                        background: `${sc}18`, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        {/* Tab 1: Tiket Temuan & Disposisi */}
+        {activeCommandTab === 'temuan' && (
+          <div className="command-tab-content glass-panel finding-section-panel" style={{ padding: '1.5rem' }}>
+            {/* Filter Tabs & Bulk Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                  Daftar Temuan Keamanan & Fasilitas
+                </h4>
+                {selectedFindings.length > 0 && (
+                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{selectedFindings.length} terpilih</span>
+                    {Object.entries(WA_CONTACTS).filter(([dept]) => dept !== 'semua').map(([dept, info]) => (
+                      <button key={dept} onClick={() => {
+                        selectedFindings.forEach((id, idx) => {
+                          const f = findings.find(fi => fi.id === id);
+                          if (f && onDispatchFinding) onDispatchFinding(id, dept);
+                          if (f) {
+                            setTimeout(() => window.open(buildWALink(f, dept), '_blank', 'noopener'), idx * 300);
+                          }
+                        });
+                        setSelectedFindings([]);
+                      }} style={{
+                        padding: '0.25rem 0.5rem', fontSize: '0.62rem', borderRadius: '6px', fontWeight: 700,
+                        border: `1px solid ${info.color}44`, background: `${info.color}12`, color: info.color,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontFamily: 'var(--font-sans)'
                       }}>
-                        <MessageCircle size={14} color={sc}/>
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--color-primary)' }}>{c.ticketId}</span>
-                          <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</span>
-                          <span style={{
-                            fontSize: '0.55rem', padding: '0.08rem 0.45rem', borderRadius: '99px', fontWeight: 700,
-                            background: `${sc}20`, color: sc
-                          }}>{c.status}</span>
-                        </div>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {c.tenant} • {c.floor} • {c.category || 'Lainnya'}{c.department ? ` → ${c.department}` : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-                      <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>
-                        {new Date(c.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                      </span>
-                      {isExpanded ? <ChevronUp size={14} color="var(--text-muted)"/> : <ChevronDown size={14} color="var(--text-muted)"/>}
-                    </div>
+                        <Send size={9}/> Forward {selectedFindings.length} ke {dept}
+                      </button>
+                    ))}
+                    <button onClick={() => setSelectedFindings([])} style={{
+                      padding: '0.25rem 0.4rem', fontSize: '0.62rem', borderRadius: '6px', fontWeight: 600,
+                      border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-muted)',
+                      cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                    }}>Batal</button>
                   </div>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '10px' }}>
+                {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
+                  <button key={tab} style={tabStyle(tab)} onClick={() => setActiveTab(tab)}>
+                    {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                  {/* Expanded Detail */}
-                  {isExpanded && (
-                    <div style={{ padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {/* Description */}
-                      <div>
-                        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>DESKRIPSI KOMPLAIN</p>
-                        <p style={{ fontSize: '0.85rem', lineHeight: 1.6, color: 'var(--text-primary)' }}>"{c.description}"</p>
-                      </div>
+            {/* Table / List */}
+            {filteredFindings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                <CheckCircle2 size={40} style={{ opacity: 0.4, marginBottom: '0.75rem' }}/>
+                <p style={{ fontSize: '0.9rem' }}>Tidak ada tiket temuan{activeTab !== 'semua' ? ` untuk departemen ${activeTab}` : ''} saat ini.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {filteredFindings.length > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                    <div onClick={() => {
+                      if (selectedFindings.length === filteredFindings.length) {
+                        setSelectedFindings([]);
+                      } else {
+                        setSelectedFindings(filteredFindings.map(f => f.id));
+                      }
+                    }} style={{
+                      width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, cursor: 'pointer',
+                      border: `2px solid ${selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                      background: selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s'
+                    }}>
+                      {selectedFindings.length === filteredFindings.length && <Check size={10} color="white" strokeWidth={3}/>}
+                    </div>
+                    <span>Pilih semua ({filteredFindings.length} tiket)</span>
+                  </div>
+                )}
+                {filteredFindings.map(finding => {
+                  const dept = finding.department || 'Keamanan';
+                  const contact = WA_CONTACTS[dept] || WA_CONTACTS.Keamanan;
+                  const statusCfg = STATUS_COLOR[finding.status] || STATUS_COLOR['Open'];
+                  const sevColor = SEVERITY_COLOR[finding.severity] || '#3b82f6';
+                  const isExpanded = expandedFinding === finding.id;
+                  const waAlreadySent = finding.waStatus?.startsWith('Terkirim');
 
-                      {/* Photo */}
-                      {c.foto && (
-                        <div>
-                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>FOTO BUKTI</p>
-                          <img src={c.foto} alt="Foto Komplain" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}/>
-                        </div>
-                      )}
-
-                      {/* Status History Timeline */}
-                      {c.history && c.history.length > 0 && (
-                        <div>
-                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>RIWAYAT STATUS</p>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            {c.history.map((h, i) => (
-                              <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.7rem' }}>
-                                <div style={{
-                                  width: '8px', height: '8px', borderRadius: '50%', marginTop: '0.3rem', flexShrink: 0,
-                                  background: COMPLAINT_STATUS_COLOR[h.status] || '#6b7280'
-                                }}/>
-                                <div>
-                                  <span style={{ fontWeight: 600, color: COMPLAINT_STATUS_COLOR[h.status] || 'var(--text-primary)' }}>{h.status}</span>
-                                  <span style={{ color: 'var(--text-muted)', marginLeft: '0.3rem' }}>
-                                    {new Date(h.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  {h.note && <p style={{ color: 'var(--text-secondary)', marginTop: '0.05rem' }}>{h.note}</p>}
-                                </div>
-                              </div>
-                            ))}
+                  return (
+                    <div
+                      key={finding.id}
+                      className="finding-ticket"
+                      style={{
+                        borderLeft: `4px solid ${contact.color}`,
+                        borderRadius: '8px',
+                        background: isExpanded ? 'rgba(255,255,255,0.01)' : 'transparent',
+                        border: `1px solid ${waAlreadySent ? 'rgba(16,185,129,0.15)' : 'var(--border-glass)'}`,
+                        marginBottom: '0.4rem'
+                      }}
+                    >
+                      <div
+                        className="finding-ticket-header"
+                        onClick={(e) => {
+                          if (e.target.closest('.finding-checkbox')) return;
+                          setExpandedFinding(isExpanded ? null : finding.id);
+                        }}
+                        style={{
+                          padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          gap: '0.5rem', cursor: 'pointer', flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '200px' }}>
+                          <div className="finding-checkbox" onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFindings(prev =>
+                              prev.includes(finding.id) ? prev.filter(id => id !== finding.id) : [...prev, finding.id]
+                            );
+                          }} style={{
+                            width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0,
+                            border: `2px solid ${selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                            background: selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                          }}>
+                            {selectedFindings.includes(finding.id) && <Check size={12} color="white" strokeWidth={3}/>}
                           </div>
+                          <span className="finding-ticket-badge" style={{ color: contact.color, background: `${contact.color}15`, fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                            {contact.emoji} {dept}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>#{String(finding.id).slice(-6)}</span>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'white' }}>{finding.kategori}</span>
                         </div>
-                      )}
-
-                      {/* Action Buttons Row */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '0.75rem' }}>
-                        {/* Status Change */}
-                        <div style={{ display: 'flex', gap: '0.3rem' }}>
-                          {STATUS_OPTIONS.filter(s => s !== c.status).map(s => (
-                            <button key={s} onClick={() => {
-                              const history = [...(c.history || []), { status: s, timestamp: new Date().toISOString(), note: `Status diubah ke ${s} dari Dashboard` }];
-                              onUpdateComplaint && onUpdateComplaint(c.id, { status: s, history, updatedAt: new Date().toISOString() });
-                            }} style={{
-                              padding: '0.3rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 600,
-                              border: `1px solid ${COMPLAINT_STATUS_COLOR[s]}44`,
-                              background: `${COMPLAINT_STATUS_COLOR[s]}12`,
-                              color: COMPLAINT_STATUS_COLOR[s],
-                              cursor: 'pointer', transition: 'all 0.15s'
-                            }}>
-                              {s === 'Selesai' ? <>✓ Selesai</> : s === 'Diproses' ? <>⚙ Diproses</> : s === 'Diterima' ? <>📩 Diterima</> : <>🆕 Baru</>}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div style={{ flex: 1 }}/>
-
-                        {/* Disposisi */}
-                        {c.status !== 'Selesai' && (
-                          <div style={{ display: 'flex', gap: '0.3rem' }}>
-                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', marginRight: '0.1rem' }}>
-                              Disposisi:
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, color: sevColor, background: `${sevColor}12`, padding: '0.15rem 0.45rem', borderRadius: '99px' }}>
+                            {finding.severity || 'Rendah'}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, color: statusCfg.color, background: statusCfg.bg, padding: '0.15rem 0.5rem', borderRadius: '99px' }}>
+                            {statusCfg.label}
+                          </span>
+                          {waAlreadySent && (
+                            <span style={{ fontSize: '0.65rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                              <CheckCircle2 size={11}/> Sent
                             </span>
-                            {DEPARTMENTS.map(d => {
-                              const contact = WA_CONTACTS[d] || WA_CONTACTS.Keamanan;
-                              return (
-                                <button key={d} onClick={() => {
-                                  const history = [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }];
-                                  onUpdateComplaint && onUpdateComplaint(c.id, {
-                                    department: d, status: 'Diproses', history,
-                                    waStatus: `Terkirim (${d})`,
-                                    waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-                                    updatedAt: new Date().toISOString()
-                                  });
-                                  const waMsg = encodeURIComponent(
-                                    `*📋 KOMPLAIN MASUK - SMPJDC*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n${contact.emoji} *Disposisi ke: ${contact.nama}*\n\n🆔 *Tiket:* ${c.ticketId}\n📌 *Kategori:* ${c.category}\n👤 *Pelapor:* ${c.name}\n🏢 *Tenant:* ${c.tenant} • Lt.${c.floor}\n📝 *Deskripsi:* ${c.description}\n\n⚡ *Mohon segera ditindaklanjuti!*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n_Sistem Manajemen Keamanan JDC_`
-                                  );
-                                  window.open(`https://api.whatsapp.com/send?phone=${contact.nomor}&text=${waMsg}`, '_blank', 'noopener');
-                                }} style={{
-                                  padding: '0.25rem 0.5rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
-                                  border: '1px solid var(--border-glass)', cursor: 'pointer',
-                                  background: 'transparent', color: 'var(--text-secondary)',
-                                  transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '0.2rem'
-                                }}>
-                                  <Send size={9}/> {d}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                          )}
+                          {isExpanded ? <ChevronUp size={15} color="var(--text-muted)"/> : <ChevronDown size={15} color="var(--text-muted)"/>}
+                        </div>
                       </div>
+
+                      {isExpanded && (
+                        <div style={{ borderTop: '1px solid var(--border-glass)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.15)' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                            <div style={{ flex: 2, minWidth: '180px' }}>
+                              <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 700 }}>DETAIL LAPORAN</p>
+                              <p style={{ fontSize: '0.82rem', lineHeight: 1.5 }}>"{finding.detail}"</p>
+                              {finding.area && <p style={{ fontSize: '0.72rem', color: 'var(--color-primary)', marginTop: '0.4rem' }}>📍 Lokasi: {finding.area}</p>}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--text-secondary)', minWidth: '120px' }}>
+                              <div><strong>Pelapor:</strong> {finding.pelapor}</div>
+                              <div><strong>Tanggal:</strong> {new Date(finding.tanggal).toLocaleDateString('id-ID')}</div>
+                              <div><strong>Disposisi:</strong> {dept}</div>
+                              {finding.waSentAt && <div style={{ color: '#10b981' }}><strong>Sent WA:</strong> {finding.waSentAt}</div>}
+                            </div>
+                          </div>
+
+                          {finding.foto && (
+                            <div>
+                              <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 700 }}>FOTO BUKTI</p>
+                              <img src={finding.foto} alt="" style={{ maxWidth: '160px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}/>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '0.75rem' }}>
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              {['Open', 'In Progress', 'Closed'].map(s => (
+                                <button
+                                  key={s}
+                                  onClick={() => onUpdateStatus && onUpdateStatus(finding.id, s)}
+                                  style={{
+                                    padding: '0.25rem 0.6rem', fontSize: '0.68rem', borderRadius: '5px',
+                                    border: finding.status === s ? `1.5px solid ${STATUS_COLOR[s]?.color}` : '1px solid var(--border-glass)',
+                                    background: finding.status === s ? STATUS_COLOR[s]?.bg : 'transparent',
+                                    color: finding.status === s ? STATUS_COLOR[s]?.color : 'var(--text-secondary)',
+                                    cursor: 'pointer', fontWeight: finding.status === s ? 700 : 500
+                                  }}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div style={{ flex: 1 }}/>
+
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              {Object.keys(WA_CONTACTS).filter(d => d !== dept).map(d => (
+                                <button
+                                  key={d}
+                                  onClick={() => handleDispatch({ ...finding, department: d }, d)}
+                                  style={{
+                                    padding: '0.25rem 0.5rem', fontSize: '0.68rem', borderRadius: '5px',
+                                    border: `1px solid ${WA_CONTACTS[d].color}33`,
+                                    background: `${WA_CONTACTS[d].color}08`,
+                                    color: WA_CONTACTS[d].color,
+                                    cursor: 600, display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                  }}
+                                >
+                                  <Send size={9}/> Forward {d}
+                                </button>
+                              ))}
+                            </div>
+
+                            <button
+                              onClick={() => handleDispatch(finding, dept)}
+                              className="btn-primary"
+                              style={{
+                                padding: '0.4rem 0.85rem', fontSize: '0.75rem', borderRadius: '6px',
+                                background: waAlreadySent ? 'rgba(16,185,129,0.1)' : undefined,
+                                border: waAlreadySent ? '1px solid #10b981' : undefined,
+                                color: waAlreadySent ? '#10b981' : undefined
+                              }}
+                            >
+                              <MessageCircle size={13}/> {waAlreadySent ? 'Kirim Ulang WA' : `Kirim WA ke Ka. ${dept}`}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Komplain Tenant */}
+        {activeCommandTab === 'komplain' && (
+          <div className="command-tab-content glass-panel" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                Tiket Komplain & Pengaduan Tenant / Pengunjung
+              </h4>
+              <div style={{ display: 'flex', gap: '0.3rem', fontSize: '0.7rem' }}>
+                {['all', 'Baru', 'Diproses', 'Selesai'].map(s => (
+                  <button key={s} onClick={() => setComplaintFilter(s)} style={{
+                    border: 'none', background: complaintFilter === s ? 'rgba(99,102,241,0.15)' : 'transparent',
+                    color: complaintFilter === s ? '#818cf8' : 'var(--text-secondary)',
+                    padding: '0.35rem 0.75rem', borderRadius: '6px', cursor: 'pointer', fontWeight: complaintFilter === s ? 700 : 500
+                  }}>
+                    {s === 'all' ? `Semua (${complaints.length})` : `${s} (${s === 'Diproses' ? complaints.filter(c => c.status === 'Diproses' || c.status === 'Diterima').length : complaints.filter(c => c.status === s).length})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredComplaints.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                <CheckCircle2 size={36} style={{ opacity: 0.25, marginBottom: '0.5rem' }}/>
+                <p style={{ fontSize: '0.85rem' }}>Tidak ada komplain dengan status ini.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {filteredComplaints.map(c => {
+                  const sc = COMPLAINT_STATUS_COLOR[c.status] || '#6b7280';
+                  const isExpanded = expandedComplaint === c.id;
+                  return (
+                    <div key={c.id} style={{
+                      borderRadius: '8px', border: `1px solid ${c.status === 'Baru' ? 'rgba(59,130,246,0.3)' : 'var(--border-glass)'}`,
+                      background: c.status === 'Baru' ? 'rgba(59,130,246,0.02)' : 'transparent',
+                      overflow: 'hidden'
+                    }}>
+                      <div onClick={() => setExpandedComplaint(isExpanded ? null : c.id)} style={{
+                        padding: '0.75rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap',
+                        borderBottom: isExpanded ? '1px solid var(--border-glass)' : 'none'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '6px', flexShrink: 0,
+                            background: `${sc}12`, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <MessageCircle size={13} color={sc}/>
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-primary)' }}>{c.ticketId}</span>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'white' }}>{c.name}</span>
+                              <span style={{
+                                  fontSize: '0.58rem', padding: '0.08rem 0.4rem', borderRadius: '99px', fontWeight: 700,
+                                  background: `${sc}20`, color: sc
+                                }}>{c.status}</span>
+                            </div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {c.tenant} • {c.floor} • {c.category || 'Lainnya'}{c.department ? ` → ${c.department}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                            {new Date(c.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })}
+                          </span>
+                          {isExpanded ? <ChevronUp size={15} color="var(--text-muted)"/> : <ChevronDown size={15} color="var(--text-muted)"/>}
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.15)' }}>
+                          <div>
+                            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 600 }}>DESKRIPSI PENGADUAN</p>
+                            <p style={{ fontSize: '0.82rem', lineHeight: 1.5, color: 'var(--text-primary)' }}>"{c.description}"</p>
+                          </div>
+
+                          {c.photos && c.photos.length > 0 && (
+                            <div>
+                              <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>FOTO BUKTI ({c.photos.length})</p>
+                              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                {c.photos.map((ph, idx) => (
+                                  <img key={idx} src={ph} alt="" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-glass)' }}/>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {c.phone && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem' }}>
+                              <Phone size={12} style={{ color: 'var(--color-success)' }} />
+                              <span style={{ color: 'var(--text-muted)' }}>Kontak Tenant:</span>
+                              <a href={`https://wa.me/${c.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: 'var(--color-success)', fontWeight: 700 }}>{c.phone}</a>
+                            </div>
+                          )}
+
+                          {c.history && c.history.length > 0 && (
+                            <div>
+                              <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>RIWAYAT STATUS</p>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                {c.history.map((h, i) => (
+                                  <div key={i} style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start', fontSize: '0.68rem' }}>
+                                    <div style={{
+                                      width: '6px', height: '6px', borderRadius: '50%', marginTop: '0.25rem', flexShrink: 0,
+                                      background: COMPLAINT_STATUS_COLOR[h.status] || '#6b7280'
+                                    }}/>
+                                    <div>
+                                      <span style={{ fontWeight: 700, color: COMPLAINT_STATUS_COLOR[h.status] || 'var(--text-primary)' }}>{h.status}</span>
+                                      <span style={{ color: 'var(--text-muted)', marginLeft: '0.3rem' }}>
+                                        {new Date(h.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                      {h.note && <p style={{ color: 'var(--text-secondary)', marginTop: '0.05rem', fontSize: '0.65rem' }}>{h.note}</p>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '0.75rem' }}>
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              {STATUS_OPTIONS.filter(s => s !== c.status).map(s => (
+                                <button key={s} onClick={() => {
+                                  const history = [...(c.history || []), { status: s, timestamp: new Date().toISOString(), note: `Status diubah ke ${s} dari Dashboard` }];
+                                  onUpdateComplaint && onUpdateComplaint(c.id, { status: s, history, updatedAt: new Date().toISOString() });
+                                }} style={{
+                                  padding: '0.25rem 0.55rem', fontSize: '0.68rem', borderRadius: '5px', fontWeight: 600,
+                                  border: `1px solid ${COMPLAINT_STATUS_COLOR[s]}33`,
+                                  background: `${COMPLAINT_STATUS_COLOR[s]}08`,
+                                  color: COMPLAINT_STATUS_COLOR[s],
+                                  cursor: 'pointer'
+                                }}>
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div style={{ flex: 1 }}/>
+
+                            {c.status !== 'Selesai' && (
+                              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', marginRight: '0.1rem' }}>
+                                  Disposisi:
+                                </span>
+                                {DEPARTMENTS.map(d => {
+                                  const contact = WA_CONTACTS[d] || WA_CONTACTS.Keamanan;
+                                  return (
+                                    <button key={d} onClick={() => {
+                                      const history = [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }];
+                                      onUpdateComplaint && onUpdateComplaint(c.id, {
+                                        department: d, status: 'Diproses', history,
+                                        waStatus: `Terkirim (${d})`,
+                                        waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                                        updatedAt: new Date().toISOString()
+                                      });
+                                      const waMsg = encodeURIComponent(
+                                        `*📋 KOMPLAIN MASUK JDC*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n${contact.emoji} *Disposisi ke: Ka. ${d}*\n\n🆔 *Tiket:* ${c.ticketId}\n🏢 *Tenant:* ${c.tenant} • Lt.${c.floor}\n📝 *Deskripsi:* ${c.description}\n\n⚡ *Mohon segera ditindaklanjuti!*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n_Sistem Manajemen Keamanan JDC_`
+                                      );
+                                      window.open(`https://api.whatsapp.com/send?phone=${contact.nomor}&text=${waMsg}`, '_blank', 'noopener');
+                                    }} style={{
+                                      padding: '0.25rem 0.5rem', fontSize: '0.68rem', borderRadius: '5px', fontWeight: 700,
+                                      border: '1px solid var(--border-glass)', cursor: 'pointer',
+                                      background: 'transparent', color: 'var(--text-secondary)',
+                                      display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                    }}>
+                                      <Send size={9}/> {d}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Heatmap & Live Feed */}
+        {activeCommandTab === 'patroli' && (
+          <div className="command-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                  <MapPin size={16} className="text-primary"/> Denah & Heatmap Kunjungan Patroli Gedung
+                </h4>
+                <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px', overflowX: 'auto', maxWidth: '100%', gap: '2px', whiteSpace: 'nowrap' }}>
+                  {['Basement','1','2','3','4','5','6','Halaman Depan','Halaman Samping Kanan','Pos 00','R. Teknik','Halaman Belakang','Halaman Samping Kiri'].map(floor => (
+                    <button key={floor} onClick={() => setSelectedFloor(floor)} style={{
+                      border: 'none', background: selectedFloor === floor ? 'var(--bg-tertiary)' : 'transparent',
+                      color: selectedFloor === floor ? 'var(--color-primary)' : 'var(--text-secondary)',
+                      padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '6px', cursor: 'pointer',
+                      fontWeight: 700, flexShrink: 0
+                    }}>
+                      {['1','2','3','4','5','6'].includes(floor) ? `Lt. ${floor}` : floor}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-responsive" style={{ alignItems: 'center', width: '100%' }}>
+                <div style={{ flex: 2, background: 'rgba(0,0,0,0.2)', padding: '1.25rem', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
+                  <div className="grid-cols-4" style={{ gap: '0.65rem' }}>
+                    {areas.filter(a => a.lantai === selectedFloor).map(area => {
+                      const status = getAreaStatus(area.id);
+                      let colorClass = '#ef4444';
+                      let statusText = 'Belum Dipatroli';
+                      if (status === 'patrolled') { colorClass = '#10b981'; statusText = 'Aman / Sudah Dipatroli'; }
+                      else if (status === 'problematic') { colorClass = '#f59e0b'; statusText = 'Ada Temuan / Masalah'; }
+                      return (
+                        <div key={area.id} className="heatmap-cell" style={{
+                          background: `${colorClass}15`, border: `2px solid ${colorClass}`,
+                          color: colorClass, height: '70px', display: 'flex', flexDirection: 'column',
+                          justifyContent: 'center', alignItems: 'center', borderRadius: '8px',
+                          textAlign: 'center', padding: '0.2rem'
+                        }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800 }}>{area.zona}</span>
+                          <span style={{ fontSize: '0.58rem', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{area.titik}</span>
+                          <div className="tooltip"><strong>{area.titik}</strong>{`Status: ${statusText}\nZona: ${area.zona}`}</div>
+                        </div>
+                      );
+                    })}
+                    {areas.filter(a => a.lantai === selectedFloor).length === 0 && (
+                      <div style={{ gridColumn: 'span 4', textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.8rem' }}>
+                        Tidak ada area yang terdaftar di lantai ini.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="glass-panel" style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'transparent' }}>
+                    <h5 style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Keterangan</h5>
+                    {[['#10b981', 'Sudah Dipatroli (Aman)'], ['#f59e0b', 'Ada Laporan Temuan'], ['#ef4444', 'Belum Dikunjungi']].map(([c, l]) => (
+                      <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: c }}/><span>{l}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="glass-panel" style={{ padding: '0.75rem', fontSize: '0.75rem', background: 'transparent' }}>
+                    <p style={{ fontWeight: 700, marginBottom: '0.25rem', color: 'white' }}>Detail Lantai {selectedFloor}</p>
+                    {[
+                      ['Total Checkpoint', areas.filter(a => a.lantai === selectedFloor).length, null],
+                      ['Selesai Dikunjungi', areas.filter(a => a.lantai === selectedFloor && getAreaStatus(a.id) !== 'unvisited').length, 'var(--color-success)'],
+                    ].map(([l, v, c]) => (
+                      <div key={l} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', padding: '0.25rem 0' }}>
+                        <span>{l}:</span><span style={{ fontWeight: 700, color: c || 'inherit' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid-cols-2">
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                    <Clock size={15} className="text-primary"/> Log Aktivitas Patroli Masuk
+                  </h4>
+                  <span className="badge badge-info pulse-primary" style={{ fontSize: '0.55rem' }}>Live Feed</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', overflowY: 'auto', maxHeight: '280px' }}>
+                  {reports.slice(0, 10).map(report => (
+                    <div key={report.id} style={{
+                      padding: '0.65rem', borderRadius: '6px', background: 'rgba(255,255,255,0.01)',
+                      borderLeft: `3px solid ${
+                        report.kondisi === 'Aman dan Kondusif' ? 'var(--color-success)' :
+                        report.kondisi === 'Ada Aktivitas' ? 'var(--color-warning)' : 'var(--color-danger)'
+                      }`,
+                      border: '1px solid var(--border-glass)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontWeight: 700, color: 'white' }}>{report.userName}</span>
+                        <span>{new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
+                      </div>
+                      <p style={{ fontSize: '0.78rem', marginTop: '0.15rem', fontWeight: 600 }}>
+                        📍 {report.titik} ({report.lantai})
+                      </p>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Kondisi: {report.keterangan || report.kondisi}</span>
+                    </div>
+                  ))}
+                  {reports.length === 0 && (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.8rem' }}>
+                      Belum ada data laporan masuk.
                     </div>
                   )}
                 </div>
-              );
-            })}
+              </div>
+
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ef4444' }}>
+                    <AlertOctagon size={15}/> Zona Belum Terjamah Hari Ini
+                  </h4>
+                  <span className="badge badge-danger" style={{ fontSize: '0.55rem' }}>{unvisitedAreas.length} Terlewat</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', overflowY: 'auto', maxHeight: '280px' }}>
+                  {unvisitedAreas.slice(0, 10).map(area => (
+                    <div key={area.id} style={{
+                      padding: '0.65rem', borderRadius: '6px', background: 'rgba(239,68,68,0.02)',
+                      border: '1px solid rgba(239,68,68,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}>
+                      <div>
+                        <h5 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'white' }}>{area.titik}</h5>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Lt. {area.lantai} ({area.zona})</span>
+                      </div>
+                      <span style={{ fontSize: '0.6rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase' }}>Belum Scan</span>
+                    </div>
+                  ))}
+                  {unvisitedAreas.length === 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                      <CheckCircle size={24} color="var(--color-success)" style={{ marginBottom: '0.5rem' }}/>
+                      <p style={{ fontSize: '0.8rem', textAlign: 'center' }}>Hebat! Seluruh pos telah terpatroli.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Mutasi & Absensi */}
+        {activeCommandTab === 'mutasi' && (
+          <div className="command-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                <ClipboardList size={16} className="text-primary"/> Log Buku Mutasi Penjagaan Terbaru
+              </h4>
+              {mutasiLogs.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto', maxHeight: '350px' }}>
+                  {mutasiLogs.slice(0, 20).map((log, idx) => (
+                    <div key={log.id || idx} style={{
+                      padding: '0.75rem', borderRadius: '6px', background: 'rgba(255,255,255,0.01)',
+                      border: '1px solid var(--border-glass)',
+                      borderLeft: `3px solid ${
+                        log.kategori === 'Emergency' ? '#ef4444' :
+                        log.kategori === 'Kehilangan' ? '#f59e0b' :
+                        log.kategori === 'Kerusakan' ? '#f97316' : '#3b82f6'
+                      }`
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
+                        <span style={{ fontWeight: 700, color: 'white' }}>{log.pelapor || log.petugas || '-'}</span>
+                        <span className="badge" style={{
+                          fontSize: '0.58rem', padding: '0.08rem 0.35rem',
+                          background: log.kategori === 'Emergency' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
+                          color: log.kategori === 'Emergency' ? '#ef4444' : '#3b82f6'
+                        }}>{log.kategori || 'Informasi'}</span>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{log.uraian || log.deskripsi}</p>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                        🕒 {log.jamLaporan || log.jamKejadian || '-'} • 📍 {log.lokasi || log.pos || '-'} • 📅 {log.tanggal || '-'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Belum ada log mutasi terdaftar harian.
+                </div>
+              )}
+            </div>
+
+            <div className="grid-cols-2">
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <Users size={16}/> Kehadiran Harian Anggota Per Regu
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {reguAttendance.map(r => (
+                    <div key={r.regu}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                        <span style={{ fontWeight: 700, color: 'white' }}>{r.regu}</span>
+                        <span style={{ color: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                          {r.hadir}/{r.total} ({r.pct}%)
+                        </span>
+                      </div>
+                      <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${r.pct}%`, borderRadius: '99px', transition: 'width 0.5s',
+                          background: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444' }}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  <Activity size={16}/> Beban & Titik Patroli Per Regu
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {reguPatrol.map(r => {
+                    const maxPatrol = Math.max(...reguPatrol.map(x => x.patrolCount), 1);
+                    const pct = Math.round((r.patrolCount / maxPatrol) * 100);
+                    return (
+                      <div key={r.regu}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                          <span style={{ fontWeight: 700, color: 'white' }}>{r.regu}</span>
+                          <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+                            {r.patrolCount} scan • {r.coveredAreas} area
+                          </span>
+                        </div>
+                        <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, borderRadius: '99px',
+                            background: 'linear-gradient(90deg, #3b82f6, #6366f1)', transition: 'width 0.5s' }}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: Pengaturan & Arsip */}
+        {activeCommandTab === 'arsip' && (
+          <div className="command-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
+                <MessageCircle size={16} className="text-primary"/> Penerusan & Rekap Tugas Kepala Departemen
+              </h4>
+              <div className="grid-cols-3" style={{ gap: '1rem' }}>
+                {Object.entries(WA_CONTACTS).map(([dept, info]) => {
+                  const total = findingsByDept[dept].length;
+                  const open = findingsByDept[dept].filter(f => f.status !== 'Closed').length;
+                  const sent = waSentCount(dept);
+                  return (
+                    <div key={dept} className="kpi-card" style={{ borderLeft: `3px solid ${info.color}`, background: 'rgba(255,255,255,0.01)', padding: '1rem', border: '1px solid var(--border-glass)', borderRadius: '8px' }}>
+                      <h5 style={{ fontSize: '0.8rem', fontWeight: 700, color: info.color }}>{info.emoji} {dept}</h5>
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.2rem 0' }}>Ka. Dept: {info.nama}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Total Laporan:</span>
+                          <strong>{total}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Aktif (Open):</span>
+                          <strong style={{ color: open > 0 ? '#ef4444' : '#10b981' }}>{open}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>WA Terkirim:</span>
+                          <strong style={{ color: '#10b981' }}>{sent}</strong>
+                        </div>
+                      </div>
+                      {open > 0 && (
+                        <button
+                          onClick={() => {
+                            const openItems = findingsByDept[dept].filter(f => f.status !== 'Closed');
+                            const summaryMsg = 
+                              `*${info.emoji} REKAP TIKET OPEN - SMPJDC*\n` +
+                              `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                              `Yth. ${info.nama},\n\n` +
+                              `Berikut daftar temuan aktif yang memerlukan tindakan:\n\n` +
+                              openItems.map((f,i) =>
+                                `${i+1}. [${f.severity}] ${f.kategori}\n   📍 ${f.area}\n   📋 ${f.detail}\n`
+                              ).join('\n') +
+                              `\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                              `Total: ${openItems.length} tiket aktif\n_Sistem Manajemen Keamanan JDC_`;
+                            window.open(`https://api.whatsapp.com/send?phone=${info.nomor}&text=${encodeURIComponent(summaryMsg)}`, '_blank', 'noopener');
+                          }}
+                          className="btn-primary"
+                          style={{ width: '100%', marginTop: '0.75rem', padding: '0.4rem', fontSize: '0.7rem', background: `${info.color}12`, border: `1px solid ${info.color}33`, color: info.color }}
+                        >
+                          Kirim Rekap WA ke Ka. {dept}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {onArchiveOldData && (
+              <div className="glass-panel" style={{ padding: '1.5rem', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ef4444' }}>
+                  <AlertTriangle size={16}/> Pembersihan Data Lama JDC (&gt; 90 Hari)
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                  Pembersihan otomatis data log patroli, laporan temuan, mutasi harian, data absensi regu, dan komplain tenant yang telah berusia **lebih dari 90 hari** agar kapasitas penyimpanan cloud tetap efisien dan performa loading dashboard tetap responsif.
+                </p>
+                <button onClick={onArchiveOldData} className="btn-danger" style={{ width: '100%', padding: '0.65rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={14}/> Lakukan Pembersihan Data Lama (&gt; 90 Hari)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* ── 11. KEPATUHAN & KINERJA PER REGU ───────────────────────────────── */}
-      <div className="grid-cols-2">
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-            <Users size={16}/> KEHADIRAN PER REGU HARI INI
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {reguAttendance.map(r => (
-              <div key={r.regu}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                  <span style={{ fontWeight: 700 }}>{r.regu}</span>
-                  <span style={{ color: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
-                    {r.hadir}/{r.total} ({r.pct}%)
-                  </span>
-                </div>
-                <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${r.pct}%`, borderRadius: '99px', transition: 'width 0.5s',
-                    background: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444' }}/>
-                </div>
-                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                  {r.alpha > 0 && <span>Alpha: {r.alpha}</span>}
-                  {r.sakit > 0 && <span>Sakit: {r.sakit}</span>}
-                  {r.izin > 0 && <span>Izin: {r.izin}</span>}
-                </div>
-              </div>
-            ))}
-            {reguAttendance.every(r => r.total === 0) && (
-              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                Belum ada data absensi per regu.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-            <Activity size={16}/> AKTIVITAS PATROLI PER REGU
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {reguPatrol.map(r => {
-              const maxPatrol = Math.max(...reguPatrol.map(x => x.patrolCount), 1);
-              const pct = Math.round((r.patrolCount / maxPatrol) * 100);
-              return (
-                <div key={r.regu}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: 700 }}>{r.regu}</span>
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
-                      {r.patrolCount} scan • {r.coveredAreas} area
-                    </span>
-                  </div>
-                  <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: '99px',
-                      background: 'linear-gradient(90deg, #3b82f6, #6366f1)', transition: 'width 0.5s' }}/>
-                  </div>
-                </div>
-              );
-            })}
-            {reguPatrol.every(r => r.patrolCount === 0) && (
-              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                Belum ada data patroli hari ini.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 12. TARGET COMPLIANCE ──────────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          <CheckCircle size={16}/> TARGET KEPATUHAN PATROLI
-        </div>
-        {(() => {
-          const totalAreas = areas.length;
-          const patrolled = patrolledAreasToday.size;
-          const pct = totalAreas > 0 ? Math.round((patrolled / totalAreas) * 100) : 0;
-          const target = 90;
-          const remaining = totalAreas - patrolled;
-          return (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-                <div>
-                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, color: pct >= target ? 'var(--color-success)' : pct >= 70 ? '#f59e0b' : '#ef4444' }}>
-                    {pct}%
-                  </h4>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {patrolled} dari {totalAreas} area telah dipatroli
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right', fontSize: '0.75rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Target: {target}%</span>
-                  {remaining > 0 && <p style={{ color: '#ef4444', fontWeight: 700, marginTop: '0.15rem' }}>{remaining} area tersisa</p>}
-                  {remaining === 0 && <p style={{ color: 'var(--color-success)', fontWeight: 700, marginTop: '0.15rem' }}>✓ Target tercapai!</p>}
-                </div>
-              </div>
-              <div style={{ height: '10px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden', position: 'relative' }}>
-                <div style={{ height: '100%', width: `${pct}%`, borderRadius: '99px', transition: 'width 1s',
-                  background: pct >= target ? 'var(--color-success)' : pct >= 70 ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : '#ef4444' }}/>
-                {/* Target marker */}
-                <div style={{ position: 'absolute', left: `${target}%`, top: 0, width: '2px', height: '100%', background: 'rgba(255,255,255,0.5)' }}/>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* ── 13. MANAJEMEN DATA ──────────────────────────────────────────── */}
-      {onArchiveOldData && (
-        <div className="glass-panel" style={{ padding: '1rem', border: '1px solid rgba(239,68,68,0.2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: 'var(--color-danger)', fontWeight: 700 }}>
-            <AlertTriangle size={14}/> MANAJEMEN DATA
-          </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
-            Hapus otomatis data laporan, temuan, mutasi, absensi, dan komplain yang lebih dari 90 hari untuk menjaga performa aplikasi tetap ringan.
-          </p>
-          <button onClick={onArchiveOldData} className="btn-primary" style={{
-            background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)',
-            width: '100%', padding: '0.6rem', fontSize: '0.8rem', fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
-          }}>
-            <Sparkles size={14}/> Arsipkan Data Lama (&gt; 90 Hari)
-          </button>
-        </div>
-      )}
 
     </div>
   );
