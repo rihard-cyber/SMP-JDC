@@ -122,6 +122,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
   const [bulkCount, setBulkCount] = useState(100);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
+  const [bulkDownloadReady, setBulkDownloadReady] = useState(false);
 
   const [downloadingId, setDownloadingId] = useState(null);
   const [printLoadingId, setPrintLoadingId] = useState(null);
