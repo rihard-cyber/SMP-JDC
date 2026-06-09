@@ -84,6 +84,10 @@ export default function SecurityPatrolApp({
   }, [online]);
 
   const [tab, setTab] = useState('patroli');
+  const [showPlottingModal, setShowPlottingModal] = useState(false);
+  const [lastPlottingId, setLastPlottingId] = useState(() => {
+    return localStorage.getItem('smpjdc_last_plotting_id') || '';
+  });
 
   // ── Tab: Patroli ──
   const [step, setStep] = useState(1); // 1=start, 2=scan, 3=lapor, 4=done
@@ -194,6 +198,49 @@ export default function SecurityPatrolApp({
     if (myPlotting && todayLog) {
       const shiftMap = { P: 'Pagi (06:00-14:00)', S: 'Siang (14:00-22:00)', M: 'Malam (22:00-06:00)', Kh: 'Khusus' };
       setShift(shiftMap[todayLog.shift] || 'Pagi');
+    }
+  }, [myPlotting, todayLog]);
+
+  const playAlarmSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const playBeep = (freq, duration, delay) => {
+        setTimeout(() => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+        }, delay);
+      };
+      
+      playBeep(880, 0.15, 0);
+      playBeep(880, 0.15, 200);
+      playBeep(1200, 0.3, 400);
+    } catch (e) {
+      console.warn('Gagal memutar suara alarm:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (myPlotting && todayLog) {
+      const currentPlottingId = `${todayLog.id}-${myPlotting.posPlotting}-${myPlotting.status}`;
+      if (lastPlottingId && lastPlottingId !== currentPlottingId) {
+        playAlarmSound();
+        setShowPlottingModal(true);
+        if (navigator.vibrate) {
+          try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+        }
+      }
+      setLastPlottingId(currentPlottingId);
+      localStorage.setItem('smpjdc_last_plotting_id', currentPlottingId);
+    } else if (!myPlotting) {
+      setLastPlottingId('');
+      localStorage.removeItem('smpjdc_last_plotting_id');
     }
   }, [myPlotting, todayLog]);
 
@@ -1093,6 +1140,93 @@ export default function SecurityPatrolApp({
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {/* Plotting Assignment Alarm Overlay */}
+        {showPlottingModal && myPlotting && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(9, 15, 29, 0.96)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px'
+          }}>
+            <div className="glass-panel" style={{
+              width: '100%',
+              maxWidth: '280px',
+              padding: '1.75rem 1.25rem',
+              textAlign: 'center',
+              border: '2px solid var(--color-primary)',
+              boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem'
+            }}>
+              <div style={{
+                width: '55px',
+                height: '55px',
+                borderRadius: '50%',
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '2px solid var(--color-primary)',
+                color: 'var(--color-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 15px rgba(59, 130, 246, 0.3)',
+                animation: 'pulse 1.5s infinite'
+              }}>
+                <Shield size={28} />
+              </div>
+              
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'white', marginBottom: '0.2rem' }}>PLOTTING DITERIMA!</h3>
+                <p style={{ fontSize: '0.67rem', color: 'var(--text-secondary)' }}>Danru telah memperbarui plotting penugasan Anda.</p>
+              </div>
+
+              <div className="glass-panel" style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: 'rgba(255,255,255,0.02)',
+                textAlign: 'left',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.4rem',
+                fontSize: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Shift:</span>
+                  <strong style={{ color: 'white' }}>{todayLog?.shift === 'P' ? 'Pagi' : todayLog?.shift === 'S' ? 'Siang' : todayLog?.shift === 'M' ? 'Malam' : 'Khusus'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Jam Dinas:</span>
+                  <strong style={{ color: 'white' }}>{myPlotting.jamDinas}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Pos Jaga:</span>
+                  <strong style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>📍 {myPlotting.posPlotting}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Status Jaga:</span>
+                  <span className="badge badge-info" style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem' }}>{myPlotting.status}</span>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => setShowPlottingModal(false)}
+                className="btn-primary" 
+                style={{ width: '100%', padding: '0.65rem', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Terima Tugas & Standby
+              </button>
+            </div>
           </div>
         )}
       </div>
