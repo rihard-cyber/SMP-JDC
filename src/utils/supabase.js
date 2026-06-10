@@ -43,11 +43,20 @@ function normalizeDoc(doc) {
 }
 
 const KNOWN_TABLE_COLUMNS = {
-  users: new Set(['id', 'nrp', 'nama', 'jabatan', 'regu', 'avatar', 'status', 'email', 'nomor_hp', 'last_active', 'firebase_id', 'firebase_saved_at', 'created_at', 'updated_at']),
+  users: new Set(['id', 'nrp', 'nama', 'jabatan', 'regu', 'avatar', 'status', 'email', 'nomor_hp', 'last_active', 'firebase_saved_at', 'created_at', 'updated_at']),
+  patrol_reports: new Set(['id', 'user_id', 'user_name', 'area_id', 'gedung', 'lantai', 'zona', 'titik', 'kondisi', 'keterangan', 'foto', 'severity', 'timestamp', 'created_at', 'firebase_saved_at']),
+  findings: new Set(['id', 'report_id', 'kategori', 'area', 'tanggal', 'pelapor', 'status', 'severity', 'detail', 'foto', 'department', 'wa_status', 'wa_sent_at', 'created_at', 'firebase_saved_at']),
+  attendance_logs: new Set(['id', 'tanggal', 'shift', 'regu', 'details', 'created_at', 'firebase_saved_at']),
+  mutasi_logs: new Set(['id', 'tanggal', 'shift', 'petugas_masuk', 'petugas_keluar', 'catatan', 'foto', 'created_at', 'firebase_saved_at']),
+  complaints: new Set(['id', 'ticket_id', 'name', 'tenant', 'floor', 'category', 'description', 'department', 'status', 'wa_status', 'wa_sent_at', 'photos', 'history', 'created_at', 'firebase_saved_at', 'updated_at']),
+  areas: new Set(['id', 'gedung', 'lantai', 'nomor_titik', 'zona', 'titik', 'qr_code', 'created_at', 'firebase_saved_at']),
+  pos_list: new Set(['id', 'lantai', 'titik', 'keterangan', 'kode', 'created_at', 'firebase_saved_at']),
+  rosters: new Set(['year_month', 'roster_data', 'updated_by', 'created_at', 'updated_at']),
+  config: new Set(['key', 'data', 'updated_at']),
 };
 
 function prepareData(data, tableName) {
-  const { supabaseId, ...rest } = data || {};
+  const { supabaseId, firebaseId, ...rest } = data || {};
   const result = {};
   const allowed = KNOWN_TABLE_COLUMNS[tableName];
   for (const [key, value] of Object.entries(rest)) {

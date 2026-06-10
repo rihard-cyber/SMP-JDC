@@ -1083,26 +1083,30 @@ export default function App() {
         for (let i = 0; i < missing.length; i++) {
           if (cancelled) break;
           const item = missing[i];
-          const id = await adder(item);
-          if (id) {
-            const updater = (setter, field) => {
-              setter(prev => prev.map(x => x.id === item.id
-                ? { ...x, [field]: id, firebaseId: id }
-                : x
-              ));
-            };
+          try {
+            const id = await adder(item);
+            if (id) {
+              const updater = (setter, field) => {
+                setter(prev => prev.map(x => x.id === item.id
+                  ? { ...x, [field]: id, firebaseId: id }
+                  : x
+                ));
+              };
 
-            if (key === 'smpjdc_complaints') updater(setComplaints, 'supabaseId');
-            else if (key === 'sapujagat_reports') updater(setReports, 'supabaseId');
-            else if (key === 'sapujagat_findings') updater(setFindings, 'supabaseId');
-            else if (key === 'smpjdc_attendance_logs') updater(setAttendanceLogs, 'supabaseId');
-            else if (key === 'smpjdc_mutasi_logs') updater(setMutasiLogs, 'supabaseId');
+              if (key === 'smpjdc_complaints') updater(setComplaints, 'supabaseId');
+              else if (key === 'sapujagat_reports') updater(setReports, 'supabaseId');
+              else if (key === 'sapujagat_findings') updater(setFindings, 'supabaseId');
+              else if (key === 'smpjdc_attendance_logs') updater(setAttendanceLogs, 'supabaseId');
+              else if (key === 'smpjdc_mutasi_logs') updater(setMutasiLogs, 'supabaseId');
 
-            try {
-              const current = JSON.parse(localStorage.getItem(key) || '[]');
-              const synced = current.map(x => x.id === item.id ? { ...x, supabaseId: id, firebaseId: id } : x);
-              localStorage.setItem(key, JSON.stringify(synced));
-            } catch (e) {}
+              try {
+                const current = JSON.parse(localStorage.getItem(key) || '[]');
+                const synced = current.map(x => x.id === item.id ? { ...x, supabaseId: id, firebaseId: id } : x);
+                localStorage.setItem(key, JSON.stringify(synced));
+              } catch (e) {}
+            }
+          } catch (e) {
+            console.warn(`[Sync] Gagal upload item ${item.id} dari ${key}:`, e?.message || e);
           }
           if (i < missing.length - 1) await new Promise(r => setTimeout(r, 200));
         }
