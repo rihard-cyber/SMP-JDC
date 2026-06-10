@@ -69,9 +69,9 @@ export default function SecurityPatrolApp({
           try {
             const data = item.data || item;
             if (item.type === 'mutasi') {
-              await new Promise(resolve => onAddLog(data));
+              await onAddLog(data);
             } else {
-              await new Promise(resolve => onAddReport(data));
+              await onAddReport(data);
             }
           } catch (e) {
             console.error('Gagal kirim antrean offline:', e);

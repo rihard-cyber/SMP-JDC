@@ -1,101 +1,108 @@
 const INITIAL_POS_LIST = [
   {
-    id: 'bsmt-gf-00',
-    lantai: 'Basement',
-    titik: 'GF Pos 00 depan lift',
-    keterangan: 'Basement GF depan lift',
-    kode: 'P00'
+    id: 'pos-jdc',
+    lantai: 'Pos JDC',
+    titik: 'Pos JDC',
+    keterangan: 'Pos jaga utama JDC',
+    kode: 'PJDC'
   },
   {
-    id: 'bsmt-004',
+    id: 'pos-00-area',
     lantai: 'Basement',
-    titik: 'Pos 004',
-    keterangan: 'Basement pos 004',
-    kode: 'P004'
+    titik: 'Pos 00 Area',
+    keterangan: 'Pos area basement',
+    kode: 'P00A'
   },
   {
-    id: 'bsmt-posco',
+    id: 'pos-00-lift-bsmt',
     lantai: 'Basement',
-    titik: 'Posco 00 (Posko Security)',
-    keterangan: 'Posko keamanan basement',
-    kode: 'POSCO'
+    titik: 'Pos 00 Lift Basement',
+    keterangan: 'Pos lift basement',
+    kode: 'P00L'
   },
   {
-    id: 'l1-lobby',
+    id: 'pos-01-lift',
     lantai: '1',
-    titik: 'Pos 01 Lobby Utama (Reception)',
-    keterangan: 'Lobby utama lantai 1 / reception',
+    titik: 'Pos 01 Lift (Pintu sudut)',
+    keterangan: 'Pos lift lantai 1 pintu sudut',
+    kode: 'P01L'
+  },
+  {
+    id: 'pos-01-lobby',
+    lantai: '1',
+    titik: 'Pos 01 Lobby',
+    keterangan: 'Pos lobby utama lantai 1',
     kode: 'P01'
   },
   {
-    id: 'l1-lit',
-    lantai: '1',
-    titik: 'Pos Lit O1 (Pati Solo)',
-    keterangan: 'Lobby information point lantai 1',
-    kode: 'PLIT'
-  },
-  {
-    id: 'l2-l3',
+    id: 'pos-23-area',
     lantai: '2 & 3',
-    titik: 'Pos 23 (Lantai 2 & 3)',
+    titik: 'Pos 2/3 area',
     keterangan: 'Pos jaga lantai 2 dan 3',
     kode: 'P23'
   },
   {
-    id: 'l4-l5',
+    id: 'pos-45-area',
     lantai: '4 & 5',
-    titik: 'Pos 54 (Lantai 4 & 5)',
+    titik: 'Pos 4/5 Area',
     keterangan: 'Pos jaga lantai 4 dan 5',
-    kode: 'P54'
+    kode: 'P45'
   },
   {
-    id: 'l6-l7',
+    id: 'pos-67-area',
     lantai: '6 & 7',
-    titik: 'Pos 67 (Lantai 6 & 7)',
+    titik: 'Pos 6/7 Area',
     keterangan: 'Pos jaga lantai 6 dan 7',
     kode: 'P67'
   },
   {
-    id: 'front-08a',
+    id: 'pos-pk-mobil',
+    lantai: 'Parkir',
+    titik: 'Pos PK mobil',
+    keterangan: 'Pos parkir mobil',
+    kode: 'PKM'
+  },
+  {
+    id: 'pos-08a',
     lantai: 'Halaman Depan',
-    titik: 'Pos Front Pos 08 A',
+    titik: 'Pos 08A',
     keterangan: 'Pos depan area A',
     kode: 'P08A'
   },
   {
-    id: 'front-08b',
+    id: 'pos-08b',
     lantai: 'Halaman Depan',
-    titik: 'Pos Front Pos 08 B',
+    titik: 'Pos 08B',
     keterangan: 'Pos depan area B',
     kode: 'P08B'
   },
   {
-    id: 'front-08c',
+    id: 'pos-08c',
     lantai: 'Halaman Depan',
-    titik: 'Pos Front Pos 08 C',
+    titik: 'Pos 08C',
     keterangan: 'Pos depan area C',
     kode: 'P08C'
   },
   {
-    id: 'back-yard',
+    id: 'pos-09-area',
     lantai: 'Halaman Belakang',
-    titik: 'Pos Back Yard Loading Dock',
-    keterangan: 'Pos belakang loading dock',
-    kode: 'PBACK'
+    titik: 'Pos 09 Area',
+    keterangan: 'Pos area belakang',
+    kode: 'P09'
   },
   {
-    id: 'pkm-01',
+    id: 'pos-pk-motor',
     lantai: 'Parkir',
-    titik: 'Pos PKM 01 (Input Ticket)',
-    keterangan: 'Parkir masuk input tiket',
-    kode: 'PKM01'
+    titik: 'Pos PK motor',
+    keterangan: 'Pos parkir motor',
+    kode: 'PKMR'
   },
   {
-    id: 'pkm-02',
+    id: 'pos-motor',
     lantai: 'Parkir',
-    titik: 'Pos PKM 02 (Parkiran Motor)',
-    keterangan: 'Parkir motor',
-    kode: 'PKM02'
+    titik: 'Pos Motor',
+    keterangan: 'Pos motor',
+    kode: 'PMTR'
   }
 ];
 

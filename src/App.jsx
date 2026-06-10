@@ -168,6 +168,8 @@ export default function App() {
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
   const [activeProfileTab, setActiveProfileTab] = useState('info'); // info | photo | pin | email
+  const [editingWA, setEditingWA] = useState(false);
+  const [editWAValue, setEditWAValue] = useState('');
 
   useEffect(() => {
     if (showProfileModal && currentUser) {
@@ -949,13 +951,14 @@ export default function App() {
     setReports(prev => [reportData, ...prev]);
     addToast(`Patroli sukses disubmit di ${newReport.titik} (${newReport.kondisi})`, 'success');
 
-    addReportToFirestore(reportData).then(firebaseId => {
+    const reportProm = addReportToFirestore(reportData).then(firebaseId => {
       if (firebaseId) {
         setReports(prev => prev.map(r =>
           r.id === reportId ? { ...r, firebaseId } : r
         ));
       }
-    }).catch(e => console.warn('[Firebase] Gagal simpan laporan:', e));
+    });
+    reportProm.catch(e => console.warn('[Firebase] Gagal simpan laporan:', e));
 
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
       const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -985,6 +988,7 @@ export default function App() {
       }).catch(e => console.warn('[Firebase] Gagal simpan temuan:', e));
       addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
+    return reportProm;
   };
 
   const updateFindingStatus = (findingId, newStatus) => {
@@ -1030,14 +1034,16 @@ export default function App() {
     const id = `mut-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const mutasiData = { id, ...log };
     setMutasiLogs(prev => [mutasiData, ...prev]);
-    addMutasiLogToFirestore(mutasiData).then(firebaseId => {
+    addToast('Catatan mutasi berhasil disimpan', 'success');
+    const prom = addMutasiLogToFirestore(mutasiData).then(firebaseId => {
       if (firebaseId) {
         setMutasiLogs(prev => prev.map(m =>
           m.id === id ? { ...m, firebaseId } : m
         ));
       }
-    }).catch(e => console.warn('[Firebase] Gagal simpan mutasi:', e));
-    addToast('Catatan mutasi berhasil disimpan', 'success');
+    });
+    prom.catch(e => console.warn('[Firebase] Gagal simpan mutasi:', e));
+    return prom;
   };
 
   const handleDeleteMutasi = (id) => {
@@ -1087,8 +1093,17 @@ export default function App() {
     }
 
     // Firebase sync (background)
-    if (target?.firebaseId) {
-      updateComplaintInFirestore(target.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update komplain:', e));
+    const updatedComplaint = { ...target, ...updates };
+    if (updatedComplaint.firebaseId) {
+      updateComplaintInFirestore(updatedComplaint.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update komplain:', e));
+    } else {
+      addComplaintToFirestore(updatedComplaint).then(firebaseId => {
+        if (firebaseId) {
+          setComplaints(prev => prev.map(c =>
+            c.id === id ? { ...c, firebaseId } : c
+          ));
+        }
+      }).catch(e => console.warn('[Firebase] Gagal simpan komplain (update fallback):', e));
     }
   };
   
@@ -1243,6 +1258,17 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setProfileError('Gagal memperbarui foto profil.');
+    }
+  };
+
+  const handleSaveWA = () => {
+    const val = editWAValue.trim();
+    setProfileError('');
+    setProfileSuccess('');
+    if (currentUser) {
+      handleUpdateUser(currentUser.id, { nomorHp: val });
+      setEditingWA(false);
+      setProfileSuccess('Nomor WhatsApp berhasil diperbarui!');
     }
   };
 
@@ -1835,6 +1861,21 @@ export default function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>Email Terdaftar:</span>
                       <span style={{ fontWeight: 600 }}>{currentUser.email || '(Belum disinkronkan)'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>No. WhatsApp:</span>
+                      {editingWA ? (
+                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                          <input value={editWAValue} onChange={e => setEditWAValue(e.target.value)} placeholder="6281234567890" style={{ width: '130px', padding: '0.25rem 0.4rem', fontSize: '0.72rem', borderRadius: '4px', border: '1px solid var(--border-glass)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+                          <button onClick={handleSaveWA} style={{ border: 'none', background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.2rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }} title="Simpan"><Check size={12} /></button>
+                          <button onClick={() => setEditingWA(false)} style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.3rem' }} title="Batal">✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 600 }}>{currentUser.nomorHp || <span style={{ color: 'var(--text-muted)' }}>Belum diisi</span>}</span>
+                          <button onClick={() => { setEditWAValue(currentUser.nomorHp || ''); setEditingWA(true); }} style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '0' }} title="Ubah No. WA"><Smartphone size={12} /></button>
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>Sumber Sesi:</span>
