@@ -94,12 +94,22 @@ const createSubscriber = (tableName, callback, orderField = 'created_at', opts =
 const createAdder = (tableName) => async (data) => {
   const client = initSupabase();
   if (!client) return null;
-  const dbData = prepareData(data);
+  let dbData = prepareData(data);
   if (!dbData.created_at) dbData.created_at = new Date().toISOString();
   dbData.firebase_saved_at = new Date().toISOString();
-  const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
-  if (error) throw error;
-  return result.supabase_id;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
+    if (error) {
+      const match = error.message?.match(/Could not find the '(\w+)' column/);
+      if (match && match[1] && dbData[match[1]] !== undefined) {
+        delete dbData[match[1]];
+        continue;
+      }
+      throw error;
+    }
+    return result.supabase_id;
+  }
+  return null;
 };
 
 const createUpdater = (tableName) => async (supabaseId, updates) => {
