@@ -831,9 +831,8 @@ export default function App() {
   useEffect(() => {
     const db = initFirebase();
     if (!db) { setFirebaseUsersLoaded(true); return; }
-    let firstSync = true;
     const unsub = subscribeUsers((firebaseData) => {
-      if (!firebaseData) return;
+      if (!firebaseData) { setFirebaseUsersLoaded(true); return; }
       setUsers(prev => {
         const merged = [...firebaseData];
         prev.forEach(local => {
@@ -857,31 +856,43 @@ export default function App() {
         } catch (e) {}
         return merged;
       });
-      if (firstSync) {
-        firstSync = false;
-        const fbIds = new Set(firebaseData.map(u => u.id));
-        const fbNrps = new Set(firebaseData.map(u => u.nrp));
-        // Upload local-only users to Firestore
-        setUsers(prev => {
-          const missing = prev.filter(u => !u.firebaseId && !fbIds.has(u.id) && !fbNrps.has(u.nrp));
-          missing.forEach(u => {
-            addUserToFirestore({ ...u, pin: undefined }).then(fid => {
-              if (fid) setUsers(p => p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x));
-            });
-          });
-          return prev;
-        });
-        setFirebaseUsersLoaded(true);
-      }
+      setFirebaseUsersLoaded(true);
     }, { limit: 200 });
     return () => unsub();
   }, []);
+
+  // Upload user lokal yang belum tersimpan ke Firestore (dengan retry otomatis)
+  useEffect(() => {
+    if (!firebaseUsersLoaded) return;
+    let cancelled = false;
+    let retryTimer;
+
+    const uploadMissing = () => {
+      if (cancelled) return;
+      setUsers(prev => {
+        const missing = prev.filter(u => !u.firebaseId);
+        if (missing.length === 0) return prev;
+        missing.forEach(u => {
+          addUserToFirestore({ ...u, pin: undefined }).then(fid => {
+            if (fid && !cancelled) {
+              setUsers(p => p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x));
+            }
+          });
+        });
+        return prev;
+      });
+      // Retry setiap 10 detik sampai semua tersimpan
+      retryTimer = setTimeout(uploadMissing, 10000);
+    };
+
+    uploadMissing();
+    return () => { cancelled = true; clearTimeout(retryTimer); };
+  }, [firebaseUsersLoaded]);
 
   // Firebase real-time subscription untuk areas/checkpoints
   useEffect(() => {
     const db = initFirebase();
     if (!db) return;
-    let firstSync = true;
     const unsub = subscribeAreas((firebaseData) => {
       if (!firebaseData) return;
       setAreas(prev => {
@@ -894,19 +905,6 @@ export default function App() {
           }
           fbIds.add(fb.id);
         });
-        // Migrate: push localStorage-only areas to Firestore
-        if (firstSync) {
-          firstSync = false;
-          prev.forEach(local => {
-            if (!initialIds.has(local.id) && !fbIds.has(local.id) && !local.firebaseId) {
-              addAreaToFirestore(local).then(firebaseId => {
-                if (firebaseId) {
-                  setAreas(p => p.map(a => a.id === local.id ? { ...a, firebaseId } : a));
-                }
-              });
-            }
-          });
-        }
         prev.forEach(local => {
           if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
             if (merged.length < 500) merged.push(local);
@@ -921,11 +919,37 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Upload area lokal yang belum tersimpan ke Firestore (dengan retry otomatis)
+  useEffect(() => {
+    if (!firebaseUsersLoaded) return;
+    let cancelled = false;
+    let retryTimer;
+
+    const uploadMissing = () => {
+      if (cancelled) return;
+      setAreas(prev => {
+        const missing = prev.filter(a => !a.firebaseId);
+        if (missing.length === 0) return prev;
+        missing.forEach(a => {
+          addAreaToFirestore(a).then(fid => {
+            if (fid && !cancelled) {
+              setAreas(p => p.map(x => x.id === a.id ? { ...x, firebaseId: fid } : x));
+            }
+          });
+        });
+        return prev;
+      });
+      retryTimer = setTimeout(uploadMissing, 10000);
+    };
+
+    uploadMissing();
+    return () => { cancelled = true; clearTimeout(retryTimer); };
+  }, [firebaseUsersLoaded]);
+
   // Firebase real-time subscription untuk pos list
   useEffect(() => {
     const db = initFirebase();
     if (!db) return;
-    let firstSync = true;
     const unsub = subscribePosList((firebaseData) => {
       if (!firebaseData) return;
       setPosList(prev => {
@@ -938,19 +962,6 @@ export default function App() {
           }
           fbIds.add(fb.id);
         });
-        // Migrate: push localStorage-only posList entries to Firestore
-        if (firstSync) {
-          firstSync = false;
-          prev.forEach(local => {
-            if (!initialIds.has(local.id) && !fbIds.has(local.id) && !local.firebaseId) {
-              addPosToFirestore(local).then(firebaseId => {
-                if (firebaseId) {
-                  setPosList(p => p.map(item => item.id === local.id ? { ...item, firebaseId } : item));
-                }
-              });
-            }
-          });
-        }
         prev.forEach(local => {
           if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
             merged.push(local);
@@ -973,6 +984,33 @@ export default function App() {
     });
     return () => unsub();
   }, []);
+
+  // Upload posList yang belum tersimpan ke Firestore (dengan retry otomatis)
+  useEffect(() => {
+    if (!firebaseUsersLoaded) return;
+    let cancelled = false;
+    let retryTimer;
+
+    const uploadMissing = () => {
+      if (cancelled) return;
+      setPosList(prev => {
+        const missing = prev.filter(p => !p.firebaseId && !INITIAL_POS_LIST.some(init => init.id === p.id));
+        if (missing.length === 0) return prev;
+        missing.forEach(p => {
+          addPosToFirestore(p).then(fid => {
+            if (fid && !cancelled) {
+              setPosList(list => list.map(x => x.id === p.id ? { ...x, firebaseId: fid } : x));
+            }
+          });
+        });
+        return prev;
+      });
+      retryTimer = setTimeout(uploadMissing, 10000);
+    };
+
+    uploadMissing();
+    return () => { cancelled = true; clearTimeout(retryTimer); };
+  }, [firebaseUsersLoaded]);
 
   // Auto-sync currentUser ketika data dari FireStore berubah
   useEffect(() => {
