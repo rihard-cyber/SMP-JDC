@@ -849,6 +849,17 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Auto-sync currentUser ketika data dari FireStore berubah
+  useEffect(() => {
+    if (!currentUser) return;
+    const found = users.find(u => u.id === currentUser.id);
+    if (!found) return;
+    const keys = ['nama','jabatan','regu','email','nomorHp','avatar','nrp','status'];
+    if (keys.some(k => found[k] !== currentUser[k])) {
+      setCurrentUser(prev => ({ ...prev, ...found }));
+    }
+  }, [users]);
+
   // Live user presence tracking (lastActive) updated periodically (every 60s)
   useEffect(() => {
     if (!currentUser || !authenticated) return;
@@ -1316,7 +1327,8 @@ export default function App() {
   };
 
   const handleLogin = (user) => {
-    setCurrentUser(user);
+    const synced = users.find(u => u.id === user.id || u.nrp === user.nrp);
+    setCurrentUser(synced || user);
     setAuthenticated(true);
     setShowSplash(true);
     const targetTab = ['Danru', 'Wadanru', 'Anggota'].includes(user.jabatan) ? 'guard-simulator' : 'dashboard';
