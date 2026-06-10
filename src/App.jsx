@@ -844,18 +844,8 @@ export default function App() {
           if (u.nrp) fbMap.set(`nrp_${u.nrp}`, u);
         });
 
-        // Mulai dari data lokal (prev) — Firebase hanya update/tambah
+        // Mulai dari data lokal (prev) — Supabase hanya update/tambah
         const merged = prev.map(u => ({ ...u }));
-
-        // Bersihkan firebaseId usang yang tidak ada di Firestore (karena Firestore adalah single source of truth untuk Cloud status)
-        const fbDocIds = new Set(firebaseData.map(u => u.firebaseId).filter(Boolean));
-        for (let i = 0; i < merged.length; i++) {
-          const u = merged[i];
-          if (u.firebaseId && !fbDocIds.has(u.firebaseId)) {
-            console.log(`[Firebase] User ${u.nama} (ID: ${u.id}) memiliki firebaseId usang: ${u.firebaseId}. Bersihkan untuk re-sync.`);
-            delete merged[i].firebaseId;
-          }
-        }
 
         firebaseData.forEach(fbUser => {
           const existingByNrp = merged.findIndex(u => u.nrp && u.nrp === fbUser.nrp);
@@ -900,10 +890,10 @@ export default function App() {
     const uploadMissing = async () => {
       if (cancelled) return;
       const currentUsers = JSON.parse(localStorage.getItem('sapujagat_users') || '[]');
-      const missing = currentUsers.filter(u => !u.firebaseId);
+      const missing = currentUsers.filter(u => !u.supabaseId);
       if (missing.length === 0) return;
 
-      console.log(`[Firebase] Mengupload ${missing.length} user yang belum tersync...`);
+      console.log(`[Supabase] Mengupload ${missing.length} user yang belum tersync...`);
 
       // Upload satu per satu dengan delay 300ms agar tidak flood Firebase
       for (let i = 0; i < missing.length; i++) {
@@ -1083,7 +1073,7 @@ export default function App() {
         if (!raw) continue;
         let items;
         try { items = JSON.parse(raw); } catch { continue; }
-        const missing = items.filter(item => !item.firebaseId && !item.supabaseId);
+        const missing = items.filter(item => !item.supabaseId);
         if (missing.length === 0) continue;
 
         console.log(`[Sync] Upload ${missing.length} items from ${key}...`);
