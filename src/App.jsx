@@ -861,6 +861,7 @@ export default function App() {
   useEffect(() => {
     const db = initFirebase();
     if (!db) return;
+    let firstSync = true;
     const unsub = subscribeAreas((firebaseData) => {
       if (!firebaseData) return;
       setAreas(prev => {
@@ -873,6 +874,19 @@ export default function App() {
           }
           fbIds.add(fb.id);
         });
+        // Migrate: push localStorage-only areas to Firestore
+        if (firstSync) {
+          firstSync = false;
+          prev.forEach(local => {
+            if (!initialIds.has(local.id) && !fbIds.has(local.id) && !local.firebaseId) {
+              addAreaToFirestore(local).then(firebaseId => {
+                if (firebaseId) {
+                  setAreas(p => p.map(a => a.id === local.id ? { ...a, firebaseId } : a));
+                }
+              });
+            }
+          });
+        }
         prev.forEach(local => {
           if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
             if (merged.length < 500) merged.push(local);
@@ -1162,7 +1176,11 @@ export default function App() {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const area = { id: areaId, ...newArea };
     setAreas(prev => [...prev, area]);
-    addAreaToFirestore(area);
+    addAreaToFirestore(area).then(firebaseId => {
+      if (firebaseId) {
+        setAreas(prev => prev.map(a => a.id === areaId ? { ...a, firebaseId } : a));
+      }
+    });
     addToast(`Area ${newArea.titik} (Lt.${newArea.lantai} - ${newArea.zona}) berhasil didaftarkan!`, 'success');
   };
 
