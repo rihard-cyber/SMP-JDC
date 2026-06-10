@@ -22,7 +22,7 @@ const ROLE_COLORS = {
   'Guest Viewer': '#8b5cf6'
 };
 
-export default function UserManagement({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser }) {
+export default function UserManagement({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser, onSaveWAContacts }) {
   const [reguPilih, setReguPilih] = useState('Regu B');
   const [reguKustom, setReguKustom] = useState('');
   const [anggotaInput, setAnggotaInput] = useState('');
@@ -54,6 +54,7 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
   const handleWASave = (e) => {
     e.preventDefault();
     saveWAContacts(waContacts);
+    if (onSaveWAContacts) onSaveWAContacts(waContacts);
     setSaveStatus('✓ Pengaturan nomor WhatsApp berhasil disimpan!');
     setTimeout(() => setSaveStatus(''), 3000);
   };

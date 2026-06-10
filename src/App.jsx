@@ -23,6 +23,8 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
   subscribeUsers, addUserToFirestore, updateUserInFirestore, deleteUserFromFirestore, resetUsersInFirestore,
   subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
+  subscribePosList, addPosToFirestore, updatePosInFirestore, deletePosFromFirestore,
+  subscribeWAContacts, saveWAContactsToFirestore,
   clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
@@ -919,6 +921,59 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Firebase real-time subscription untuk pos list
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    let firstSync = true;
+    const unsub = subscribePosList((firebaseData) => {
+      if (!firebaseData) return;
+      setPosList(prev => {
+        const initialIds = new Set(INITIAL_POS_LIST.map(p => p.id));
+        const merged = [...INITIAL_POS_LIST];
+        const fbIds = new Set();
+        firebaseData.forEach(fb => {
+          if (!initialIds.has(fb.id)) {
+            merged.push(fb);
+          }
+          fbIds.add(fb.id);
+        });
+        // Migrate: push localStorage-only posList entries to Firestore
+        if (firstSync) {
+          firstSync = false;
+          prev.forEach(local => {
+            if (!initialIds.has(local.id) && !fbIds.has(local.id) && !local.firebaseId) {
+              addPosToFirestore(local).then(firebaseId => {
+                if (firebaseId) {
+                  setPosList(p => p.map(item => item.id === local.id ? { ...item, firebaseId } : item));
+                }
+              });
+            }
+          });
+        }
+        prev.forEach(local => {
+          if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
+            merged.push(local);
+          }
+        });
+        return merged;
+      });
+    });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk WA Contacts
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeWAContacts((firebaseData) => {
+      if (!firebaseData) return;
+      const { updatedAt, ...contacts } = firebaseData;
+      localStorage.setItem('smpjdc_wa_contacts', JSON.stringify(contacts));
+    });
+    return () => unsub();
+  }, []);
+
   // Auto-sync currentUser ketika data dari FireStore berubah
   useEffect(() => {
     if (!currentUser) return;
@@ -1223,18 +1278,34 @@ export default function App() {
   const handleAddPos = (newPos) => {
     const posId = newPos.id || `pos-${Date.now()}`;
     setPosList(prev => [...prev, { id: posId, ...newPos }]);
+    addPosToFirestore({ id: posId, ...newPos }).then(firebaseId => {
+      if (firebaseId) {
+        setPosList(prev => prev.map(p => p.id === posId ? { ...p, firebaseId } : p));
+      }
+    }).catch(e => console.warn('[Firebase] Gagal simpan pos:', e));
     addToast(`Pos ${newPos.titik} berhasil ditambahkan!`, 'success');
   };
 
   const handleUpdatePos = (posId, updates) => {
-    setPosList(prev => prev.map(p => p.id === posId ? { ...p, ...updates } : p));
+    setPosList(prev => prev.map(p => {
+      if (p.id !== posId) return p;
+      if (p.firebaseId) updatePosInFirestore(p.firebaseId, updates);
+      return { ...p, ...updates };
+    }));
     addToast(`Pos jaga berhasil diperbarui!`, 'success');
   };
 
   const handleDeletePos = (posId) => {
     if (!window.confirm(`Yakin ingin menghapus pos jaga ini?`)) return;
-    setPosList(prev => prev.filter(p => p.id !== posId));
+    setPosList(prev => prev.filter(p => {
+      if (p.id === posId && p.firebaseId) deletePosFromFirestore(p.firebaseId);
+      return p.id !== posId;
+    }));
     addToast('Pos jaga berhasil dihapus!', 'info');
+  };
+
+  const handleSaveWAContacts = async (contacts) => {
+    saveWAContactsToFirestore(contacts);
   };
 
   const handleAddUser = (newUser) => {
@@ -1819,7 +1890,7 @@ export default function App() {
           )}
 
           {currentTab === 'user-management' && (isGodMode || isAdmin) && (
-            <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+            <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onSaveWAContacts={handleSaveWAContacts} />
           )}
 
           {currentTab === 'roster' && (isGodMode || isAdmin) && (

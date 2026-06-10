@@ -336,3 +336,43 @@ export const deleteOldDataInFirestore = async (olderThanDays = 90) => {
     return { success: false, count: totalDeleted };
   }
 };
+
+// ─── Pos List / Checkpoints ───
+export const subscribePosList = (callback, opts = {}) =>
+  createSubscriber('pos_list', callback, 'createdAt', opts);
+
+export const addPosToFirestore = createAdder('pos_list');
+
+export const updatePosInFirestore = createUpdater('pos_list');
+
+export const deletePosFromFirestore = createDeleter('pos_list');
+
+// ─── WA Contacts (single doc in config collection) ───
+export const subscribeWAContacts = (callback) => {
+  const database = initFirebase();
+  if (!database) { callback(null); return () => {}; }
+  const ref = doc(database, 'config', 'wa_contacts');
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) callback(snap.data());
+    else callback(null);
+  }, (error) => {
+    console.warn('[Firebase] Gagal subscribe WA contacts:', error);
+    callback(null);
+  });
+};
+
+export const saveWAContactsToFirestore = async (contacts) => {
+  const database = initFirebase();
+  if (!database) return false;
+  try {
+    const ref = doc(database, 'config', 'wa_contacts');
+    await setDoc(ref, {
+      ...contacts,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn('[Firebase] Gagal simpan WA contacts:', e);
+    return false;
+  }
+};
