@@ -118,9 +118,9 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
       await new Promise(r => setTimeout(r, 200));
     }
     setIsSyncing(false);
-    setSyncResult({ synced, failed, total: users.length });
+    setSyncResult({ synced, failed, total: users.length, errors });
     if (errors.length > 0) console.error('[Sync Errors]', errors);
-    setTimeout(() => setSyncResult(null), 8000);
+    setTimeout(() => setSyncResult(null), 15000);
   };
 
 
@@ -239,9 +239,24 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
                 </div>
               )}
               {syncResult && (
-                <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
-                  ✓ Sync selesai: {syncResult.synced} berhasil
-                  {syncResult.failed > 0 ? `, ${syncResult.failed} gagal (retry otomatis)` : ''}
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
+                    ✓ Sync selesai: {syncResult.synced} berhasil
+                    {syncResult.failed > 0 ? `, ${syncResult.failed} gagal` : ''}
+                  </div>
+                  {syncResult.errors?.length > 0 && (
+                    <details style={{ marginTop: '0.3rem' }}>
+                      <summary style={{ fontSize: '0.65rem', color: '#ef4444', cursor: 'pointer' }}>
+                        Lihat {syncResult.errors.length} error
+                      </summary>
+                      <div style={{ fontSize: '0.6rem', color: '#f87171', maxHeight: '120px', overflowY: 'auto', background: 'rgba(239,68,68,0.05)', padding: '0.3rem', borderRadius: '4px', marginTop: '0.2rem' }}>
+                        {syncResult.errors.slice(0, 10).map((err, i) => (
+                          <div key={i} style={{ marginBottom: '0.15rem' }}>{err}</div>
+                        ))}
+                        {syncResult.errors.length > 10 && <div>...dan {syncResult.errors.length - 10} lainnya</div>}
+                      </div>
+                    </details>
+                  )}
                 </div>
               )}
             </div>
