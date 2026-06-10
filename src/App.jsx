@@ -142,6 +142,7 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUsers, setHasUsers] = useState(true);
+  const [firebaseUsersLoaded, setFirebaseUsersLoaded] = useState(false);
   const [showSplash, setShowSplash] = useState(false);
   const [cyberLogs, setCyberLogs] = useState([]);
   const [progress, setProgress] = useState(0);
@@ -828,6 +829,7 @@ export default function App() {
   useEffect(() => {
     const db = initFirebase();
     if (!db) return;
+    let firstSync = true;
     const unsub = subscribeUsers((firebaseData) => {
       if (!firebaseData) return;
       setUsers(prev => {
@@ -853,6 +855,10 @@ export default function App() {
         } catch (e) {}
         return merged;
       });
+      if (firstSync) {
+        firstSync = false;
+        setFirebaseUsersLoaded(true);
+      }
     }, { limit: 200 });
     return () => unsub();
   }, []);
@@ -1470,7 +1476,7 @@ export default function App() {
   }
 
   if (!authenticated) {
-    return <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} />;
+    return <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} firebaseUsersLoaded={firebaseUsersLoaded} />;
   }
 
   if (showSplash) {

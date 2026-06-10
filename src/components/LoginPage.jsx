@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building, Clock } from 'lucide-react';
+import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building, Clock, Loader } from 'lucide-react';
 import { hashPin, verifyPin, createSession, getLoginAttempts, recordLoginAttempt, signRoleInSession, signUserData } from '../utils/security';
 
-export default function LoginPage({ users: usersProp = [], onLogin, onSetup, hasUsers }) {
+export default function LoginPage({ users: usersProp = [], onLogin, onSetup, hasUsers, firebaseUsersLoaded = true }) {
   const [nrp, setNrp] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -112,6 +112,24 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
       setLoading(false);
     }, 600);
   };
+
+  // Show loading while Firebase syncs user data
+  if (!firebaseUsersLoaded && !localStorage.getItem('sapujagat_users')) {
+    return (
+      <div className="login-page">
+        <div className="login-bg-animation">
+          <div className="login-grid"></div>
+          <div className="login-scanline"></div>
+        </div>
+        <div className="login-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', minHeight: '60vh' }}>
+          <div className="login-card" style={{ textAlign: 'center', padding: '3rem' }}>
+            <Loader size={40} className="text-primary" style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} />
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Memuat data pengguna dari server...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (setupMode && !hasUsers) {
     return (
