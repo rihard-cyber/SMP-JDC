@@ -75,7 +75,7 @@ export default function ManagementDashboard({
 
   // ── Kalkulasi KPI ─────────────────────────────────────────────────────────
   const today = new Date().toISOString().split('T')[0];
-  const reportsToday = reports.filter(r => r.timestamp.startsWith(today));
+  const reportsToday = reports.filter(r => r.timestamp?.startsWith(today));
   const totalPatrolsToday = reportsToday.length;
   const patrolledAreasToday = new Set(reportsToday.map(r => r.areaId));
   
@@ -166,13 +166,14 @@ export default function ManagementDashboard({
   });
   const hariNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   const graphMinggu = last7Days.map(date => {
-    const dayReports = reports.filter(r => r.timestamp.startsWith(date));
+    const dayReports = reports.filter(r => r.timestamp?.startsWith(date));
     const dayFindings = combinedFindings.filter(f => f.tanggal?.startsWith(date));
     return { label: hariNames[new Date(date).getDay()], patrols: dayReports.length, findings: dayFindings.length };
   });
   const graphBulan = Array.from({length: 4}, (_, i) => {
     const week = i + 1;
     const weekReports = reports.filter(r => {
+      if (!r.timestamp) return false;
       const d = new Date(r.timestamp);
       const weekOfMonth = Math.ceil(d.getDate() / 7);
       return weekOfMonth === week;
