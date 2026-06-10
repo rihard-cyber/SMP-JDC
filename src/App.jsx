@@ -1146,8 +1146,9 @@ export default function App() {
       });
 
       // Update Firestore if connected and online
-      if (isOnline && currentUser.firebaseId) {
-        updateUserInFirestore(currentUser.firebaseId, { lastActive: nowStr }).catch(err => {
+      if (isOnline && (currentUser.supabaseId || currentUser.firebaseId)) {
+        const fid = currentUser.supabaseId || currentUser.firebaseId;
+        updateUserInFirestore(fid, { lastActive: nowStr }).catch(err => {
           console.warn('[Firebase] Gagal memperbarui kehadiran user:', err);
         });
       }
@@ -1232,14 +1233,14 @@ export default function App() {
     setReports(prev => [reportData, ...prev]);
     addToast(`Patroli sukses disubmit di ${newReport.titik} (${newReport.kondisi})`, 'success');
 
-    const reportProm = addReportToFirestore(reportData).then(firebaseId => {
-      if (firebaseId) {
+    const reportProm = addReportToFirestore(reportData).then(fid => {
+      if (fid) {
         setReports(prev => prev.map(r =>
-          r.id === reportId ? { ...r, firebaseId } : r
+          r.id === reportId ? { ...r, supabaseId: fid, firebaseId: fid } : r
         ));
       }
     });
-    reportProm.catch(e => console.warn('[Firebase] Gagal simpan laporan:', e));
+    reportProm.catch(e => addToast(`Gagal sync laporan: ${e.message}`, 'warning'));
 
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
       const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1260,13 +1261,13 @@ export default function App() {
         waSentAt: null
       };
       setFindings(prev => [findingData, ...prev]);
-      addFindingToFirestore(findingData).then(firebaseId => {
-        if (firebaseId) {
+      addFindingToFirestore(findingData).then(fid => {
+        if (fid) {
           setFindings(prev => prev.map(f =>
-            f.id === findingId ? { ...f, firebaseId } : f
+            f.id === findingId ? { ...f, supabaseId: fid, firebaseId: fid } : f
           ));
         }
-      }).catch(e => console.warn('[Firebase] Gagal simpan temuan:', e));
+      }).catch(e => addToast(`Gagal sync temuan: ${e.message}`, 'warning'));
       addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
     return reportProm;
@@ -1278,8 +1279,9 @@ export default function App() {
       if (f.id === findingId) {
         addToast(`Status temuan ${f.kategori} diubah ke ${newStatus}`, 'info');
         updatedFinding = { ...f, status: newStatus };
-        if (updatedFinding.firebaseId) {
-          updateFindingInFirestore(updatedFinding.firebaseId, { status: newStatus }).catch(e => console.warn('[Firebase] Gagal update status temuan:', e));
+        const fid = updatedFinding.supabaseId || updatedFinding.firebaseId;
+        if (fid) {
+          updateFindingInFirestore(fid, { status: newStatus }).catch(e => addToast(`Gagal update status temuan: ${e.message}`, 'warning'));
         }
         return updatedFinding;
       }
@@ -1298,12 +1300,13 @@ export default function App() {
           waStatus: `Terkirim (${dept})`,
           waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
         };
-        if (updatedFinding.firebaseId) {
-          updateFindingInFirestore(updatedFinding.firebaseId, {
+        const fid = updatedFinding.supabaseId || updatedFinding.firebaseId;
+        if (fid) {
+          updateFindingInFirestore(fid, {
             department: dept,
             waStatus: `Terkirim (${dept})`,
             waSentAt: updatedFinding.waSentAt
-          }).catch(e => console.warn('[Firebase] Gagal disposisi temuan:', e));
+          }).catch(e => addToast(`Gagal disposisi temuan: ${e.message}`, 'warning'));
         }
         return updatedFinding;
       }
@@ -1316,75 +1319,78 @@ export default function App() {
     const mutasiData = { id, ...log };
     setMutasiLogs(prev => [mutasiData, ...prev]);
     addToast('Catatan mutasi berhasil disimpan', 'success');
-    const prom = addMutasiLogToFirestore(mutasiData).then(firebaseId => {
-      if (firebaseId) {
+    const prom = addMutasiLogToFirestore(mutasiData).then(fid => {
+      if (fid) {
         setMutasiLogs(prev => prev.map(m =>
-          m.id === id ? { ...m, firebaseId } : m
+          m.id === id ? { ...m, supabaseId: fid, firebaseId: fid } : m
         ));
       }
     });
-    prom.catch(e => console.warn('[Firebase] Gagal simpan mutasi:', e));
+    prom.catch(e => addToast(`Gagal sync mutasi: ${e.message}`, 'warning'));
     return prom;
   };
 
   const handleDeleteMutasi = (id) => {
     const target = mutasiLogs.find(l => l.id === id);
-    setMutasiLogs(prev => prev.filter(l => l.id !== id));
-    if (target?.firebaseId) {
-      deleteMutasiLogFromFirestore(target.firebaseId).catch(e => console.warn('[Firebase] Gagal hapus mutasi:', e));
-    }
-    addToast('Catatan mutasi dihapus', 'info');
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Catatan Mutasi',
+      message: <>Yakin ingin menghapus catatan mutasi ini?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteMutasiLogFromFirestore(fid);
+          setMutasiLogs(prev => prev.filter(l => l.id !== id));
+          addToast('Catatan mutasi dihapus', 'info');
+        } catch (e) {
+          addToast(`Gagal hapus mutasi: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
   };
 
   const handleAddComplaint = (complaint) => {
     setComplaints(prev => {
       const updated = [complaint, ...prev];
-      try {
-        localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('[Complaint] Gagal simpan ke localStorage:', e);
-      }
+      try { localStorage.setItem('smpjdc_complaints', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
     addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
-
-    // Firebase sync (background)
-    addComplaintToFirestore(complaint).then(firebaseId => {
-      if (firebaseId) {
+    addComplaintToFirestore(complaint).then(fid => {
+      if (fid) {
         setComplaints(prev => prev.map(c =>
-          c.id === complaint.id ? { ...c, firebaseId } : c
+          c.id === complaint.id ? { ...c, supabaseId: fid, firebaseId: fid } : c
         ));
       }
-    }).catch(e => console.warn('[Firebase] Gagal simpan komplain:', e));
+    }).catch(e => addToast(`Gagal sync komplain: ${e.message}`, 'warning'));
   };
-  
+
   const handleUpdateComplaint = (id, updates) => {
     const target = complaints.find(c => c.id === id);
     setComplaints(prev => {
       const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c);
-      try {
-        localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('[Complaint] Gagal update localStorage:', e);
-      }
+      try { localStorage.setItem('smpjdc_complaints', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
     if (updates.status === 'Selesai') {
       addToast(`Komplain #${id} ditandai selesai`, 'success');
     }
-
-    // Firebase sync (background)
     const updatedComplaint = { ...target, ...updates };
-    if (updatedComplaint.firebaseId) {
-      updateComplaintInFirestore(updatedComplaint.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update komplain:', e));
+    const fid = updatedComplaint.supabaseId || updatedComplaint.firebaseId;
+    if (fid) {
+      updateComplaintInFirestore(fid, updates).catch(e => addToast(`Gagal update komplain: ${e.message}`, 'warning'));
     } else {
-      addComplaintToFirestore(updatedComplaint).then(firebaseId => {
-        if (firebaseId) {
+      addComplaintToFirestore(updatedComplaint).then(fid2 => {
+        if (fid2) {
           setComplaints(prev => prev.map(c =>
-            c.id === id ? { ...c, firebaseId } : c
+            c.id === id ? { ...c, supabaseId: fid2, firebaseId: fid2 } : c
           ));
         }
-      }).catch(e => console.warn('[Firebase] Gagal simpan komplain (update fallback):', e));
+      }).catch(e => addToast(`Gagal sync komplain: ${e.message}`, 'warning'));
     }
   };
   
@@ -1392,59 +1398,89 @@ export default function App() {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const area = { id: areaId, ...newArea };
     setAreas(prev => [...prev, area]);
-    addAreaToFirestore(area).then(firebaseId => {
-      if (firebaseId) {
-        setAreas(prev => prev.map(a => a.id === areaId ? { ...a, firebaseId } : a));
+    addAreaToFirestore(area).then(fid => {
+      if (fid) {
+        setAreas(prev => prev.map(a => a.id === areaId ? { ...a, supabaseId: fid, firebaseId: fid } : a));
       }
-    });
+    }).catch(e => addToast(`Gagal sync area: ${e.message}`, 'warning'));
     addToast(`Area ${newArea.titik} (Lt.${newArea.lantai} - ${newArea.zona}) berhasil didaftarkan!`, 'success');
   };
 
   const handleUpdateArea = (areaId, updates) => {
     setAreas(prev => prev.map(a => {
       if (a.id !== areaId) return a;
-      if (a.firebaseId) updateAreaInFirestore(a.firebaseId, updates);
+      const fid = a.supabaseId || a.firebaseId;
+      if (fid) updateAreaInFirestore(fid, updates).catch(e => addToast(`Gagal update area: ${e.message}`, 'warning'));
       return { ...a, ...updates };
     }));
-    addToast(`Area berhasil diperbarui!`, 'success');
+    addToast('Area berhasil diperbarui!', 'success');
   };
 
   const handleDeleteArea = (areaId) => {
-    if (!window.confirm('Yakin ingin menghapus area/checkpoint ini? Tindakan ini tidak bisa dibatalkan.')) return;
-    setAreas(prev => prev.filter(a => {
-      if (a.id === areaId && a.firebaseId) deleteAreaFromFirestore(a.firebaseId);
-      return a.id !== areaId;
-    }));
-    addToast('Area/checkpoint berhasil dihapus!', 'info');
+    const target = areas.find(a => a.id === areaId);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Area',
+      message: <>Yakin ingin menghapus area/checkpoint <strong>{target.titik}</strong>?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteAreaFromFirestore(fid);
+          setAreas(prev => prev.filter(a => a.id !== areaId));
+          addToast('Area/checkpoint berhasil dihapus!', 'info');
+        } catch (e) {
+          addToast(`Gagal hapus area: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
   };
 
   const handleAddPos = (newPos) => {
     const posId = newPos.id || `pos-${Date.now()}`;
     setPosList(prev => [...prev, { id: posId, ...newPos }]);
-    addPosToFirestore({ id: posId, ...newPos }).then(firebaseId => {
-      if (firebaseId) {
-        setPosList(prev => prev.map(p => p.id === posId ? { ...p, firebaseId } : p));
+    addPosToFirestore({ id: posId, ...newPos }).then(fid => {
+      if (fid) {
+        setPosList(prev => prev.map(p => p.id === posId ? { ...p, supabaseId: fid, firebaseId: fid } : p));
       }
-    }).catch(e => console.warn('[Firebase] Gagal simpan pos:', e));
+    }).catch(e => addToast(`Gagal sync pos: ${e.message}`, 'warning'));
     addToast(`Pos ${newPos.titik} berhasil ditambahkan!`, 'success');
   };
 
   const handleUpdatePos = (posId, updates) => {
     setPosList(prev => prev.map(p => {
       if (p.id !== posId) return p;
-      if (p.firebaseId) updatePosInFirestore(p.firebaseId, updates);
+      const fid = p.supabaseId || p.firebaseId;
+      if (fid) updatePosInFirestore(fid, updates).catch(e => addToast(`Gagal update pos: ${e.message}`, 'warning'));
       return { ...p, ...updates };
     }));
-    addToast(`Pos jaga berhasil diperbarui!`, 'success');
+    addToast('Pos jaga berhasil diperbarui!', 'success');
   };
 
   const handleDeletePos = (posId) => {
-    if (!window.confirm(`Yakin ingin menghapus pos jaga ini?`)) return;
-    setPosList(prev => prev.filter(p => {
-      if (p.id === posId && p.firebaseId) deletePosFromFirestore(p.firebaseId);
-      return p.id !== posId;
-    }));
-    addToast('Pos jaga berhasil dihapus!', 'info');
+    const target = posList.find(p => p.id === posId);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Pos Jaga',
+      message: <>Yakin ingin menghapus pos jaga <strong>{target.titik}</strong>?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deletePosFromFirestore(fid);
+          setPosList(prev => prev.filter(p => p.id !== posId));
+          addToast('Pos jaga berhasil dihapus!', 'info');
+        } catch (e) {
+          addToast(`Gagal hapus pos: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
   };
 
   const handleSaveWAContacts = async (contacts) => {
@@ -1581,8 +1617,8 @@ export default function App() {
       localStorage.setItem('sapujagat_users', JSON.stringify(updatedUsers));
       signUserData(updatedUsers);
       
-      if (currentUser.firebaseId) {
-        await updateUserInFirestore(currentUser.firebaseId, { avatar: tempAvatar });
+      if (currentUser.supabaseId || currentUser.firebaseId) {
+        await updateUserInFirestore(currentUser.supabaseId || currentUser.firebaseId, { avatar: tempAvatar });
       }
       
       setProfileSuccess('Foto profil berhasil diperbarui!');
@@ -2006,20 +2042,20 @@ export default function App() {
                     const updated = [...prev];
                     updated[existingIndex] = { id: prev[existingIndex].id, ...newAttendance };
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil diperbarui`, 'success');
-                    const fbId = prev[existingIndex].firebaseId;
+                    const fbId = prev[existingIndex].supabaseId || prev[existingIndex].firebaseId;
                     if (fbId) {
-                      updateAttendanceLogInFirestore(fbId, newAttendance).catch(e => console.warn('[Firebase] Gagal update absensi:', e));
+                      updateAttendanceLogInFirestore(fbId, newAttendance).catch(e => addToast(`Gagal update absensi: ${e.message}`, 'warning'));
                     }
                     return updated;
                   } else {
                     const entry = { id, ...newAttendance };
-                    addAttendanceLogToFirestore(entry).then(firebaseId => {
-                      if (firebaseId) {
+                    addAttendanceLogToFirestore(entry).then(fid => {
+                      if (fid) {
                         setAttendanceLogs(prev => prev.map(a =>
-                          a.id === id ? { ...a, firebaseId } : a
+                          a.id === id ? { ...a, supabaseId: fid, firebaseId: fid } : a
                         ));
                       }
-                    }).catch(e => console.warn('[Firebase] Gagal simpan absensi:', e));
+                    }).catch(e => addToast(`Gagal sync absensi: ${e.message}`, 'warning'));
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil disimpan`, 'success');
                     return [...prev, entry];
                   }
