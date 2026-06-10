@@ -178,14 +178,4 @@ CREATE TABLE IF NOT EXISTS config (
 
 CREATE INDEX IF NOT EXISTS idx_config_key ON config(key);
 
--- ── Enable Realtime for all tables ──────────
-ALTER PUBLICATION supabase_realtime ADD TABLE users;
-ALTER PUBLICATION supabase_realtime ADD TABLE patrol_reports;
-ALTER PUBLICATION supabase_realtime ADD TABLE findings;
-ALTER PUBLICATION supabase_realtime ADD TABLE attendance_logs;
-ALTER PUBLICATION supabase_realtime ADD TABLE mutasi_logs;
-ALTER PUBLICATION supabase_realtime ADD TABLE complaints;
-ALTER PUBLICATION supabase_realtime ADD TABLE areas;
-ALTER PUBLICATION supabase_realtime ADD TABLE pos_list;
-ALTER PUBLICATION supabase_realtime ADD TABLE rosters;
-ALTER PUBLICATION supabase_realtime ADD TABLE config;
+-- Realtime sudah aktif default di Supabase, tidak perlu ALTER PUBLICATION
