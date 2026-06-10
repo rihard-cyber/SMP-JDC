@@ -62,6 +62,7 @@ import RosterManagement from './components/RosterManagement';
 import LaporForm from './components/LaporForm';
 import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
+import BottomNav from './components/BottomNav';
 import ConfirmModal from './components/ConfirmModal';
 import INITIAL_POS_LIST from './data/posList';
 
