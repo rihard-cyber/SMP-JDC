@@ -3,7 +3,7 @@ import {
   Plus, Download, Printer, Layers, Check,
   Building, User, UserCheck, Phone, Hash,
   RefreshCw, AlertTriangle, Edit3, Trash2, X,
-  MapPin, Shield
+  MapPin, QrCode, Shield
 } from 'lucide-react';
 
 import QRCode from 'qrcode';

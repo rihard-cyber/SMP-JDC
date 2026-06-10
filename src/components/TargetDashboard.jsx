@@ -19,7 +19,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
   // Statistics calculation for compliance
   const totalAreas = areas.length;
   const today = new Date().toISOString().split('T')[0];
-  const reportsToday = reports.filter(r => r.timestamp.startsWith(today));
+  const reportsToday = reports.filter(r => r.timestamp?.startsWith(today));
   
   // Compliance Rate (how many JDC areas visited today vs total areas)
   const uniqueVisitedToday = new Set(reportsToday.map(r => r.areaId)).size;
