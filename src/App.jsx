@@ -14,6 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
+import { isFirebaseConfigured } from './utils/firebaseConfig';
 import { compressImage } from './utils/image';
 import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
   subscribeReports, addReportToFirestore,
@@ -242,6 +243,12 @@ export default function App() {
     const stored = localStorage.getItem('sapujagat_users');
     const users = stored ? JSON.parse(stored) : null;
     const hasExistingUsers = Array.isArray(users) && users.length > 0;
+
+    // If Firebase configured but localStorage empty (e.g. incognito), assume users exist
+    if (!hasExistingUsers && isFirebaseConfigured()) {
+      setHasUsers(true);
+      return;
+    }
 
     // Anti-tamper: verifikasi signature data user
     if (hasExistingUsers) {
@@ -1405,7 +1412,7 @@ export default function App() {
   }
 
   if (!authenticated) {
-    return <LoginPage onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} />;
+    return <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} />;
   }
 
   if (showSplash) {

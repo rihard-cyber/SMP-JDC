@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building, Clock } from 'lucide-react';
 import { hashPin, verifyPin, createSession, getLoginAttempts, recordLoginAttempt, signRoleInSession, signUserData } from '../utils/security';
 
-export default function LoginPage({ onLogin, onSetup, hasUsers }) {
+export default function LoginPage({ users: usersProp = [], onLogin, onSetup, hasUsers }) {
   const [nrp, setNrp] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -34,8 +34,9 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
 
     setLoading(true);
     setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('sapujagat_users') || '[]');
-      const user = users.find(u => u.nrp === nrp.trim());
+      const lsUsers = JSON.parse(localStorage.getItem('sapujagat_users') || '[]');
+      const allUsers = usersProp.length > 0 ? usersProp : lsUsers;
+      const user = allUsers.find(u => u.nrp === nrp.trim()) || lsUsers.find(u => u.nrp === nrp.trim());
       
       if (!user) {
         recordLoginAttempt(nrp.trim(), false);
@@ -44,7 +45,14 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
         return;
       }
 
-      const storedPin = localStorage.getItem(`smpjdc_pin_${user.id}`);
+      let storedPin = localStorage.getItem(`smpjdc_pin_${user.id}`);
+      if (!storedPin) {
+        const defaultHash = hashPin(user.nrp.slice(-4));
+        if (verifyPin(pin, defaultHash)) {
+          storedPin = defaultHash;
+          localStorage.setItem(`smpjdc_pin_${user.id}`, defaultHash);
+        }
+      }
       if (!storedPin || !verifyPin(pin, storedPin)) {
         recordLoginAttempt(nrp.trim(), false);
         setError('PIN salah');
