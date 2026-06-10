@@ -19,6 +19,18 @@ import {
 import firebaseConfig, { isFirebaseConfigured } from './firebaseConfig';
 
 let db = null;
+
+// Convert Firestore Timestamp objects to ISO strings recursively
+function normalizeTimestamps(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (typeof obj.toDate === 'function') return obj.toDate().toISOString();
+  if (Array.isArray(obj)) return obj.map(normalizeTimestamps);
+  const result = {};
+  for (const key of Object.keys(obj)) {
+    result[key] = normalizeTimestamps(obj[key]);
+  }
+  return result;
+}
 let analytics = null;
 let initialized = false;
 
@@ -58,7 +70,7 @@ const createSubscriber = (collectionName, callback, orderField = 'createdAt', op
   return onSnapshot(q, (snapshot) => {
     const list = [];
     snapshot.forEach((doc) => {
-      list.push({ firebaseId: doc.id, ...doc.data() });
+      list.push({ firebaseId: doc.id, ...normalizeTimestamps(doc.data()) });
     });
     callback(list);
   }, (error) => {
@@ -114,7 +126,7 @@ const createLoader = (collectionName, orderField = 'createdAt') => async () => {
     const snapshot = await getDocs(q);
     const list = [];
     snapshot.forEach((doc) => {
-      list.push({ firebaseId: doc.id, ...doc.data() });
+      list.push({ firebaseId: doc.id, ...normalizeTimestamps(doc.data()) });
     });
     return list;
   } catch (e) {
