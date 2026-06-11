@@ -114,10 +114,49 @@ const createAdder = (tableName) => async (data) => {
   const dbData = prepareData(data, tableName);
   if (!dbData.created_at) dbData.created_at = new Date().toISOString();
   dbData.firebase_saved_at = new Date().toISOString();
-  const { data: result, error } = await client.from(tableName).upsert(dbData, { onConflict: 'id' }).select().single();
-  if (error) throw error;
-  return result.supabase_id;
+
+  // Coba upsert dulu (jika UNIQUE constraint ada di DB)
+  // Jika gagal karena constraint tidak ada, fallback ke insert biasa
+  try {
+    if (dbData.id) {
+      // Cek apakah record dengan id ini sudah ada
+      const { data: existing } = await client
+        .from(tableName)
+        .select('supabase_id')
+        .eq('id', dbData.id)
+        .maybeSingle();
+
+      if (existing) {
+        // Update record yang sudah ada
+        const { data: updated, error: updateErr } = await client
+          .from(tableName)
+          .update(dbData)
+          .eq('id', dbData.id)
+          .select('supabase_id')
+          .single();
+        if (updateErr) throw updateErr;
+        return updated?.supabase_id;
+      }
+    }
+
+    // Insert baru
+    const { data: result, error } = await client
+      .from(tableName)
+      .insert(dbData)
+      .select('supabase_id')
+      .single();
+    if (error) throw error;
+    return result?.supabase_id;
+  } catch (e) {
+    // Jika insert duplikat (race condition), anggap sukses
+    if (e?.code === '23505') {
+      console.warn(`[Supabase] Duplicate ${tableName}.id — skipped:`, dbData.id);
+      return null;
+    }
+    throw e;
+  }
 };
+
 
 const createUpdater = (tableName) => async (supabaseId, updates) => {
   const client = initSupabase();
