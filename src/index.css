@@ -2704,13 +2704,24 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
-/* Mutasi Penjagaan */
-.mutasi-kategori-grid { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.mutasi-kategori-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.45rem !important;
+}
 .mutasi-kat-btn {
-  flex: 1; min-width: 90px; display: flex; align-items: center; justify-content: center;
-  gap: 0.3rem; padding: 0.5rem 0.25rem; border-radius: 8px; border: 1.5px solid var(--border-glass);
-  background: transparent; cursor: pointer; font-family: var(--font-sans);
-  font-size: 0.7rem; font-weight: 600; transition: var(--transition-smooth);
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem !important;
+  padding: 0.55rem 0.35rem !important;
+  border-radius: 8px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  transition: var(--transition-smooth) !important;
 }
 .mutasi-kat-btn:hover { opacity: 0.85; }
 

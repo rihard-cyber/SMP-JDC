@@ -987,16 +987,19 @@ export default function SecurityPatrolApp({
 
                   <div className="step-field">
                     <label>KATEGORI</label>
-                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                    <div className="mutasi-kategori-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.45rem' }}>
                       {KATEGORI_MUTASI.map(k => (
-                        <button key={k.id} type="button" onClick={() => { setMKat(k.id); if (k.id !== '__lainnya__') setMKatLainnya(''); }} style={{
-                          padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.67rem',
-                          border: `1.5px solid ${mKat === k.id ? k.color : 'var(--border-glass)'}`,
-                          background: mKat === k.id ? `${k.color}18` : 'transparent',
-                          color: mKat === k.id ? k.color : 'var(--text-secondary)',
-                          fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                          display: 'flex', alignItems: 'center', gap: '0.2rem'
-                        }}>{k.label}</button>
+                        <button key={k.id} type="button" onClick={() => { setMKat(k.id); if (k.id !== '__lainnya__') setMKatLainnya(''); }}
+                          className={`mutasi-kat-btn ${mKat === k.id ? 'active' : ''}`}
+                          style={{
+                            padding: '0.5rem 0.25rem', borderRadius: '8px', fontSize: '0.72rem',
+                            border: `1.5px solid ${mKat === k.id ? k.color : 'var(--border-glass)'}`,
+                            background: mKat === k.id ? `${k.color}1A` : 'transparent',
+                            color: mKat === k.id ? k.color : 'var(--text-secondary)',
+                            fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem',
+                            width: '100%', minWidth: 0
+                          }}>{k.label}</button>
                       ))}
                     </div>
                     {mKat === '__lainnya__' && (
