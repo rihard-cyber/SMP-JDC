@@ -1205,9 +1205,55 @@ export default function App() {
     if (audio) setSosAudio(audio);
   };
 
+  const getDetectedShiftCode = (timestamp) => {
+    const d = timestamp ? new Date(timestamp) : new Date();
+    const hour = d.getHours();
+    if (hour >= 6 && hour < 14) return 'P';
+    if (hour >= 14 && hour < 22) return 'S';
+    return 'M';
+  };
+
+  const resolveActiveShiftAndRegu = (userId, userDefaultRegu, timestamp, logsList) => {
+    const todayStr = (timestamp ? new Date(timestamp) : new Date()).toISOString().split('T')[0];
+    let foundRegu = null;
+    let foundShift = null;
+
+    if (logsList && Array.isArray(logsList)) {
+      for (const log of logsList) {
+        if (log.tanggal === todayStr) {
+          const detail = log.details?.find(d => String(d.personilId) === String(userId));
+          if (detail && (detail.status === 'Hadir' || detail.status === 'Tukar Shift')) {
+            foundRegu = log.regu;
+            foundShift = log.shift;
+            break;
+          }
+        }
+      }
+    }
+
+    const detectedShift = getDetectedShiftCode(timestamp);
+    return {
+      regu: foundRegu || userDefaultRegu || 'Regu A',
+      shift: foundShift || detectedShift
+    };
+  };
+
   const handleAddReport = async (newReport) => {
     const reportId = `rep-${Date.now()}-${Math.floor(Math.random() * 90000)}`;
-    let reportData = { id: reportId, ...newReport };
+    const timestamp = newReport.timestamp || new Date().toISOString();
+    const resolved = resolveActiveShiftAndRegu(currentUser?.id, currentUser?.regu, timestamp, attendanceLogs);
+
+    let reportData = { 
+      id: reportId, 
+      ...newReport,
+      timestamp,
+      userId: currentUser?.id,
+      userName: currentUser?.nama,
+      nrp: currentUser?.nrp,
+      nomorHp: currentUser?.nomorHp || currentUser?.nomor_hp || '',
+      shift: resolved.shift,
+      regu: resolved.regu
+    };
     
     // Simpan ke state lokal terlebih dahulu untuk feedback UI instan (Offline-first approach)
     setReports(prev => [reportData, ...prev]);
@@ -1222,9 +1268,13 @@ export default function App() {
         id: findingId,
         reportId,
         kategori: newReport.kondisi,
-        area: `${newReport.gedung} Lt.${newReport.lantai} ${newReport.zona} - ${newReport.titik}`,
-        tanggal: newReport.timestamp,
-        pelapor: newReport.userName,
+        area: `${newReport.gedung || 'JDC'} Lt.${newReport.lantai} ${newReport.zona} - ${newReport.titik}`,
+        tanggal: timestamp,
+        pelapor: currentUser?.nama,
+        nrp: currentUser?.nrp,
+        nomorHp: currentUser?.nomorHp || currentUser?.nomor_hp || '',
+        shift: resolved.shift,
+        regu: resolved.regu,
         status: 'Open',
         severity: newReport.severity || 'Rendah',
         detail: newReport.keterangan || `Ditemukan kondisi ${newReport.kondisi}`,
@@ -1375,7 +1425,20 @@ export default function App() {
 
   const handleAddMutasi = async (log) => {
     const id = `mut-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    let mutasiData = { id, ...log };
+    const timestamp = new Date().toISOString();
+    const resolved = resolveActiveShiftAndRegu(currentUser?.id, currentUser?.regu, timestamp, attendanceLogs);
+
+    let mutasiData = { 
+      id, 
+      ...log,
+      tanggal: timestamp.split('T')[0],
+      waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      petugas: currentUser?.nama,
+      nrp: currentUser?.nrp,
+      nomorHp: currentUser?.nomorHp || currentUser?.nomor_hp || '',
+      shift: resolved.shift,
+      regu: resolved.regu
+    };
     setMutasiLogs(prev => [mutasiData, ...prev]);
     addToast('Catatan mutasi berhasil disimpan', 'success');
     

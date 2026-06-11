@@ -9,7 +9,7 @@
  * =======================================================
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Camera, Clock, Check, AlertTriangle, QrCode, Shield,
   Wifi, WifiOff, Database, ThumbsUp, MapPin,
@@ -90,9 +90,20 @@ export default function SecurityPatrolApp({
     return localStorage.getItem('smpjdc_last_plotting_id') || '';
   });
 
+  const getDetectedShiftCode = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 14) return 'P';
+    if (hour >= 14 && hour < 22) return 'S';
+    return 'M';
+  };
+
   // ── Tab: Patroli ──
   const [step, setStep] = useState(1); // 1=start, 2=scan, 3=lapor, 4=done
-  const [shift, setShift] = useState('Pagi');
+  const [shift, setShift] = useState(() => {
+    const active = getDetectedShiftCode();
+    const shiftMap = { P: 'Pagi (06:00-14:00)', S: 'Siang (14:00-22:00)', M: 'Malam (22:00-06:00)' };
+    return shiftMap[active] || 'Pagi (06:00-14:00)';
+  });
   const [area, setArea] = useState(null);
   const [timeScan, setTimeScan] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -192,13 +203,28 @@ export default function SecurityPatrolApp({
   }, [scanning, step]);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayLog = attendanceLogs.find(log => log.tanggal === todayStr);
-  const myPlotting = todayLog?.details?.find(d => d.personilId === currentUser.id);
+
+  const { todayLog, myPlotting } = useMemo(() => {
+    const currentHourShift = getDetectedShiftCode();
+    // 1. Find log for today matching current shift
+    let activeLog = attendanceLogs.find(
+      log => log.tanggal === todayStr && log.shift === currentHourShift
+    );
+    // 2. Fallback: find any log for today
+    if (!activeLog) {
+      activeLog = attendanceLogs.find(log => log.tanggal === todayStr);
+    }
+    const plotting = activeLog?.details?.find(d => String(d.personilId) === String(currentUser?.id));
+    return {
+      todayLog: activeLog || null,
+      myPlotting: plotting || null
+    };
+  }, [attendanceLogs, currentUser, todayStr]);
 
   useEffect(() => {
     if (myPlotting && todayLog) {
       const shiftMap = { P: 'Pagi (06:00-14:00)', S: 'Siang (14:00-22:00)', M: 'Malam (22:00-06:00)', Kh: 'Khusus' };
-      setShift(shiftMap[todayLog.shift] || 'Pagi');
+      setShift(shiftMap[todayLog.shift] || todayLog.shift || 'Pagi (06:00-14:00)');
     }
   }, [myPlotting, todayLog]);
 
@@ -608,13 +634,18 @@ export default function SecurityPatrolApp({
                     </div>
                   </div>
                 )}
-                <div className="step-field">
-                  <label>SHIFT PATROLI</label>
-                  <select value={shift} onChange={e => setShift(e.target.value)} className="modern-select" disabled={!!myPlotting}>
-                    <option value="Pagi">Pagi (06:00-14:00)</option>
-                    <option value="Siang">Siang (14:00-22:00)</option>
-                    <option value="Malam">Malam (22:00-06:00)</option>
-                  </select>
+                <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-glass)', borderRadius: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span>Shift Patroli:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{shift}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span>Regu Dinas:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{myPlotting?.regu || currentUser?.regu || 'Regu A'}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-glass)', paddingTop: '0.25rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Info size={11} /> Shift & Regu terdeteksi otomatis sinkron real-time.
+                  </div>
                 </div>
                 <button onClick={() => setStep(2)} className="btn-primary btn-full">Mulai Scan</button>
               </div>

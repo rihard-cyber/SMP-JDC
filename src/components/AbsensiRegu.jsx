@@ -33,34 +33,24 @@ export default function AbsensiRegu({
   const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Md' etc
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'form' | 'history'
   const [memberSearch, setMemberSearch] = useState('');
+  const [selectedAddMemberId, setSelectedAddMemberId] = useState('');
   
   // For phone number editing
   const [phoneInputs, setPhoneInputs] = useState({});
   const [editingPhoneId, setEditingPhoneId] = useState(null);
+
+  // Authorization check for Danru/Wadanru/Admin
+  const isAuthorizedFiller = useMemo(() => {
+    const role = currentUser?.jabatan || '';
+    return ['Admin Super', 'admin', 'Admin', 'Danru', 'Wadanru'].includes(role);
+  }, [currentUser]);
 
   // All patrol users — Danru/Wadanru can pick from anyone
   const allPatrolUsers = useMemo(() =>
     users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Middle 1', 'Middle 2'].includes(u.jabatan)),
   [users]);
 
-  // Filter by regu + search
-  const filteredPatrolUsers = useMemo(() => {
-    let list = allPatrolUsers;
-    if (selectedRegu && selectedRegu !== 'Semua Regu') {
-      list = list.filter(u => u.regu === selectedRegu);
-    }
-    if (memberSearch.trim()) {
-      const q = memberSearch.trim().toLowerCase();
-      list = list.filter(u =>
-        u.nama?.toLowerCase().includes(q) ||
-        u.nrp?.toLowerCase().includes(q) ||
-        u.jabatan?.toLowerCase().includes(q) ||
-        u.regu?.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [allPatrolUsers, selectedRegu, memberSearch]);
-
+  // Filter by regu
   const reguMembers = useMemo(() => {
     if (!selectedRegu || selectedRegu === 'Semua Regu') return allPatrolUsers;
     return allPatrolUsers.filter(u => u.regu === selectedRegu);
@@ -69,6 +59,24 @@ export default function AbsensiRegu({
   // Rows state for table editing
   const [rows, setRows] = useState([]);
 
+  // Available users to add from other squads (cross-regu)
+  const availableToAddUsers = useMemo(() => {
+    const activeIds = new Set(rows.map(r => r.personilId));
+    return allPatrolUsers.filter(u => !activeIds.has(u.id));
+  }, [allPatrolUsers, rows]);
+
+  // Filtered rows for table search (decoupled from master rows)
+  const displayedRows = useMemo(() => {
+    if (!memberSearch.trim()) return rows;
+    const q = memberSearch.trim().toLowerCase();
+    return rows.filter(row =>
+      row.nama?.toLowerCase().includes(q) ||
+      row.nrp?.toLowerCase().includes(q) ||
+      row.jabatan?.toLowerCase().includes(q) ||
+      row.regu?.toLowerCase().includes(q)
+    );
+  }, [rows, memberSearch]);
+
   // Get time string by shift code (all JDC codes)
   const getJamDinas = (shiftCode) => {
     const info = SHIFT_CODES[shiftCode];
@@ -76,7 +84,7 @@ export default function AbsensiRegu({
     return '-';
   };
 
-  // Re-generate table rows when Regu or Shift or search changes
+  // Re-generate table rows when Regu or Shift or attendanceLogs changes
   useEffect(() => {
     const existingLog = attendanceLogs.find(
       log => log.tanggal === todayStr && log.regu === selectedRegu && log.shift === selectedShift
@@ -85,7 +93,7 @@ export default function AbsensiRegu({
     if (existingLog) {
       setRows(existingLog.details);
     } else {
-      const defaultRows = filteredPatrolUsers.map((member, index) => {
+      const defaultRows = reguMembers.map((member, index) => {
         const posIndex = index % (posList.length || 1);
         const defaultPos = posList[posIndex] ? posList[posIndex].titik : '';
         
@@ -104,11 +112,11 @@ export default function AbsensiRegu({
       });
       setRows(defaultRows);
     }
-  }, [selectedRegu, selectedShift, filteredPatrolUsers, attendanceLogs]);
+  }, [selectedRegu, selectedShift, reguMembers, attendanceLogs]);
 
-  const handleRowChange = (index, field, value) => {
-    setRows(prev => prev.map((row, idx) => {
-      if (idx !== index) return row;
+  const handleRowChangeById = (personilId, field, value) => {
+    setRows(prev => prev.map((row) => {
+      if (row.personilId !== personilId) return row;
       
       const updated = { ...row, [field]: value };
       
@@ -134,6 +142,35 @@ export default function AbsensiRegu({
       }
       return updated;
     }));
+  };
+
+  const handleAddMember = (userId) => {
+    if (!userId) return;
+    const user = allPatrolUsers.find(u => String(u.id) === String(userId));
+    if (!user) return;
+
+    const posIndex = rows.length % (posList.length || 1);
+    const defaultPos = posList[posIndex] ? posList[posIndex].titik : '';
+
+    const newRow = {
+      personilId: user.id,
+      nama: user.nama,
+      nrp: user.nrp,
+      regu: user.regu,
+      jabatan: user.jabatan,
+      status: 'Hadir',
+      alasan: '',
+      penggantiId: '',
+      posPlotting: defaultPos,
+      jamDinas: getJamDinas(selectedShift)
+    };
+
+    setRows(prev => [...prev, newRow]);
+    setSelectedAddMemberId('');
+  };
+
+  const handleRemoveRowById = (personilId) => {
+    setRows(prev => prev.filter(row => row.personilId !== personilId));
   };
 
   const handleSave = (e) => {
@@ -742,157 +779,212 @@ _Sistem Manajemen Keamanan JDC_`;
             <span>Form Isian Absensi Regu & Plotting Penjagaan</span>
           </h3>
 
-          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Metadata Parameters */}
-            <div className="grid-cols-3" style={{ gap: '1rem' }}>
-              <div className="step-field">
-                <label><Calendar size={12} /> HARI</label>
-                <select value={hari} onChange={e => setHari(e.target.value)} className="modern-select">
-                  {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+          {!isAuthorizedFiller ? (
+            <div style={{ padding: '2rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', background: 'rgba(239, 68, 68, 0.03)', border: '1px dashed rgba(239, 68, 68, 0.25)', borderRadius: '8px' }}>
+              <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shield size={26} />
               </div>
-              
-              <div className="step-field">
-                <label><Clock size={12} /> SHIFT JAGA (Pilih Shift)</label>
-                <select value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="modern-select">
-                  {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
-                    <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="step-field">
-                <label><Users size={12} /> REGU (Filter)</label>
-                <select value={selectedRegu} onChange={e => setSelectedRegu(e.target.value)} className="modern-select">
-                  <option value="Semua Regu">Semua Regu</option>
-                  {['Regu A', 'Regu B', 'Regu C', 'Regu D', 'Non-Regu'].map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+              <div style={{ maxWidth: '420px' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>Akses Dibatasi</h4>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  Hanya <strong>Danru, Wadanru, atau Admin</strong> yang diperkenankan untuk mengisi atau memperbarui data absensi manual / plotting penjagaan regu.
+                </p>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Metadata Parameters */}
+              <div className="grid-cols-3" style={{ gap: '1rem' }}>
+                <div className="step-field">
+                  <label><Calendar size={12} /> HARI</label>
+                  <select value={hari} onChange={e => setHari(e.target.value)} className="modern-select">
+                    {['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="step-field">
+                  <label><Clock size={12} /> SHIFT JAGA (Pilih Shift)</label>
+                  <select value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="modern-select">
+                    <option value="P">Pagi (06:00 - 14:00)</option>
+                    <option value="S">Siang (14:00 - 22:00)</option>
+                    <option value="M">Malam (22:00 - 06:00)</option>
+                  </select>
+                </div>
 
-            {/* Search Members */}
-            <div className="step-field">
-              <label><Search size={12} /> CARI ANGGOTA (Filter Nama/NRP/Jabatan/Regu)</label>
-              <input
-                type="text"
-                value={memberSearch}
-                onChange={e => setMemberSearch(e.target.value)}
-                placeholder="Ketik nama, NRP, jabatan, atau regu..."
-                className="modern-input"
-                style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-              />
-            </div>
+                <div className="step-field">
+                  <label><Users size={12} /> REGU (Filter)</label>
+                  <select value={selectedRegu} onChange={e => setSelectedRegu(e.target.value)} className="modern-select">
+                    {['Regu A', 'Regu B', 'Regu C', 'Regu D'].map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            {/* Members Table */}
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
-              <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>No</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>NRP</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Regu</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jabatan</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Keterangan Hadir</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jika Tidak Hadir Karena</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama Pengganti (Tukar Shift / Backup)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Plotting Pos (Pilih)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jam Dinas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Tidak ada personil yang cocok dengan filter pencarian. <br />
-                        <span style={{ fontSize: '0.75rem' }}>Gunakan kolom "Cari Anggota" di atas untuk mencari, atau ubah filter Regu.</span>
-                      </td>
+              {/* Search & Add Members */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                <div className="step-field">
+                  <label><Search size={12} /> CARI ANGGOTA (Filter Nama/NRP/Jabatan/Regu)</label>
+                  <input
+                    type="text"
+                    value={memberSearch}
+                    onChange={e => setMemberSearch(e.target.value)}
+                    placeholder="Ketik nama, NRP, jabatan, atau regu..."
+                    className="modern-input"
+                    style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                  />
+                </div>
+                <div className="step-field">
+                  <label><UserCheck size={12} /> TAMBAH ANGGOTA LINTAS REGU</label>
+                  <select
+                    value={selectedAddMemberId}
+                    onChange={e => {
+                      setSelectedAddMemberId(e.target.value);
+                      handleAddMember(e.target.value);
+                    }}
+                    className="modern-select"
+                    style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                  >
+                    <option value="">-- Pilih Anggota untuk Ditambahkan --</option>
+                    {availableToAddUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.nama} ({u.jabatan} - {u.regu || 'Non-Regu'})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Members Table */}
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+                <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>No</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>NRP</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Regu</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jabatan</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Keterangan Hadir</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jika Tidak Hadir Karena</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama Pengganti (Tukar Shift / Backup)</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Plotting Pos (Pilih)</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jam Dinas</th>
+                      <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>Aksi</th>
                     </tr>
-                  ) : (
-                    rows.map((row, idx) => (
-                      <tr key={row.personilId} style={{ borderBottom: '1px solid var(--border-glass)' }}>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 600 }}>{idx + 1}</td>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700 }}>{row.nama}</td>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.nrp || '-'}</td>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem' }}>
-                          <span style={{ padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>{row.regu || '-'}</span>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.jabatan}</td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <select 
-                            value={row.status} 
-                            onChange={e => handleRowChange(idx, 'status', e.target.value)} 
-                            className="modern-select"
-                            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem', minWidth: '110px' }}
-                          >
-                            <option value="Hadir">Hadir</option>
-                            <option value="Tidak Hadir">Tidak Hadir</option>
-                            <option value="Tukar Shift">Tukar Shift</option>
-                            <option value="Sakit">Sakit</option>
-                            <option value="Cuti">Cuti</option>
-                            <option value="Mangkir">Mangkir</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <input 
-                            type="text" 
-                            value={row.alasan} 
-                            onChange={e => handleRowChange(idx, 'alasan', e.target.value)} 
-                            placeholder="-" 
-                            disabled={row.status === 'Hadir'}
-                            className="modern-input" 
-                            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
-                          />
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <select 
-                            value={row.penggantiId} 
-                            onChange={e => handleRowChange(idx, 'penggantiId', e.target.value)} 
-                            disabled={row.status !== 'Tukar Shift' && row.status !== 'Tidak Hadir'}
-                            className="modern-select"
-                            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
-                          >
-                            <option value="">-- Tidak Ada --</option>
-                            {substituteOptions.map(opt => (
-                              <option key={opt.id} value={opt.id}>{opt.nama} ({opt.jabatan} - {opt.regu})</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem' }}>
-                          <select 
-                            value={row.posPlotting} 
-                            onChange={e => handleRowChange(idx, 'posPlotting', e.target.value)} 
-                            disabled={['Sakit', 'Cuti', 'Mangkir'].includes(row.status)}
-                            className="modern-select"
-                            style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
-                          >
-                            <option value="-">-</option>
-                            {posList.map(p => (
-                              <option key={p.id} value={p.titik}>{p.titik}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {row.jamDinas}
+                  </thead>
+                  <tbody>
+                    {displayedRows.length === 0 ? (
+                      <tr>
+                        <td colSpan="11" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Tidak ada personil yang cocok dengan filter pencarian atau regu ini.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
-              <button type="submit" className="btn-primary" style={{ padding: '0.65rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 size={16} /> Simpan Absensi & Plotting
-              </button>
-            </div>
-          </form>
+                    ) : (
+                      displayedRows.map((row, idx) => (
+                        <tr key={row.personilId} style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 600 }}>{idx + 1}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700 }}>{row.nama}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.nrp || '-'}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem' }}>
+                            <span style={{ padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>{row.regu || '-'}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.jabatan}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <select 
+                              value={row.status} 
+                              onChange={e => handleRowChangeById(row.personilId, 'status', e.target.value)} 
+                              className="modern-select"
+                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem', minWidth: '110px' }}
+                            >
+                              <option value="Hadir">Hadir</option>
+                              <option value="Tidak Hadir">Tidak Hadir</option>
+                              <option value="Tukar Shift">Tukar Shift</option>
+                              <option value="Sakit">Sakit</option>
+                              <option value="Cuti">Cuti</option>
+                              <option value="Mangkir">Mangkir</option>
+                            </select>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <input 
+                              type="text" 
+                              value={row.alasan} 
+                              onChange={e => handleRowChangeById(row.personilId, 'alasan', e.target.value)} 
+                              placeholder="-" 
+                              disabled={row.status === 'Hadir'}
+                              className="modern-input" 
+                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
+                            />
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <select 
+                              value={row.penggantiId} 
+                              onChange={e => handleRowChangeById(row.personilId, 'penggantiId', e.target.value)} 
+                              disabled={row.status !== 'Tukar Shift' && row.status !== 'Tidak Hadir'}
+                              className="modern-select"
+                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
+                            >
+                              <option value="">-- Tidak Ada --</option>
+                              {substituteOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.nama} ({opt.jabatan} - {opt.regu})</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <select 
+                              value={row.posPlotting} 
+                              onChange={e => handleRowChangeById(row.personilId, 'posPlotting', e.target.value)} 
+                              disabled={['Sakit', 'Cuti', 'Mangkir'].includes(row.status)}
+                              className="modern-select"
+                              style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
+                            >
+                              <option value="-">-</option>
+                              {posList.map(p => (
+                                <option key={p.id} value={p.titik}>{p.titik}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {row.jamDinas}
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRowById(row.personilId)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--color-danger)',
+                                cursor: 'pointer',
+                                padding: '0.25rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.8,
+                                transition: 'opacity 0.2s'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                              onMouseLeave={e => e.currentTarget.style.opacity = 0.8}
+                              title="Hapus dari daftar"
+                            >
+                              <X size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
+                <button type="submit" className="btn-primary" style={{ padding: '0.65rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} /> Simpan Absensi & Plotting
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
