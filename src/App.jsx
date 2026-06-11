@@ -258,31 +258,39 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
       const isDark = theme === 'dark';
       if (isOverlappingText) {
-        // Brighten up the minimum opacity for higher visibility (0.35 on mobile, 0.22 on desktop)
-        const minOpacity = isMobile ? (isDark ? '0.35' : '0.40') : (isDark ? '0.22' : '0.26');
+        // High visibility overlapping opacities (0.82 on mobile, 0.72 on desktop) with active glow
+        const minOpacity = isMobile ? (isDark ? '0.82' : '0.85') : (isDark ? '0.72' : '0.75');
         watermark.style.opacity = minOpacity;
         watermark.style.filter = 'blur(0px)';
-        watermark.style.textShadow = 'none';
-        watermark.style.boxShadow = 'none';
-        watermark.style.border = '1px solid transparent';
-        watermark.style.background = 'transparent';
-        watermark.style.backdropFilter = 'none';
+        if (isDark) {
+          watermark.style.textShadow = '0 0 12px rgba(0, 255, 255, 0.9), 0 0 22px rgba(0, 255, 255, 0.6)';
+          watermark.style.boxShadow = 'inset 0 0 15px rgba(0, 255, 255, 0.25)';
+          watermark.style.border = '1px solid rgba(0, 255, 255, 0.35)';
+          watermark.style.background = 'rgba(13, 19, 36, 0.35)';
+          watermark.style.backdropFilter = 'none';
+        } else {
+          watermark.style.textShadow = '0 0 10px rgba(59, 130, 246, 0.6)';
+          watermark.style.boxShadow = 'inset 0 0 12px rgba(59, 130, 246, 0.15)';
+          watermark.style.border = '1px solid rgba(59, 130, 246, 0.25)';
+          watermark.style.background = 'rgba(255, 255, 255, 0.45)';
+          watermark.style.backdropFilter = 'none';
+        }
       } else {
-        // Boost empty-space opacity and glow for stunning visuals (0.75 on dark, 0.85 on light)
-        watermark.style.opacity = isDark ? '0.75' : '0.85';
+        // Maximum visibility in empty space (0.98 dark / 1.0 light)
+        watermark.style.opacity = isDark ? '0.98' : '1.0';
         watermark.style.filter = 'blur(0px)';
         if (isDark) {
-          watermark.style.textShadow = '0 0 15px rgba(0, 255, 255, 1), 0 0 25px rgba(0, 255, 255, 0.7)';
-          watermark.style.boxShadow = 'inset 0 0 25px rgba(0, 255, 255, 0.35), 0 0 20px rgba(0, 255, 255, 0.15)';
-          watermark.style.border = '1px solid rgba(0, 255, 255, 0.45)';
-          watermark.style.background = 'rgba(15, 23, 42, 0.55)';
-          watermark.style.backdropFilter = 'blur(6px)';
+          watermark.style.textShadow = '0 0 25px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.8), 0 0 50px rgba(0, 255, 255, 0.6)';
+          watermark.style.boxShadow = 'inset 0 0 30px rgba(0, 255, 255, 0.5), 0 0 25px rgba(0, 255, 255, 0.3)';
+          watermark.style.border = '2px solid rgba(0, 255, 255, 0.7)';
+          watermark.style.background = 'rgba(13, 19, 36, 0.75)';
+          watermark.style.backdropFilter = 'blur(4px)';
         } else {
-          watermark.style.textShadow = '0 0 10px rgba(79, 70, 229, 0.6)';
-          watermark.style.boxShadow = 'inset 0 0 20px rgba(79, 70, 229, 0.15), 0 0 15px rgba(79, 70, 229, 0.08)';
-          watermark.style.border = '1px solid rgba(79, 70, 229, 0.35)';
-          watermark.style.background = 'rgba(255, 255, 255, 0.65)';
-          watermark.style.backdropFilter = 'blur(6px)';
+          watermark.style.textShadow = '0 0 20px rgba(59, 130, 246, 0.95), 0 0 30px rgba(59, 130, 246, 0.6)';
+          watermark.style.boxShadow = 'inset 0 0 25px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.15)';
+          watermark.style.border = '2px solid rgba(59, 130, 246, 0.6)';
+          watermark.style.background = 'rgba(255, 255, 255, 0.85)';
+          watermark.style.backdropFilter = 'blur(4px)';
         }
       }
 
@@ -317,7 +325,7 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           height: 100vh;
           overflow: hidden;
           pointer-events: none;
-          z-index: 0;
+          z-index: 2; /* Floats over cards backgrounds */
           user-select: none;
         }
         .ukiran-watermark {
@@ -338,37 +346,43 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           border: 1px solid transparent;
         }
         .ukiran-logo-text {
-          font-size: 1.3rem;
+          font-size: 1.45rem;
           font-weight: 900;
           letter-spacing: 0.18em;
           color: #00ffff;
-          text-shadow: 0 0 12px rgba(0, 255, 255, 0.9), 0 0 20px rgba(0, 255, 255, 0.6);
+          text-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 25px rgba(0, 255, 255, 0.8), 0 0 35px rgba(0, 255, 255, 0.6);
+          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
         }
         .ukiran-sub-text {
-          font-size: 0.7rem;
+          font-size: 0.75rem;
           letter-spacing: 0.22em;
           color: #c7d2fe;
           font-weight: bold;
+          -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
         }
         .ukiran-ornament-top, .ukiran-ornament-bottom {
-          font-size: 0.95rem;
+          font-size: 1.05rem;
           color: #00ffff;
           letter-spacing: 0.1em;
           opacity: 1.0;
           font-weight: bold;
+          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
         }
         
         /* Light theme adjustments for high quality legibility */
         .theme-light .ukiran-logo-text {
-          color: #312e81;
+          color: #1e3a8a;
           font-weight: 900;
-          text-shadow: 0 0 8px rgba(79, 70, 229, 0.3);
+          text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 18px rgba(59, 130, 246, 0.3);
+          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
         }
         .theme-light .ukiran-sub-text {
-          color: #4338ca;
+          color: #2563eb;
+          -webkit-text-stroke: 0.3px rgba(255, 255, 255, 0.7);
         }
         .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
-          color: #4f46e5;
+          color: #2563eb;
+          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
         }
 
         /* Set LoginPage transparent to show global watermark background */
@@ -382,15 +396,15 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
             padding: 0.5rem;
           }
           .ukiran-logo-text {
-            font-size: 1.05rem;
+            font-size: 1.15rem;
             letter-spacing: 0.12em;
           }
           .ukiran-sub-text {
-            font-size: 0.58rem;
+            font-size: 0.65rem;
             letter-spacing: 0.12em;
           }
           .ukiran-ornament-top, .ukiran-ornament-bottom {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
           }
         }
       `}</style>
