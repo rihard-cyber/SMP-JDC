@@ -108,15 +108,12 @@ CREATE TABLE IF NOT EXISTS complaints (
   id TEXT,
   ticket_id TEXT,
   name TEXT,
-  phone TEXT,
   tenant TEXT,
   floor TEXT,
-  location TEXT,
   category TEXT,
   description TEXT,
   department TEXT,
   status TEXT,
-  remarks TEXT,
   wa_status TEXT,
   wa_sent_at TEXT,
   photos JSONB,
@@ -128,10 +125,6 @@ CREATE TABLE IF NOT EXISTS complaints (
 
 CREATE INDEX IF NOT EXISTS idx_complaints_id ON complaints(id);
 CREATE INDEX IF NOT EXISTS idx_complaints_created_at ON complaints(created_at);
-
-ALTER TABLE complaints ADD COLUMN IF NOT EXISTS phone TEXT;
-ALTER TABLE complaints ADD COLUMN IF NOT EXISTS location TEXT;
-ALTER TABLE complaints ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 -- ── Areas / Checkpoints ──────────────────────
 CREATE TABLE IF NOT EXISTS areas (
@@ -147,7 +140,7 @@ CREATE TABLE IF NOT EXISTS areas (
   firebase_saved_at TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_areas_id ON areas(id);
+CREATE INDEX IF NOT EXISTS idx_areas_id ON areas(id);
 
 -- ── Pos List ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS pos_list (
@@ -185,29 +178,14 @@ CREATE TABLE IF NOT EXISTS config (
 
 CREATE INDEX IF NOT EXISTS idx_config_key ON config(key);
 
--- ── Row Level Security ─────────────────────────
--- Enable RLS on all tables (adjust policies as needed)
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE patrol_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE findings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE attendance_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mutasi_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
-ALTER TABLE areas ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pos_list ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rosters ENABLE ROW LEVEL SECURITY;
-ALTER TABLE config ENABLE ROW LEVEL SECURITY;
-
--- Allow anon/service_role full access (app uses anon key with client-side logic)
-CREATE POLICY "Allow all anon" ON users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON patrol_reports FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON findings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON attendance_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON mutasi_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON complaints FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON areas FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON pos_list FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON rosters FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all anon" ON config FOR ALL USING (true) WITH CHECK (true);
-
--- Realtime sudah aktif default di Supabase, tidak perlu ALTER PUBLICATION
+-- ── Enable Realtime for all tables ──────────
+ALTER PUBLICATION supabase_realtime ADD TABLE users;
+ALTER PUBLICATION supabase_realtime ADD TABLE patrol_reports;
+ALTER PUBLICATION supabase_realtime ADD TABLE findings;
+ALTER PUBLICATION supabase_realtime ADD TABLE attendance_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE mutasi_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE complaints;
+ALTER PUBLICATION supabase_realtime ADD TABLE areas;
+ALTER PUBLICATION supabase_realtime ADD TABLE pos_list;
+ALTER PUBLICATION supabase_realtime ADD TABLE rosters;
+ALTER PUBLICATION supabase_realtime ADD TABLE config;
