@@ -9,7 +9,7 @@
  * =======================================================
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
@@ -152,8 +152,16 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSOS, setActiveSOS] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const toastTimers = useRef({});
   const [sosAudio, setSosAudio] = useState(null);
   const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    return () => {
+      Object.values(toastTimers.current).forEach(clearTimeout);
+      toastTimers.current = {};
+    };
+  }, []);
 
   // Profile & Email Verification State
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -1085,7 +1093,10 @@ export default function App() {
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    toastTimers.current[id] = setTimeout(() => {
+      delete toastTimers.current[id];
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
   };
 
   const playSOSSiren = () => {
@@ -2450,7 +2461,7 @@ export default function App() {
       {/* Offline Banner */}
       {!isOnline && (
         <div className="offline-banner">
-          <span>⚠️ Koneksi terputus — data tidak akan tersimpan sampai koneksi kembali</span>
+          <span>⚠️ Koneksi terputus — data aman di lokal, sync otomatis saat online kembali</span>
         </div>
       )}
 
