@@ -15,6 +15,7 @@ const KATEGORI_MUTASI = [
 
 export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [], canViewResults }) {
   const [jamKejadian, setJamKejadian] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+  const [tanggalKejadian, setTanggalKejadian] = useState(new Date().toISOString().split('T')[0]);
   const [lokasi, setLokasi] = useState('');
   const [lokasiCustom, setLokasiCustom] = useState('');
   const [isCustomLokasi, setIsCustomLokasi] = useState(false);
@@ -46,6 +47,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     const today = now.toISOString().split('T')[0];
     onAddLog({
       waktu: jamLapor,
+      tanggalKejadian,
       jamKejadian,
       lokasi,
       uraian: uraian.trim(),
@@ -63,6 +65,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     setKategoriLainnya('');
     setFoto(null);
     setJamKejadian(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    setTanggalKejadian(new Date().toISOString().split('T')[0]);
   };
 
   const filtered = logs.filter(l => {
@@ -89,6 +92,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       columns: [
         { header: 'NO', width: '4%' },
         { header: 'TANGGAL', width: '8%' },
+        { header: 'TGL. KEJADIAN', width: '8%' },
         { header: 'JAM LAPORAN', width: '7%' },
         { header: 'JAM KEJADIAN', width: '7%' },
         { header: 'NAMA PETUGAS', width: '10%' },
@@ -102,6 +106,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       rows: filtered.map((log, idx) => [
         idx + 1,
         formatDateOnlyId(log.tanggal),
+        log.tanggalKejadian ? formatDateOnlyId(log.tanggalKejadian) : formatDateOnlyId(log.tanggal) || '-',
         log.waktu || '-',
         log.jamKejadian || log.waktu || '-',
         log.petugas || log.pelapor || '-',
@@ -126,7 +131,11 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             <span>Input Catatan Mutasi</span>
           </h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div className="form-grid">
+            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <div className="step-field">
+                <label><Clock size={12} /> TANGGAL KEJADIAN</label>
+                <input type="date" value={tanggalKejadian} onChange={e => setTanggalKejadian(e.target.value)} className="modern-input" />
+              </div>
               <div className="step-field">
                 <label><Clock size={12} /> JAM KEJADIAN</label>
                 <input type="time" value={jamKejadian} onChange={e => setJamKejadian(e.target.value)} className="modern-input" />
@@ -261,7 +270,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{log.tanggal}</div>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-                          {log.jamKejadian || log.waktu}
+                          <div>{log.jamKejadian || log.waktu}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>{log.tanggalKejadian ? formatDateOnlyId(log.tanggalKejadian) : log.tanggal}</div>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem' }}>
                           <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.15rem' }}>
