@@ -154,43 +154,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Glassmorphism utility */
-@property --ga {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes ga {
-  to { --ga: 360deg; }
-}
-
 .glass-panel {
   position: relative;
-  isolation: isolate;
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid transparent;
+  border: 1px solid rgba(59, 130, 246, 0.12);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-premium);
   transition: var(--transition-smooth);
-}
-
-.glass-panel::before {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(from var(--ga),
-    transparent 0deg, var(--color-primary) 60deg, var(--color-primary-glow) 120deg,
-    transparent 180deg, var(--color-primary) 240deg, var(--color-primary-glow) 300deg, transparent 360deg);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: -1;
 }
 
 .glass-panel:hover {
@@ -2158,19 +2130,8 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   background: rgba(255, 255, 255, 0.06);
 }
-.login-input-wrap:focus-within::after {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: ga 2s linear infinite;
-  pointer-events: none;
+.login-input-wrap:focus-within {
+  box-shadow: 0 0 0 2px var(--color-primary), 0 0 12px var(--color-primary-glow);
 }
 
 .login-input-wrap svg {
@@ -2529,20 +2490,8 @@ h1, h2, h3, h4, h5, h6 {
 .step-user-card p { font-size: 0.7rem; }
 
 .step-field { position: relative; display: flex; flex-direction: column; gap: 0.35rem; }
-.step-field:focus-within::after {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border-radius: calc(var(--border-radius-sm) + 1px);
-  padding: 1.5px;
-  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: ga 2s linear infinite;
-  pointer-events: none;
-  z-index: -1;
+.step-field:focus-within {
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 .step-field label {
   font-size: 0.7rem; color: var(--text-secondary);
@@ -3004,20 +2953,8 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.35rem;
   min-width: 0;
 }
-.form-field:focus-within::after {
-  content: '';
-  position: absolute;
-  inset: -1.5px;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: ga 2s linear infinite;
-  pointer-events: none;
-  z-index: -1;
+.form-field:focus-within {
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 .form-label {
@@ -3521,33 +3458,33 @@ a,
 select,
 input[type="file"] + label,
 [role="button"],
-.clickable {
+.clickable,
+[onclick],
+[onClick],
+.finding-checkbox,
+.finding-card,
+.finding-ticket {
   touch-action: manipulation;
   -ms-touch-action: manipulation;
 }
 
-/* Fix: glass-panel layered pseudo-element blocking clicks on Chrome/WebView */
+/* Fix: glass-panel — ensure all children receive clicks */
 .glass-panel {
   pointer-events: none;
 }
-.glass-panel > * {
+.glass-panel * {
   pointer-events: auto;
-}
-.glass-panel::before {
-  pointer-events: none !important;
 }
 
-/* Ensure interactive children of glass-panel receive clicks */
-.glass-panel button,
-.glass-panel a,
-.glass-panel select,
-.glass-panel input,
-.glass-panel textarea,
-.glass-panel [role="button"],
-.glass-panel .clickable {
-  position: relative;
-  z-index: 2;
+/* Interactive containers that must receive clicks directly */
+.finding-ticket,
+.command-tab-content,
+.modal-panel,
+.panic-card,
+.finding-checkbox,
+.finding-card {
   pointer-events: auto;
+  touch-action: manipulation;
 }
 
 /* Danger icon button */
@@ -3647,17 +3584,121 @@ input[type="file"] + label,
    PRINT STYLES
    ========================================================= */
 @media print {
-  body { background: #fff !important; color: #000 !important; }
-  .sidebar, .sidebar-overlay, .bottom-nav, .nav-tab-btn, .btn-primary, .btn-secondary, .modern-input, .modern-select,
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Sembunyikan semua elemen layout kecuali main-content */
+  .sidebar, .sidebar-overlay, .bottom-nav, .nav-tab-btn,
+  .global-header, .header-left, .header-right, .header-text-box, .header-desc,
+  .menu-toggle-btn, .btn-logout, .header-user-badge, .header-brand-row,
+  .app-footer, footer, .role-switcher-wrapper, .btn-reset-release,
   .login-page, .login-container, .login-card, .splash-screen, .cyber-screen,
-  .glass-panel > div:first-child > button, .glass-panel > div:first-child > a,
-  form, .complaint-stats-grid, .filter-tabs-wrap, button, .btn-full { display: none !important; }
-  .glass-panel { background: #fff !important; border: 1px solid #ccc !important; box-shadow: none !important; }
+  .command-tab-bar, .command-tab-btn, .panic-overlay, .panic-card,
+  form, .filter-tabs-wrap, .complaint-stats-grid,
+  .btn-primary, .btn-secondary, .btn-danger, .btn-icon, .btn-icon-primary, .btn-icon-danger,
+  .btn-full, button, .modern-input, .modern-select, .modern-input,
+  .photo-upload-btn, .photo-preview, .photo-remove,
+  .finding-checkbox, [class*="checkbox"],
+  .scan-input-group, .scan-area-compact-list, .scan-compact-item,
+  .step-field, .step-hint, .form-grid,
+  input, select, textarea, label[for],
+  nav, .bottom-nav, .nav-tabs, .tab-bar,
+  .toast-container, .toast {
+    display: none !important;
+  }
+
+  /* Reset container constraints so content can flow multi-page */
+  .dashboard-layout {
+    display: block !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+  .main-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    position: static !important;
+    min-height: auto !important;
+  }
+  .main-content > .animate-slide-up {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .animate-slide-up { animation: none !important; }
+
+  /* Bersihkan glass-panel */
+  .glass-panel {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    position: static !important;
+    pointer-events: auto !important;
+    display: block !important;
+  }
+  .glass-panel::before { display: none !important; }
+
+  /* Tabel cetak */
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #000 !important; padding: 4px 6px !important; font-size: 10px !important; color: #000 !important; }
   th { background: #eee !important; font-weight: 700 !important; }
-  .app-content { margin: 0 !important; padding: 0 !important; }
-  .main-content { width: 100% !important; }
-  .app-layout { display: block !important; }
+  tr { page-break-inside: avoid; }
+
+  /* Judul & teks */
+  h1, h2, h3, h4, h5, h6, p, span, div, strong {
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  /* Complaint cards print cleanly */
+  .complaint-item {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    padding: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+    border-radius: 4px !important;
+    background: #fff !important;
+  }
+  .complaint-item td,
+  .complaint-item th {
+    border: none !important;
+  }
+
+  /* Finding cards print cleanly */
+  .finding-card {
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    padding: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+    background: #fff !important;
+  }
+  .finding-card img { max-width: 120px !important; }
+
+  /* Report table section title */
+  .section-title,
+  h3, h4 {
+    break-after: avoid;
+  }
+
+  /* Mutasi table cleaner print */
+  .mutasi-table td,
+  .mutasi-table th {
+    border: 1px solid #000 !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Reset scroll & overflow */
+  * { overflow: visible !important; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }

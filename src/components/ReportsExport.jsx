@@ -9,6 +9,15 @@ import {
   Clock
 } from 'lucide-react';
 import { buildWALink } from '../data/waContacts';
+import POS_LIST from '../data/posList';
+
+// Unique positions from posList sorted by lantai
+const POS_OPTIONS = POS_LIST.reduce((acc, pos) => {
+  if (!acc.find(p => p.titik === pos.titik)) {
+    acc.push({ titik: pos.titik, lantai: pos.lantai });
+  }
+  return acc;
+}, []).sort((a, b) => a.lantai.localeCompare(b.lantai));
 
 export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus, onDispatchFinding, onDeleteReport }) {
   const [selectedLog, setSelectedLog] = useState(null);
@@ -40,7 +49,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
   // Filter States
   const [filterShift, setFilterShift] = useState('All');
-  const [filterFloor, setFilterFloor] = useState('All');
+  const [filterPost, setFilterPost] = useState('All');
   const [filterOfficer, setFilterOfficer] = useState('All');
   const [filterDate, setFilterDate] = useState('');
   const [filterKondisi, setFilterKondisi] = useState('All');
@@ -48,7 +57,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
   const filteredReports = reports.filter(r => {
     const matchShift = filterShift === 'All' || r.shift === filterShift;
-    const matchFloor = filterFloor === 'All' || r.lantai === filterFloor;
+    const matchPost = filterPost === 'All' || r.titik === filterPost;
     const matchOfficer = filterOfficer === 'All' || r.userName === filterOfficer;
     const matchDate = !filterDate || r.timestamp?.startsWith(filterDate);
     const matchKategori = filterKategori === 'All' || (r.kategori || '') === filterKategori;
@@ -56,7 +65,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
       (filterKondisi === 'Aman' && r.kondisi === 'Aman dan Kondusif') ||
       (filterKondisi === 'Temuan' && r.kondisi !== 'Aman dan Kondusif');
 
-    return matchShift && matchFloor && matchOfficer && matchDate && matchKategori && matchKondisi;
+    return matchShift && matchPost && matchOfficer && matchDate && matchKategori && matchKondisi;
   });
 
   // Export to CSV/Excel
@@ -121,22 +130,14 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
           </div>
 
           <div className="form-field">
-            <span className="form-label">LANTAI</span>
-            <select value={filterFloor} onChange={(e) => setFilterFloor(e.target.value)} className="form-select form-select-sm">
-              <option value="All">Semua Lantai</option>
-              <option value="Basement">Basement</option>
-              <option value="1">Lantai 1</option>
-              <option value="2">Lantai 2</option>
-              <option value="3">Lantai 3</option>
-              <option value="4">Lantai 4</option>
-              <option value="5">Lantai 5</option>
-              <option value="6">Lantai 6</option>
-              <option value="Halaman Depan">Halaman Depan</option>
-              <option value="Halaman Samping Kanan">Halaman Samping Kanan</option>
-              <option value="Pos 00">Pos 00</option>
-              <option value="R. Teknik">R. Teknik</option>
-              <option value="Halaman Belakang">Halaman Belakang</option>
-              <option value="Halaman Samping Kiri">Halaman Samping Kiri</option>
+            <span className="form-label">POS / TITIK</span>
+            <select value={filterPost} onChange={(e) => setFilterPost(e.target.value)} className="form-select form-select-sm">
+              <option value="All">Semua Pos</option>
+              {POS_OPTIONS.map(p => (
+                <option key={p.titik} value={p.titik}>
+                  {p.titik} ({p.lantai})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -417,35 +418,6 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
           </div>
         </div>
       )}
-
-      {/* Hide page contents except table during printing */}
-      <style>{`
-        @media print {
-          body {
-            background: white !important;
-            color: black !important;
-          }
-          .sidebar, header, .glass-panel:nth-of-type(1), .glass-panel:nth-of-type(2), button, select, input {
-            display: none !important;
-          }
-          .main-content {
-            margin-left: 0 !important;
-            padding: 0 !important;
-          }
-          .glass-panel:nth-of-type(3) {
-            border: none !important;
-            box-shadow: none !important;
-            background: transparent !important;
-          }
-          table {
-            border: 1px solid #ccc !important;
-          }
-          th, td {
-            border-bottom: 1px solid #ccc !important;
-            color: black !important;
-          }
-        }
-      `}</style>
 
     </div>
   );
