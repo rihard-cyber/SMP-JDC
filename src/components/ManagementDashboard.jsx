@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { 
   Users, 
   MapPin, 
@@ -390,6 +390,283 @@ export default function ManagementDashboard({
     ${c4} ${p1+p2+p3}% ${p1+p2+p3+p4}%,
     ${c5} ${p1+p2+p3+p4}% 100%
   )`;
+
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const mapInstanceRef = useRef(null);
+  const markerGroupRef = useRef(null);
+
+  useEffect(() => {
+    if (window.L) {
+      setLeafletLoaded(true);
+      return;
+    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => setLeafletLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!leafletLoaded || activeCommandTab !== 'patroli') {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerGroupRef.current = null;
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const mapEl = document.getElementById('leaflet-map');
+      if (!mapEl) return;
+
+      const defaultLat = -6.2023;
+      const defaultLng = 106.7996;
+
+      let map = mapInstanceRef.current;
+      if (!map) {
+        map = window.L.map('leaflet-map').setView([defaultLat, defaultLng], 15);
+        mapInstanceRef.current = map;
+
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const jdcIcon = window.L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div style="background-color:#3b82f6; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow: 0 0 10px #3b82f6;"></div>`,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        });
+        window.L.marker([defaultLat, defaultLng], { icon: jdcIcon }).addTo(map)
+          .bindPopup('<b>Jakarta Design Center (JDC)</b><br/>Gedung Pusat Keamanan').openPopup();
+
+        markerGroupRef.current = window.L.layerGroup().addTo(map);
+      }
+
+      if (markerGroupRef.current) {
+        markerGroupRef.current.clearLayers();
+
+        reports.forEach(r => {
+          const coords = r.antiFraud?.coords || r.anti_fraud?.coords;
+          if (coords && coords.latitude && coords.longitude) {
+            const lat = parseFloat(coords.latitude);
+            const lng = parseFloat(coords.longitude);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              const isAman = r.kondisi === 'Aman dan Kondusif' || r.kondisi === 'Ada Aktivitas' || r.kondisi === 'Renovasi';
+              const color = isAman ? '#10b981' : '#ef4444';
+              const markerIcon = window.L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color:${color}; width:10px; height:10px; border-radius:50%; border:2px solid white; box-shadow: 0 0 8px ${color};"></div>`,
+                iconSize: [10, 10],
+                iconAnchor: [5, 5]
+              });
+              window.L.marker([lat, lng], { icon: markerIcon })
+                .bindPopup(`<b>Patroli: ${r.titik || '-'}</b><br/>Petugas: ${r.userName || '-'}<br/>Kondisi: ${r.kondisi || '-'}<br/>Waktu: ${new Date(r.timestamp).toLocaleTimeString()}`)
+                .addTo(markerGroupRef.current);
+            }
+          }
+        });
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [leafletLoaded, activeCommandTab, reports]);
+
+  const getLast7DaysStats = useMemo(() => {
+    const days = [];
+    const scanCounts = [];
+    const complaintCounts = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      const countScans = reports.filter(r => r.timestamp?.startsWith(dateStr)).length;
+      const countComplaints = complaints.filter(c => c.createdAt?.startsWith(dateStr) || c.created_at?.startsWith(dateStr)).length;
+      
+      const label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      days.push(label);
+      scanCounts.push(countScans);
+      complaintCounts.push(countComplaints);
+    }
+    
+    return { days, scanCounts, complaintCounts };
+  }, [reports, complaints]);
+
+  const liveTerminalLogs = useMemo(() => {
+    const logs = [];
+    
+    reports.forEach(r => {
+      logs.push({
+        time: new Date(r.timestamp),
+        timeStr: new Date(r.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text: `📍 [SCAN PATROLI] Petugas ${r.userName || 'System'} di ${r.titik || 'Pos Jaga'} (${r.lantai || '-'}). Status: ${r.kondisi || '-'}`,
+        color: r.kondisi === 'Aman dan Kondusif' ? '#10b981' : '#f59e0b'
+      });
+    });
+    
+    mutasiLogs.forEach(m => {
+      const logTime = m.createdAt || m.created_at || m.tanggal;
+      logs.push({
+        time: new Date(logTime),
+        timeStr: new Date(logTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text: `📝 [BUKU MUTASI] Petugas ${m.petugas || 'System'} mencatat: "${m.uraian || '-'}" di ${m.lokasi || '-'}`,
+        color: '#8b5cf6'
+      });
+    });
+    
+    complaints.forEach(c => {
+      const logTime = c.createdAt || c.created_at;
+      logs.push({
+        time: new Date(logTime),
+        timeStr: new Date(logTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        text: `📩 [KOMPLAIN TENANT] Tiket #${c.ticketId || c.id} dibuat oleh ${c.name || 'Tenant'}: "${c.description || '-'}"`,
+        color: '#ef4444'
+      });
+    });
+    
+    return logs.sort((a, b) => b.time - a.time).slice(0, 30);
+  }, [reports, mutasiLogs, complaints]);
+
+  const renderSVGChart = () => {
+    const { days, scanCounts, complaintCounts } = getLast7DaysStats;
+    const maxVal = Math.max(...scanCounts, ...complaintCounts, 5);
+    
+    const width = 500;
+    const height = 150;
+    const padding = 20;
+    const chartWidth = width - padding * 2;
+    const chartHeight = height - padding * 2;
+    
+    const getPointsStr = (counts) => {
+      return counts.map((val, idx) => {
+        const x = padding + (idx * chartWidth) / 6;
+        const y = padding + chartHeight - (val * chartHeight) / maxVal;
+        return `${x},${y}`;
+      }).join(' ');
+    };
+    
+    const scanPoints = getPointsStr(scanCounts);
+    const complaintPoints = getPointsStr(complaintCounts);
+    
+    return (
+      <div className="cyber-card" style={{ flex: 1, minWidth: '280px' }}>
+        <div className="cyber-title" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <Activity size={12} className="cyber-title-accent"/> Tren Aktivitas 7 Hari Terakhir
+        </div>
+        <div style={{ position: 'relative', height: '180px', width: '100%', marginTop: '0.5rem' }}>
+          <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%' }}>
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+              const y = padding + chartHeight * ratio;
+              return (
+                <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
+              );
+            })}
+            
+            <polyline
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="3"
+              points={scanPoints}
+              style={{ filter: 'drop-shadow(0px 0px 4px rgba(59, 130, 246, 0.5))' }}
+            />
+            {scanCounts.map((val, idx) => {
+              const x = padding + (idx * chartWidth) / 6;
+              const y = padding + chartHeight - (val * chartHeight) / maxVal;
+              return (
+                <g key={idx}>
+                  <circle cx={x} cy={y} r="4" fill="#3b82f6" stroke="#111625" strokeWidth="1.5" />
+                  <text x={x} y={y - 8} fill="#3b82f6" fontSize="7" fontWeight="bold" textAnchor="middle">{val}</text>
+                </g>
+              );
+            })}
+            
+            <polyline
+              fill="none"
+              stroke="#ef4444"
+              strokeWidth="3"
+              points={complaintPoints}
+              style={{ filter: 'drop-shadow(0px 0px 4px rgba(239, 68, 68, 0.5))' }}
+            />
+            {complaintCounts.map((val, idx) => {
+              const x = padding + (idx * chartWidth) / 6;
+              const y = padding + chartHeight - (val * chartHeight) / maxVal;
+              return (
+                <g key={idx}>
+                  <circle cx={x} cy={y} r="4" fill="#ef4444" stroke="#111625" strokeWidth="1.5" />
+                  <text x={x} y={y - 8} fill="#ef4444" fontSize="7" fontWeight="bold" textAnchor="middle">{val}</text>
+                </g>
+              );
+            })}
+            
+            {days.map((day, idx) => {
+              const x = padding + (idx * chartWidth) / 6;
+              return (
+                <text key={idx} x={x} y={height - 2} fill="rgba(255, 255, 255, 0.4)" fontSize="7" textAnchor="middle">{day}</text>
+              );
+            })}
+          </svg>
+          
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', fontSize: '0.68rem', marginTop: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ width: '12px', height: '4px', background: '#3b82f6', borderRadius: '2px' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Scan QR Patroli</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <div style={{ width: '12px', height: '4px', background: '#ef4444', borderRadius: '2px' }} />
+              <span style={{ color: 'var(--text-secondary)' }}>Keluhan Tenant</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderLiveTerminal = () => {
+    return (
+      <div className="cyber-card" style={{ flex: 1, minWidth: '280px', background: '#090d16', border: '1px solid rgba(0, 240, 255, 0.15)', padding: '1rem', borderRadius: '12px', boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 240, 255, 0.1)', paddingBottom: '0.4rem', marginBottom: '0.5rem' }}>
+          <span style={{ fontFamily: 'Consolas, monospace', fontSize: '0.72rem', fontWeight: 'bold', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00f0ff', display: 'inline-block' }} />
+            SYSTEM CORE ACTIVITY LOG
+          </span>
+          <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>SECURE CHANNEL ACTIVE</span>
+        </div>
+        <div style={{
+          maxHeight: '160px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.25rem',
+          fontFamily: 'Consolas, "Courier New", monospace',
+          fontSize: '0.72rem',
+          padding: '0.25rem 0'
+        }}>
+          {liveTerminalLogs.map((log, idx) => (
+            <div key={idx} style={{ display: 'flex', gap: '0.5rem', color: '#8892b0', lineHeight: '1.4' }}>
+              <span style={{ color: 'rgba(255, 255, 255, 0.15)', flexShrink: 0 }}>[{log.timeStr}]</span>
+              <span style={{ color: log.color }}>{log.text}</span>
+            </div>
+          ))}
+          {liveTerminalLogs.length === 0 && (
+            <div style={{ color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', padding: '1rem', textAlign: 'center' }}>
+              No system activity logs found. Waiting for reports...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="management-dashboard-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
@@ -1426,6 +1703,13 @@ export default function ManagementDashboard({
               </div>
             </div>
 
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white', marginBottom: '1rem' }}>
+                <MapPin size={16} className="text-primary"/> Pemetaan GPS Real-Time Pos Keamanan
+              </h4>
+              <div id="leaflet-map" style={{ height: '300px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-glass)', zIndex: 1 }}></div>
+            </div>
+
             <div className="grid-cols-2">
               <div className="glass-panel" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
@@ -1490,6 +1774,11 @@ export default function ManagementDashboard({
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="grid-cols-2" style={{ gap: '1.5rem' }}>
+              {renderSVGChart()}
+              {renderLiveTerminal()}
             </div>
           </div>
         )}

@@ -122,6 +122,9 @@ export function exportTableToPdf({
       <head>
         <meta charset="utf-8" />
         <title>${escapeHtml(fileName)}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet" />
         <style>
           @page { size: A4 ${orientation}; margin: 8mm; }
           * { box-sizing: border-box; }
@@ -242,6 +245,28 @@ export function exportTableToPdf({
             font-size: 8px;
             color: #555;
           }
+          .developer-watermark {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            opacity: 0.85;
+          }
+          .developer-watermark .ornament {
+            color: #0070c0;
+            font-size: 10px;
+            font-weight: bold;
+            user-select: none;
+          }
+          .developer-watermark .watermark-text {
+            font-family: 'Great Vibes', 'Brush Script MT', cursive;
+            font-size: 16px;
+            color: #000;
+            font-weight: 500;
+            white-space: nowrap;
+          }
           @media print {
             body { margin: 0; }
             thead { display: table-header-group; }
@@ -261,6 +286,11 @@ export function exportTableToPdf({
             </thead>
             <tbody>${bodyHtml}</tbody>
           </table>
+          <div class="developer-watermark">
+            <span class="ornament">✧══════════•❁❀❁•══════════✧</span>
+            <span class="watermark-text">Developer Richard Meha</span>
+            <span class="ornament">✧══════════•❁❀❁•══════════✧</span>
+          </div>
           <div class="print-footer">
             <span>${escapeHtml(footer)}</span>
             <span>Generated: ${escapeHtml(generatedAt)}</span>

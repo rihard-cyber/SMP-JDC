@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS users (
   last_active TEXT,
   firebase_id TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);
@@ -30,6 +31,10 @@ CREATE TABLE IF NOT EXISTS patrol_reports (
   id TEXT UNIQUE,
   user_id TEXT,
   user_name TEXT,
+  nrp TEXT,
+  nomor_hp TEXT,
+  shift TEXT,
+  regu TEXT,
   area_id TEXT,
   gedung TEXT,
   lantai TEXT,
@@ -40,8 +45,18 @@ CREATE TABLE IF NOT EXISTS patrol_reports (
   foto TEXT,
   severity TEXT,
   timestamp TEXT,
+  timestamp_end TEXT,
+  date TEXT,
+  time TEXT,
+  kategori TEXT,
+  kode_temuan TEXT,
+  temuan TEXT,
+  status TEXT,
+  anti_fraud JSONB,
+  jabatan TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_patrol_reports_id ON patrol_reports(id);
@@ -56,6 +71,10 @@ CREATE TABLE IF NOT EXISTS findings (
   area TEXT,
   tanggal TEXT,
   pelapor TEXT,
+  nrp TEXT,
+  nomor_hp TEXT,
+  shift TEXT,
+  regu TEXT,
   status TEXT,
   severity TEXT,
   detail TEXT,
@@ -64,7 +83,8 @@ CREATE TABLE IF NOT EXISTS findings (
   wa_status TEXT,
   wa_sent_at TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_findings_id ON findings(id);
@@ -79,7 +99,8 @@ CREATE TABLE IF NOT EXISTS attendance_logs (
   regu TEXT,
   details JSONB,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_attendance_logs_id ON attendance_logs(id);
@@ -91,12 +112,26 @@ CREATE TABLE IF NOT EXISTS mutasi_logs (
   id TEXT UNIQUE,
   tanggal TEXT,
   shift TEXT,
+  regu TEXT,
+  waktu TEXT,
+  tanggal_kejadian TEXT,
+  jam_kejadian TEXT,
+  lokasi TEXT,
+  uraian TEXT,
+  kategori TEXT,
+  foto TEXT,
+  petugas TEXT,
+  nrp TEXT,
+  nomor_hp TEXT,
+  tindak_lanjut TEXT,
+  pelapor TEXT,
+  anti_fraud JSONB,
   petugas_masuk TEXT,
   petugas_keluar TEXT,
   catatan TEXT,
-  foto TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_mutasi_logs_id ON mutasi_logs(id);
@@ -108,12 +143,15 @@ CREATE TABLE IF NOT EXISTS complaints (
   id TEXT UNIQUE,
   ticket_id TEXT,
   name TEXT,
+  phone TEXT,
   tenant TEXT,
   floor TEXT,
+  location TEXT,
   category TEXT,
   description TEXT,
   department TEXT,
   status TEXT,
+  remarks TEXT,
   wa_status TEXT,
   wa_sent_at TEXT,
   photos JSONB,
@@ -137,7 +175,8 @@ CREATE TABLE IF NOT EXISTS areas (
   titik TEXT,
   qr_code TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_areas_id ON areas(id);
@@ -151,7 +190,8 @@ CREATE TABLE IF NOT EXISTS pos_list (
   keterangan TEXT,
   kode TEXT,
   created_at TEXT,
-  firebase_saved_at TEXT
+  firebase_saved_at TEXT,
+  updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_pos_list_id ON pos_list(id);

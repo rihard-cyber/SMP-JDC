@@ -158,8 +158,8 @@ export default function ComplaintForm({ onAddComplaint }) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
-        position: 'relative', overflow: 'hidden'
+        background: 'transparent',
+        position: 'relative', overflow: 'hidden', width: '100%'
       }}>
         <div style={{ position: 'absolute', inset: 0, background: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjAgMjBtMC0xOC41YTE4LjUgMTguNSAwIDEgMCAwIDM3IDE4LjUgMTguNSAwIDEgMCAwLTM3eiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LDEzMCwyNDYsMC4wNykiIHN0cm9rZS13aWR0aD0iMC41Ii8+PC9zdmc+)', opacity: 0.3 }} />
         <div className="cyber-grid" style={{ position: 'absolute', inset: 0, opacity: 0.15 }}></div>
@@ -198,8 +198,8 @@ export default function ComplaintForm({ onAddComplaint }) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
-        padding: '2rem'
+        background: 'transparent',
+        padding: '2rem', width: '100%'
       }}>
         <div className="glass-panel" style={{ maxWidth: 420, width: '100%', padding: '2rem', textAlign: 'center' }}>
           <div style={{ width: 64, height: 64, margin: '0 auto 1rem', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -231,8 +231,8 @@ export default function ComplaintForm({ onAddComplaint }) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
-        padding: '2rem'
+        background: 'transparent',
+        padding: '2rem', width: '100%'
       }}>
         <div className="glass-panel" style={{ maxWidth: 500, width: '100%', padding: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -331,9 +331,9 @@ export default function ComplaintForm({ onAddComplaint }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      background: 'transparent',
       padding: '2rem 1rem',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%'
     }}>
       <div className="glass-panel" style={{ maxWidth: 520, width: '100%', padding: '1.5rem 1.75rem', position: 'relative', overflow: 'hidden' }}>
         {/* Background decoration */}

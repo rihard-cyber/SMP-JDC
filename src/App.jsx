@@ -56,7 +56,8 @@ import {
   Lock,
   Calendar,
   Wifi,
-  WifiOff
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import ReportsExport from './components/ReportsExport';
 import TargetDashboard from './components/TargetDashboard';
@@ -143,6 +144,243 @@ const mapDepartment = (kategori, temuanText = '') => {
   }
   return 'Keamanan';
 };
+
+// [NEW COMPONENT] DeveloperWatermarkBackground
+function DeveloperWatermarkBackground({ theme = 'dark' }) {
+  const watermarkRef = useRef(null);
+
+  useEffect(() => {
+    const watermark = watermarkRef.current;
+    if (!watermark) return;
+
+    let posX = Math.random() * (window.innerWidth - 320);
+    let posY = Math.random() * (window.innerHeight - 160);
+    
+    // Smooth velocity in pixels per frame
+    let dx = (Math.random() > 0.5 ? 1 : -1) * 0.9;
+    let dy = (Math.random() > 0.5 ? 1 : -1) * 0.9;
+
+    let animationFrameId;
+
+    const updatePosition = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      const logoWidth = watermark.offsetWidth || 300;
+      const logoHeight = watermark.offsetHeight || 140;
+
+      posX += dx;
+      posY += dy;
+
+      // Collision detection with screen boundaries
+      if (posX <= 0) {
+        posX = 0;
+        dx = -dx;
+      } else if (posX + logoWidth >= w) {
+        posX = w - logoWidth;
+        dx = -dx;
+      }
+
+      if (posY <= 0) {
+        posY = 0;
+        dy = -dy;
+      } else if (posY + logoHeight >= h) {
+        posY = h - logoHeight;
+        dy = -dy;
+      }
+
+      watermark.style.left = `${posX}px`;
+      watermark.style.top = `${posY}px`;
+
+      // Define check points (center, and offsets)
+      const checkPoints = [
+        { x: posX + logoWidth / 2, y: posY + logoHeight / 2 },
+        { x: posX + logoWidth / 4, y: posY + logoHeight / 2 },
+        { x: posX + logoWidth * 0.75, y: posY + logoHeight / 2 },
+        { x: posX + logoWidth / 2, y: posY + logoHeight / 4 },
+        { x: posX + logoWidth / 2, y: posY + logoHeight * 0.75 }
+      ];
+
+      let isOverlappingText = false;
+
+      for (const pt of checkPoints) {
+        if (pt.x > 0 && pt.x < w && pt.y > 0 && pt.y < h) {
+          const el = document.elementFromPoint(pt.x, pt.y);
+          if (el) {
+            const tag = el.tagName.toLowerCase();
+            const textTags = [
+              'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+              'a', 'button', 'input', 'select', 'textarea', 
+              'label', 'li', 'td', 'th', 'strong', 'em', 'b', 'i', 
+              'img', 'svg', 'option'
+            ];
+            
+            if (textTags.includes(tag)) {
+              isOverlappingText = true;
+              break;
+            }
+            
+            const className = typeof el.className === 'string' ? el.className.toLowerCase() : '';
+            if (
+              className.includes('btn') || 
+              className.includes('input') || 
+              className.includes('badge') || 
+              className.includes('logo') ||
+              className.includes('value') ||
+              className.includes('title')
+            ) {
+              isOverlappingText = true;
+              break;
+            }
+          }
+        }
+      }
+
+      const isDark = theme === 'dark';
+      if (isOverlappingText) {
+        // Blur and fade when hitting text
+        watermark.style.opacity = isDark ? '0.004' : '0.006';
+        watermark.style.filter = 'blur(7px)';
+        watermark.style.textShadow = 'none';
+        watermark.style.boxShadow = 'none';
+        watermark.style.border = '1px solid transparent';
+        watermark.style.background = 'transparent';
+        watermark.style.backdropFilter = 'none';
+      } else {
+        // High glow and brightness when in empty space
+        watermark.style.opacity = isDark ? '0.35' : '0.45';
+        watermark.style.filter = 'blur(0px)';
+        if (isDark) {
+          watermark.style.textShadow = '0 0 12px rgba(0, 240, 255, 0.9), 0 0 25px rgba(0, 240, 255, 0.5)';
+          watermark.style.boxShadow = 'inset 0 0 20px rgba(0, 240, 255, 0.2), 0 0 15px rgba(0, 240, 255, 0.1)';
+          watermark.style.border = '1px solid rgba(0, 240, 255, 0.2)';
+          watermark.style.background = 'rgba(15, 23, 42, 0.3)';
+          watermark.style.backdropFilter = 'blur(6px)';
+        } else {
+          watermark.style.textShadow = '0 0 8px rgba(79, 70, 229, 0.5)';
+          watermark.style.boxShadow = 'inset 0 0 15px rgba(79, 70, 229, 0.08), 0 0 10px rgba(79, 70, 229, 0.05)';
+          watermark.style.border = '1px solid rgba(79, 70, 229, 0.15)';
+          watermark.style.background = 'rgba(255, 255, 255, 0.4)';
+          watermark.style.backdropFilter = 'blur(6px)';
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(updatePosition);
+    };
+
+    updatePosition();
+
+    const handleResize = () => {
+      posX = Math.min(posX, window.innerWidth - 300);
+      posY = Math.min(posY, window.innerHeight - 140);
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [theme]);
+
+  return (
+    <div className={`watermark-bg-container theme-${theme}`}>
+      <style>{`
+        .watermark-bg-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          overflow: hidden;
+          pointer-events: none;
+          z-index: 0;
+          user-select: none;
+        }
+        .ukiran-watermark {
+          position: fixed;
+          text-align: center;
+          font-family: 'Consolas', monospace;
+          pointer-events: none;
+          user-select: none;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.25rem;
+          transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+          width: 320px;
+          padding: 1rem;
+          border-radius: 12px;
+          border: 1px solid transparent;
+        }
+        .ukiran-logo-text {
+          font-size: 1.15rem;
+          font-weight: 900;
+          letter-spacing: 0.18em;
+          color: #00f0ff;
+          text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        .ukiran-sub-text {
+          font-size: 0.58rem;
+          letter-spacing: 0.22em;
+          color: #a5b4fc;
+          font-weight: bold;
+        }
+        .ukiran-ornament-top, .ukiran-ornament-bottom {
+          font-size: 0.75rem;
+          color: #00f0ff;
+          letter-spacing: 0.1em;
+          opacity: 0.8;
+        }
+        
+        /* Light theme adjustments for high quality legibility */
+        .theme-light .ukiran-logo-text {
+          color: #4f46e5;
+          text-shadow: none;
+        }
+        .theme-light .ukiran-sub-text {
+          color: #312e81;
+        }
+        .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
+          color: #4f46e5;
+        }
+
+        /* Set LoginPage transparent to show global watermark background */
+        .login-page {
+          background: transparent !important;
+        }
+
+        @media (max-width: 768px) {
+          .ukiran-watermark {
+            width: 240px;
+            padding: 0.5rem;
+          }
+          .ukiran-logo-text {
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+          }
+          .ukiran-sub-text {
+            font-size: 0.48rem;
+            letter-spacing: 0.12em;
+          }
+          .ukiran-ornament-top, .ukiran-ornament-bottom {
+            font-size: 0.55rem;
+          }
+        }
+      `}</style>
+      <div ref={watermarkRef} className="ukiran-watermark">
+        <div className="ukiran-ornament-top">
+          ◤━━━━ ❖ ━━━━◥
+        </div>
+        <div className="ukiran-logo-text">DEVELOPER: RICHARD MEHA</div>
+        <div className="ukiran-sub-text">★ JDC SECURITY CORE ARCHITECT ★</div>
+        <div className="ukiran-ornament-bottom">
+          ◣━━━━ ❖ ━━━━◢
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
@@ -634,6 +872,31 @@ export default function App() {
     } catch { return []; }
   });
 
+  const [syncTrigger, setSyncTrigger] = useState(0);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+
+  const checkOfflineQueue = () => {
+    const keys = ['smpjdc_complaints', 'sapujagat_reports', 'sapujagat_findings', 'smpjdc_attendance_logs', 'smpjdc_mutasi_logs'];
+    let total = 0;
+    for (const key of keys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const items = JSON.parse(raw);
+          const unsynced = items.filter(item => !item.supabaseId && !item.firebaseId).length;
+          total += unsynced;
+        }
+      } catch (e) {}
+    }
+    setOfflineQueueCount(total);
+  };
+
+  useEffect(() => {
+    checkOfflineQueue();
+    const interval = setInterval(checkOfflineQueue, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const persistState = (key, data) => {
     try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) {}
     db.set(key, data);
@@ -1088,9 +1351,11 @@ export default function App() {
       }
     };
 
-    syncAll();
+    syncAll().then(() => {
+      checkOfflineQueue();
+    });
     return () => { cancelled = true; };
-  }, [firebaseUsersLoaded]);
+  }, [firebaseUsersLoaded, syncTrigger]);
 
   // Auto-sync currentUser ketika data dari Supabase berubah
   useEffect(() => {
@@ -1977,7 +2242,12 @@ export default function App() {
   // Public complaint form — accessible without login via QR code or direct URL
   const isPublicComplaint = typeof window !== 'undefined' && window.location.search.includes('complaint');
   if (isPublicComplaint) {
-    return <div style={{ minHeight: '100vh', background: '#0f172a' }}><ComplaintForm onAddComplaint={handleAddComplaint} /></div>;
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', position: 'relative' }}>
+        <DeveloperWatermarkBackground theme="dark" />
+        <ComplaintForm onAddComplaint={handleAddComplaint} />
+      </div>
+    );
   }
 
   if (authenticated === null) {
@@ -1985,7 +2255,12 @@ export default function App() {
   }
 
   if (!authenticated) {
-    return <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} firebaseUsersLoaded={firebaseUsersLoaded} />;
+    return (
+      <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)', position: 'relative' }}>
+        <DeveloperWatermarkBackground theme="dark" />
+        <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} firebaseUsersLoaded={firebaseUsersLoaded} />
+      </div>
+    );
   }
 
   if (showSplash) {
@@ -2028,7 +2303,7 @@ export default function App() {
         </div>
         <div className="splash-footer cyber-footer">
           <p className="splash-title cyber-title">SMPJDC v2.0</p>
-          <p className="splash-subtitle cyber-subtitle">SISTEM MANAGEMENT KEAMANAN JDC // BY_RICHARDMEHA</p>
+          <p className="splash-subtitle cyber-subtitle">SISTEM MANAGEMENT KEAMANAN JDC // DEVELOPER: RICHARD MEHA</p>
         </div>
       </div>
     );
@@ -2036,7 +2311,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-    <div className={`dashboard-layout theme-${theme}`}>
+    <div className={`dashboard-layout theme-${theme}`} style={{ position: 'relative' }}>
+      <DeveloperWatermarkBackground theme={theme} />
       {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
       <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
@@ -2181,7 +2457,7 @@ export default function App() {
             <span>Keluar</span>
           </button>
           <div className="sidebar-footer-copy">
-            © 2026 SMPJDC By_RichardMeha.
+            © 2026 SMPJDC ★ Richard Meha
           </div>
         </div>
       </aside>
@@ -2216,7 +2492,33 @@ export default function App() {
             </div>
           </div>
 
-          <div className="header-right">
+          <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {offlineQueueCount > 0 && (
+              <button 
+                onClick={() => {
+                  setSyncTrigger(prev => prev + 1);
+                  addToast('Sinkronisasi manual dipicu...', 'info');
+                }}
+                className="header-status-badge"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  color: '#f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '20px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700
+                }}
+                title="Klik untuk sinkronisasi paksa"
+              >
+                <RefreshCw size={12} className="spin-slow" />
+                <span>{offlineQueueCount} Antrean</span>
+              </button>
+            )}
             <div className={`header-status-badge ${isOnline ? 'status-online' : 'status-offline'}`} title={isOnline ? 'Koneksi Terhubung' : 'Koneksi Terputus'}>
               {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
               <span>{isOnline ? 'Online' : 'Offline'}</span>
@@ -2336,7 +2638,7 @@ export default function App() {
 
           <footer className="app-footer">
             <span>© 2026 <strong className="text-primary">SMPJDC</strong>. Hak Cipta Dilindungi.</span>
-            <span>Developer: <strong>By_RichardMeha</strong></span>
+            <span>Developer: <strong>Richard Meha</strong></span>
           </footer>
         </div>
       </main>

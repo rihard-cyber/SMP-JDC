@@ -44,13 +44,13 @@ function normalizeDoc(doc) {
 
 const KNOWN_TABLE_COLUMNS = {
   users: new Set(['id', 'nrp', 'nama', 'jabatan', 'regu', 'avatar', 'status', 'email', 'nomor_hp', 'last_active', 'firebase_saved_at', 'created_at', 'updated_at']),
-  patrol_reports: new Set(['id', 'user_id', 'user_name', 'area_id', 'gedung', 'lantai', 'zona', 'titik', 'kondisi', 'keterangan', 'foto', 'severity', 'timestamp', 'created_at', 'firebase_saved_at']),
-  findings: new Set(['id', 'report_id', 'kategori', 'area', 'tanggal', 'pelapor', 'status', 'severity', 'detail', 'foto', 'department', 'wa_status', 'wa_sent_at', 'created_at', 'firebase_saved_at']),
-  attendance_logs: new Set(['id', 'tanggal', 'shift', 'regu', 'details', 'created_at', 'firebase_saved_at']),
-  mutasi_logs: new Set(['id', 'tanggal', 'shift', 'petugas_masuk', 'petugas_keluar', 'catatan', 'foto', 'created_at', 'firebase_saved_at']),
+  patrol_reports: new Set(['id', 'user_id', 'user_name', 'nrp', 'nomor_hp', 'shift', 'regu', 'area_id', 'gedung', 'lantai', 'zona', 'titik', 'kondisi', 'keterangan', 'foto', 'severity', 'timestamp', 'timestamp_end', 'date', 'time', 'kategori', 'kode_temuan', 'temuan', 'status', 'anti_fraud', 'jabatan', 'created_at', 'firebase_saved_at', 'updated_at']),
+  findings: new Set(['id', 'report_id', 'kategori', 'area', 'tanggal', 'pelapor', 'nrp', 'nomor_hp', 'shift', 'regu', 'status', 'severity', 'detail', 'foto', 'department', 'wa_status', 'wa_sent_at', 'created_at', 'firebase_saved_at', 'updated_at']),
+  attendance_logs: new Set(['id', 'tanggal', 'shift', 'regu', 'details', 'created_at', 'firebase_saved_at', 'updated_at']),
+  mutasi_logs: new Set(['id', 'tanggal', 'shift', 'regu', 'waktu', 'tanggal_kejadian', 'jam_kejadian', 'lokasi', 'uraian', 'kategori', 'foto', 'petugas', 'nrp', 'nomor_hp', 'tindak_lanjut', 'pelapor', 'anti_fraud', 'petugas_masuk', 'petugas_keluar', 'catatan', 'created_at', 'firebase_saved_at', 'updated_at']),
   complaints: new Set(['id', 'ticket_id', 'name', 'phone', 'tenant', 'floor', 'location', 'category', 'description', 'department', 'status', 'remarks', 'wa_status', 'wa_sent_at', 'photos', 'history', 'created_at', 'firebase_saved_at', 'updated_at']),
-  areas: new Set(['id', 'gedung', 'lantai', 'nomor_titik', 'zona', 'titik', 'qr_code', 'created_at', 'firebase_saved_at']),
-  pos_list: new Set(['id', 'lantai', 'titik', 'keterangan', 'kode', 'created_at', 'firebase_saved_at']),
+  areas: new Set(['id', 'gedung', 'lantai', 'nomor_titik', 'zona', 'titik', 'qr_code', 'created_at', 'firebase_saved_at', 'updated_at']),
+  pos_list: new Set(['id', 'lantai', 'titik', 'keterangan', 'kode', 'created_at', 'firebase_saved_at', 'updated_at']),
   rosters: new Set(['year_month', 'roster_data', 'updated_by', 'created_at', 'updated_at']),
   config: new Set(['key', 'data', 'updated_at']),
 };
