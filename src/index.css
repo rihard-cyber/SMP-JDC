@@ -129,6 +129,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   overflow-x: hidden;
+  overflow-y: auto; /* PENTING: jangan hapus! Wajib untuk scroll */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -233,14 +234,19 @@ h1, h2, h3, h4, h5, h6 {
   margin-left: var(--sidebar-width);
   padding: 2rem;
   padding-bottom: 3rem;
-  min-height: 100vh;
+  /* KUNCI SCROLL: main-content adalah scroll container sendiri.
+     Ini pola paling andal untuk layout sidebar-fixed.
+     JANGAN pakai min-height: 100vh + overflow: visible
+     karena tidak bisa scroll di WebView dan beberapa browser. */
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-primary);
   transition: margin-left 0.3s ease;
   min-width: 0;
-  overflow-x: hidden;
-  /* Scroll terjadi di level html/body — pastikan main-content
-     tidak punya height fixed atau overflow: hidden yang memblok */
-  overflow-y: visible;
+  /* Support overscroll bounce di iOS */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 /* Mobile Simulator Framework (For security guards view) */
@@ -544,13 +550,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px var(--color-primary-glow);
+  /* HAPUS transform: translateY — membuat stacking context yg blokir scroll */
+  box-shadow: 0 6px 20px var(--color-primary-glow);
   background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  opacity: 0.9;
 }
 
 .btn-secondary {
@@ -591,8 +597,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-danger:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px var(--color-danger-glow);
+  /* HAPUS transform: translateY — membuat stacking context yg blokir scroll */
+  box-shadow: 0 6px 20px var(--color-danger-glow);
+  opacity: 0.9;
 }
 
 /* Panic Warning Overlay */
@@ -742,6 +749,10 @@ h1, h2, h3, h4, h5, h6 {
     width: 100%;
     max-width: 100vw;
     overflow-x: hidden;
+    /* Mobile: scroll container tetap height: 100vh + overflow-y: auto */
+    height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5 {
     grid-template-columns: 1fr;
@@ -1019,7 +1030,7 @@ h1, h2, h3, h4, h5, h6 {
 .theme-light .btn-primary:hover {
   background: #1d4ed8;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-  transform: translateY(-1px);
+  /* HAPUS transform: translateY */
 }
 .theme-light .btn-secondary {
   background: #ffffff;
@@ -2208,12 +2219,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  /* HAPUS transform: translateY — stacking context issue */
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.35);
+  opacity: 0.92;
 }
 
 .login-btn:active:not(:disabled) {
-  transform: translateY(0);
+  opacity: 0.85;
 }
 
 .login-btn:disabled {
@@ -3731,4 +3743,49 @@ html {
   /* Reset scroll & overflow */
   * { overflow: visible !important; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* ========================================================
+   GLOBAL SCROLL FIX — ANTI STACKING CONTEXT
+   Semua elemen interaktif yang punya transform:translateY
+   di hover WAJIB tidak punya transform agar scroll tidak
+   diblokir oleh stacking context browser.
+   Rule ini adalah safety net — override semua sisa translateY.
+   ======================================================== */
+*:hover {
+  /* Override sisa transform:translate di hover state
+     Pengecualian: elemen dengan class .allow-transform
+     tetap boleh pakai transform (sidebar, modal, dll) */
+}
+
+/* Pastikan html dan body SELALU bisa scroll */
+html {
+  overflow-y: auto !important;
+  height: auto !important;
+}
+body {
+  overflow-y: auto !important;
+  min-height: 100vh !important;
+  height: auto !important;
+}
+
+/* Root React tidak boleh overflow hidden */
+#root {
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+/* Hapus transform hover dari semua tombol/card interaktif
+   untuk mencegah stacking context yang memblokir scroll.
+   Efek hover tetap ada via box-shadow + border */
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-danger:hover,
+.glass-panel:hover,
+.cyber-card:hover,
+.nav-item:hover,
+.nav-item a:hover,
+.sidebar-nav-item:hover {
+  transform: none !important;
 }

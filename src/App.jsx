@@ -1855,8 +1855,14 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Scroll ke atas saat ganti tab
+    // main-content adalah scroll container sendiri (height:100vh + overflow-y:auto)
+    // Jadi reset scrollTop pada container, BUKAN window.scrollTo
     const el = document.getElementById('main-scroll-container');
-    if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+    if (el) {
+      el.scrollTop = 0;
+      el.focus({ preventScroll: true });
+    }
   }, [currentTab]);
 
   const handleExitApp = () => {

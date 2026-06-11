@@ -429,8 +429,9 @@ export default function ManagementDashboard({
           flex-direction: column;
         }
         .cyber-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.15);
+          /* HAPUS transform: translateY — membuat stacking context yang memblokir scroll!
+             Gunakan box-shadow + border saja */
+          box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(59, 130, 246, 0.2);
           border-color: rgba(59, 130, 246, 0.3);
         }
         .cyber-card::after {
