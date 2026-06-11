@@ -263,7 +263,7 @@ export default function BarcodeGenerator({
     }
     if (addToast) addToast(`Menyiapkan cetak ${areas.length} QR...`, 'info');
     try {
-      const allHtml = await Promise.all(areas.map(async (area) => {
+      const cards = await Promise.all(areas.map(async (area) => {
         const dataUrl = await generateQRDataURL(area.qrCode);
         return `
           <div class="qr-card">
@@ -272,9 +272,13 @@ export default function BarcodeGenerator({
             <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
             <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
           </div>
-          <div class="page-break"></div>
         `;
       }));
+      const pageHtml = [];
+      for (let i = 0; i < cards.length; i += 4) {
+        const chunk = cards.slice(i, i + 4);
+        pageHtml.push(`<div class="page">${chunk.join('')}</div>`);
+      }
       const printWin = window.open('', '_blank', 'width=500,height=700');
       if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
         if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
@@ -285,18 +289,18 @@ export default function BarcodeGenerator({
           <head>
             <title>Cetak Semua QR Checkpoint</title>
             <style>
-              body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; color: #0b0f19; }
-              .qr-card { border: 2px solid #ccc; padding: 15px; border-radius: 8px; display: inline-block; background: #fff; text-align: center; page-break-inside: avoid; margin: 0 auto; }
-              .page-break { page-break-after: always; height: 20px; }
-              img { width: 200px; height: 200px; margin-bottom: 10px; }
-              h2 { margin: 0 0 3px 0; font-size: 16px; letter-spacing: 1px; }
-              p { margin: 0; font-size: 11px; color: #555; }
-              @media print { body { -webkit-print-color-adjust: exact; } .page-break { page-break-after: always; height: 0; } }
+              body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; color: #0b0f19; }
+              .page { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100vh; page-break-after: always; box-sizing: border-box; padding: 12px; }
+              .qr-card { border: 2px solid #ccc; border-radius: 8px; background: #fff; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; page-break-inside: avoid; }
+              img { width: 140px; height: 140px; margin-bottom: 6px; }
+              h2 { margin: 0 0 2px 0; font-size: 13px; letter-spacing: 1px; }
+              p { margin: 0; font-size: 10px; color: #555; }
+              @media print { body { -webkit-print-color-adjust: exact; } .page { page-break-after: always; } }
             </style>
           </head>
           <body>
-            ${allHtml.join('')}
-            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">Total ${areas.length} QR Checkpoint</p>
+            ${pageHtml.join('')}
+            <p style="text-align: center; margin: 10px; font-size: 11px; color: #999;">Total ${areas.length} QR Checkpoint</p>
             <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
           </body>
         </html>
