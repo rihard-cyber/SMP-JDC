@@ -316,6 +316,10 @@ export default function App() {
   // Sync tab state when browser popstate triggers (e.g. Back button in browser/PWA)
   useEffect(() => {
     const handlePopState = () => {
+      if (executeBackHandlers()) {
+        window.history.pushState(null, '', window.location.href);
+        return;
+      }
       const hash = window.location.hash.replace('#/', '').replace('#', '');
       if (hash && hash !== 'login') {
         const validTabs = [

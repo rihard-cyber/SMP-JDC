@@ -5,7 +5,7 @@ import {
   User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen, Search,
   FileText
 } from 'lucide-react';
-import { SHIFT_CODES, getRoster, getYearMonth, getDatesInMonth } from '../data/rosterData';
+import { SHIFT_CODES, getRoster, getYearMonth } from '../data/rosterData';
 import { exportTableToPdf, formatDateForFile, formatDateOnlyId } from '../utils/exportPdf';
 
 export default function AbsensiRegu({ 
@@ -126,6 +126,9 @@ export default function AbsensiRegu({
           updated.posPlotting = '-';
         } else if (value === 'Mangkir') {
           updated.alasan = 'Mangkir';
+          updated.posPlotting = '-';
+        } else if (value === 'Tidak Hadir') {
+          updated.alasan = 'Tidak Hadir';
           updated.posPlotting = '-';
         }
       }
@@ -299,11 +302,19 @@ _Sistem Manajemen Keamanan JDC_`;
   };
 
   const handleExportAttendancePDF = () => {
-    const sourceLogs = attendanceLogs && attendanceLogs.length > 0
-      ? attendanceLogs
-      : (todayAttendance ? [todayAttendance] : []);
+    const sourceLogs = [];
+    if (attendanceLogs && attendanceLogs.length > 0) {
+      sourceLogs.push(...attendanceLogs);
+    } else if (todayAttendance) {
+      sourceLogs.push(todayAttendance);
+    }
+    if (sourceLogs.length === 0) {
+      alert('Belum ada data absensi untuk diexport.');
+      return;
+    }
     const rowsForExport = [];
     sourceLogs.forEach((log) => {
+      if (!log) return;
       (log.details || []).forEach((detail) => {
         const substitute = users.find(u => String(u.id) === String(detail.penggantiId));
         rowsForExport.push({ log, detail, substitute });
@@ -321,18 +332,18 @@ _Sistem Manajemen Keamanan JDC_`;
       ],
       columns: [
         { header: 'NO', width: '4%' },
-        { header: 'TANGGAL', width: '9%' },
-        { header: 'HARI', width: '7%' },
-        { header: 'REGU', width: '8%' },
-        { header: 'SHIFT', width: '6%' },
-        { header: 'JAM DINAS', width: '9%' },
-        { header: 'NAMA PERSONIL', width: '13%' },
-        { header: 'NRP', width: '7%' },
-        { header: 'JABATAN', width: '9%' },
-        { header: 'STATUS HADIR', width: '9%' },
-        { header: 'KETERANGAN', width: '10%' },
-        { header: 'PLOTTING POS', width: '12%' },
-        { header: 'PENGGANTI', width: '10%' }
+        { header: 'TANGGAL', width: '8%' },
+        { header: 'HARI', width: '6%' },
+        { header: 'REGU', width: '7%' },
+        { header: 'SHIFT', width: '5%' },
+        { header: 'JAM DINAS', width: '8%' },
+        { header: 'NAMA PERSONIL', width: '11%' },
+        { header: 'NRP', width: '6%' },
+        { header: 'JABATAN', width: '8%' },
+        { header: 'STATUS HADIR', width: '8%' },
+        { header: 'KETERANGAN', width: '9%' },
+        { header: 'PLOTTING POS', width: '11%' },
+        { header: 'PENGGANTI', width: '9%' }
       ],
       rows: rowsForExport.map(({ log, detail, substitute }, idx) => [
         idx + 1,
@@ -986,7 +997,7 @@ function AbsensiRosterHarian({ users, posList, attendanceLogs, onAddAttendance, 
       if (i !== idx) return row;
       const updated = { ...row, [field]: value };
       if (field === 'status') {
-        if (['Sakit', 'Cuti', 'Mangkir'].includes(value)) { updated.posPlotting = '-'; updated.alasan = value; }
+        if (['Sakit', 'Cuti', 'Mangkir', 'Tidak Hadir'].includes(value)) { updated.posPlotting = '-'; updated.alasan = value; }
         else if (value === 'Hadir') { updated.alasan = ''; }
       }
       return updated;

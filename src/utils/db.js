@@ -50,8 +50,10 @@ const db = {
     try {
       return await localforage.getItem(key);
     } catch (e) {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : null;
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch (_) { return null; }
     }
   },
 

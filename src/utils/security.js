@@ -230,9 +230,7 @@ export async function generateAntiFraudData(userId) {
   return {
     gpsValid: coords !== null,
     coords: coords,
-    radius: coords ? Math.floor(Math.random() * 15) + 5 : null,
     device,
-    ip: '192.168.1.' + (Math.floor(Math.random() * 254) + 1),
     dynamicToken
   };
 }
