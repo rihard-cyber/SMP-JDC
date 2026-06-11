@@ -18,6 +18,7 @@ import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
 import db from './utils/db';
 import { hapticLight } from './utils/haptics';
+import ErrorBoundary from './components/ErrorBoundary';
 import { initSupabase,
   subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, deleteComplaintFromFirestore,
   subscribeReports, addReportToFirestore, updateReportInFirestore, deleteReportFromFirestore,
@@ -377,7 +378,7 @@ export default function App() {
 
     return () => {
       if (backButtonSub) {
-        backButtonSub.then(sub => sub.remove());
+        backButtonSub.then(sub => sub.remove()).catch(() => {});
       }
     };
   }, [currentUser, currentTab, showProfileModal, activeSOS, sosAudio, clearSOS]);
@@ -897,7 +898,7 @@ export default function App() {
             if (fid && !cancelled) {
               setAreas(p => p.map(x => x.id === a.id ? { ...x, firebaseId: fid } : x));
             }
-          });
+          }).catch(e => console.warn('[App] Gagal upload area:', a.id, e));
         });
         return prev;
       });
@@ -963,7 +964,7 @@ export default function App() {
             if (fid && !cancelled) {
               setPosList(list => list.map(x => x.id === p.id ? { ...x, firebaseId: fid } : x));
             }
-          });
+          }).catch(e => console.warn('[App] Gagal upload pos:', p.id, e));
         });
         return prev;
       });
@@ -1840,6 +1841,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <div className={`dashboard-layout theme-${theme}`}>
       {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
@@ -2477,5 +2479,6 @@ export default function App() {
       </div>
 
     </div>
+    </ErrorBoundary>
   );
 }
