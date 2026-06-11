@@ -157,7 +157,7 @@ export default function AbsensiRegu({
   };
 
   // Get substitute options — all patrol users (cross-regu)
-  const substituteOptions = users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(u.jabatan));
+  const substituteOptions = users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Middle 1', 'Middle 2'].includes(u.jabatan));
 
   // Find if plotting has been saved today for the selected regu
   // Aggregates from both traditional and roster-based logs
@@ -292,11 +292,13 @@ _Sistem Manajemen Keamanan JDC_`;
   };
 
   const handlePhoneSave = (memberId) => {
-    const val = phoneInputs[memberId]?.trim();
-    if (val === undefined) return;
+    const raw = phoneInputs[memberId];
+    if (raw === undefined) return;
+    const val = raw.trim();
+    if (!val && raw !== '') return;
     
     if (onUpdateUser) {
-      onUpdateUser(memberId, { nomorHp: val });
+      onUpdateUser(memberId, { nomorHp: val || '-' });
       setEditingPhoneId(null);
     }
   };
@@ -410,6 +412,7 @@ _Sistem Manajemen Keamanan JDC_`;
               className="modern-select"
               style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', minWidth: '150px' }}
             >
+              <option value="Semua Regu">Semua Regu</option>
               {['Regu A', 'Regu B', 'Regu C', 'Regu D', 'Non-Regu'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}

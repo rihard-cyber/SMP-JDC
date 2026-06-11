@@ -185,4 +185,29 @@ CREATE TABLE IF NOT EXISTS config (
 
 CREATE INDEX IF NOT EXISTS idx_config_key ON config(key);
 
+-- ── Row Level Security ─────────────────────────
+-- Enable RLS on all tables (adjust policies as needed)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patrol_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE findings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mutasi_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pos_list ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rosters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE config ENABLE ROW LEVEL SECURITY;
+
+-- Allow anon/service_role full access (app uses anon key with client-side logic)
+CREATE POLICY "Allow all anon" ON users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON patrol_reports FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON findings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON attendance_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON mutasi_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON complaints FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON areas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON pos_list FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON rosters FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all anon" ON config FOR ALL USING (true) WITH CHECK (true);
+
 -- Realtime sudah aktif default di Supabase, tidak perlu ALTER PUBLICATION

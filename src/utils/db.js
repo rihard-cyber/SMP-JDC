@@ -25,6 +25,10 @@ async function migrateFromLocalStorage() {
     'sapujagat_offline_queue', 'smpjdc_last_plotting_id', 'smpjdc_qr_counter',
     'smpjdc_custom_complaint_url'
   ];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('smpjdc_pin_')) KEYS_TO_MIGRATE.push(k);
+  }
 
   const migrated = [];
   for (const key of KEYS_TO_MIGRATE) {
