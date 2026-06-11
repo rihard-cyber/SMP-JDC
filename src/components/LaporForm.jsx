@@ -201,16 +201,16 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>KATEGORI</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  <div className="mutasi-kategori-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.45rem' }}>
                     {KATEGORI_MUTASI.map(k => (
-                      <button key={k.id} type="button" onClick={() => { setKatMutasi(k.id); if (k.id !== '__lainnya__') setKatMutasiLainnya(''); }} style={{
-                        padding: '0.35rem 0.6rem', borderRadius: '6px',
-                        border: `1.5px solid ${katMutasi === k.id ? k.color : 'var(--border-glass)'}`,
-                        background: katMutasi === k.id ? `${k.color}18` : 'transparent',
-                        color: katMutasi === k.id ? k.color : 'var(--text-secondary)',
-                        fontWeight: 600, cursor: 'pointer', fontSize: '0.72rem',
-                        transition: 'all 0.2s'
-                      }}>{k.label}</button>
+                      <button key={k.id} type="button" onClick={() => { setKatMutasi(k.id); if (k.id !== '__lainnya__') setKatMutasiLainnya(''); }}
+                        className={`mutasi-kat-btn ${katMutasi === k.id ? 'active' : ''}`}
+                        style={{
+                          '--kat-color': k.color,
+                          borderColor: katMutasi === k.id ? k.color : 'var(--border-glass)',
+                          background: katMutasi === k.id ? `${k.color}1A` : 'transparent',
+                          color: katMutasi === k.id ? k.color : 'var(--text-secondary)'
+                        }}>{k.label}</button>
                     ))}
                   </div>
                   {katMutasi === '__lainnya__' && (
