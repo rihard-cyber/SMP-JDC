@@ -2560,6 +2560,7 @@ export default function App() {
           {currentTab === 'dashboard' && (isGodMode || (isAdmin && !isClient)) && (
             <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Dashboard...</div>}>
             <ManagementDashboard
+              theme={theme}
               reports={reports} findings={findings} areas={areas} users={users}
               attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} complaints={complaints}
               onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding}

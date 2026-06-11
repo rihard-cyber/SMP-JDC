@@ -45,6 +45,7 @@ const COMPLAINT_STATUS_COLOR = {
 };
 
 export default function ManagementDashboard({ 
+  theme = 'dark',
   reports, 
   findings, 
   areas, 
@@ -569,7 +570,7 @@ export default function ManagementDashboard({
             {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
               const y = padding + chartHeight * ratio;
               return (
-                <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
+                <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} className="chart-grid-line" strokeWidth="1" />
               );
             })}
             
@@ -585,7 +586,7 @@ export default function ManagementDashboard({
               const y = padding + chartHeight - (val * chartHeight) / maxVal;
               return (
                 <g key={idx}>
-                  <circle cx={x} cy={y} r="4" fill="#3b82f6" stroke="#111625" strokeWidth="1.5" />
+                  <circle cx={x} cy={y} r="4" fill="#3b82f6" className="chart-dot-stroke" strokeWidth="1.5" />
                   <text x={x} y={y - 8} fill="#3b82f6" fontSize="7" fontWeight="bold" textAnchor="middle">{val}</text>
                 </g>
               );
@@ -603,7 +604,7 @@ export default function ManagementDashboard({
               const y = padding + chartHeight - (val * chartHeight) / maxVal;
               return (
                 <g key={idx}>
-                  <circle cx={x} cy={y} r="4" fill="#ef4444" stroke="#111625" strokeWidth="1.5" />
+                  <circle cx={x} cy={y} r="4" fill="#ef4444" className="chart-dot-stroke" strokeWidth="1.5" />
                   <text x={x} y={y - 8} fill="#ef4444" fontSize="7" fontWeight="bold" textAnchor="middle">{val}</text>
                 </g>
               );
@@ -612,7 +613,7 @@ export default function ManagementDashboard({
             {days.map((day, idx) => {
               const x = padding + (idx * chartWidth) / 6;
               return (
-                <text key={idx} x={x} y={height - 2} fill="rgba(255, 255, 255, 0.4)" fontSize="7" textAnchor="middle">{day}</text>
+                <text key={idx} x={x} y={height - 2} className="chart-axis-text" fontSize="7" textAnchor="middle">{day}</text>
               );
             })}
           </svg>
@@ -759,6 +760,63 @@ export default function ManagementDashboard({
           border-radius: 50%;
         }
         
+        /* Premium Light Theme overrides for cyber-card and contents */
+        .theme-light .cyber-card {
+          background: #ffffff !important;
+          border: 1px solid rgba(0, 0, 0, 0.08) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+        }
+        .theme-light .cyber-card:hover {
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08), 0 0 12px rgba(37, 99, 235, 0.12) !important;
+          border-color: rgba(37, 99, 235, 0.25) !important;
+        }
+        .theme-light .cyber-card::after {
+          background: radial-gradient(circle at 100% 0%, rgba(37, 99, 235, 0.02) 0%, transparent 70%) !important;
+        }
+        .theme-light .cyber-title {
+          color: #334155 !important;
+        }
+        .theme-light .cyber-radial-info {
+          color: #475569 !important;
+        }
+        .theme-light .cyber-info-item span {
+          color: #475569 !important;
+        }
+        .theme-light .cyber-card span {
+          color: #475569 !important;
+        }
+        .theme-light .cyber-card strong {
+          color: #0f172a !important;
+        }
+        
+        /* Concentric ring track overrides in Light theme */
+        .cyber-track-ring {
+          stroke: #1c203a;
+        }
+        .theme-light .cyber-track-ring {
+          stroke: #e2e8f0 !important;
+        }
+
+        /* SVG Chart Grid lines and Axis Texts */
+        .chart-grid-line {
+          stroke: rgba(255, 255, 255, 0.05);
+        }
+        .theme-light .chart-grid-line {
+          stroke: rgba(0, 0, 0, 0.06) !important;
+        }
+        .chart-axis-text {
+          fill: rgba(255, 255, 255, 0.4);
+        }
+        .theme-light .chart-axis-text {
+          fill: rgba(15, 23, 42, 0.6) !important;
+        }
+        .chart-dot-stroke {
+          stroke: #111625;
+        }
+        .theme-light .chart-dot-stroke {
+          stroke: #ffffff !important;
+        }
+        
         /* Command Tab Panels styling */
         .command-tab-bar {
           display: flex;
@@ -802,6 +860,24 @@ export default function ManagementDashboard({
           color: var(--text-primary);
         }
 
+        /* Light theme overrides for tabs bar */
+        .theme-light .command-tab-bar {
+          background: #e2e8f0 !important;
+          border-color: #cbd5e1 !important;
+        }
+        .theme-light .command-tab-btn {
+          color: #475569 !important;
+        }
+        .theme-light .command-tab-btn.active {
+          background: #2563eb !important;
+          color: white !important;
+          box-shadow: 0 0 12px rgba(37, 99, 235, 0.25) !important;
+        }
+        .theme-light .command-tab-btn:hover:not(.active) {
+          background: rgba(0, 0, 0, 0.03) !important;
+          color: #0f172a !important;
+        }
+
         /* Slide-in animation for tab changes */
         @keyframes slide-in-tab {
           from { transform: translateY(15px); opacity: 0; }
@@ -837,9 +913,9 @@ export default function ManagementDashboard({
               <div className="cyber-title"><Activity size={12} className="cyber-title-accent"/> Persentase Operasional JDC</div>
               <div className="cyber-radial-container">
                 <svg width="110" height="110" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#1c203a" strokeWidth="6" />
-                  <circle cx="50" cy="50" r="30" fill="transparent" stroke="#1c203a" strokeWidth="6" />
-                  <circle cx="50" cy="50" r="20" fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                  <circle cx="50" cy="50" r="40" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
+                  <circle cx="50" cy="50" r="30" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
+                  <circle cx="50" cy="50" r="20" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
                   
                   {/* Rings */}
                   <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ec4899" strokeWidth="6" 
@@ -877,7 +953,7 @@ export default function ManagementDashboard({
                 const presentPercentage = (kpiHadir / totalAttendanceSum) * 100;
                 return (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexGrow: 1 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                       <div className="cyber-info-item">
                         <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
                         <span>Hadir: <strong style={{ color: '#00f0ff' }}>{kpiHadir}</strong></span>
@@ -901,7 +977,7 @@ export default function ManagementDashboard({
                           </linearGradient>
                         </defs>
                         <path d="M 25,10 H 95 A 18,18 0 0,1 113,28 A 18,18 0 0,1 95,46 H 25 A 18,18 0 0,1 7,28 A 18,18 0 0,1 25,10 Z"
-                          fill="transparent" stroke="#1c203a" strokeWidth="6" />
+                          fill="transparent" className="cyber-track-ring" strokeWidth="6" />
                         <path d="M 25,10 H 95 A 18,18 0 0,1 113,28 A 18,18 0 0,1 95,46 H 25 A 18,18 0 0,1 7,28 A 18,18 0 0,1 25,10 Z"
                           fill="transparent" stroke="url(#capsuleGrad)" strokeWidth="6" strokeLinecap="round"
                           strokeDasharray="265" strokeDashoffset={265 - (presentPercentage / 100) * 265}
@@ -931,12 +1007,12 @@ export default function ManagementDashboard({
                     <div style={{
                       width: '26px',
                       height: '95px',
-                      background: 'rgba(255,255,255,0.01)',
+                      background: 'var(--bg-tertiary)',
                       borderRadius: '6px',
                       position: 'relative',
                       transform: 'skewX(-12deg)',
                       overflow: 'hidden',
-                      border: '1px solid rgba(255, 255, 255, 0.03)'
+                      border: '1px solid var(--border-glass)'
                     }}>
                       <div style={{
                         position: 'absolute',
@@ -950,7 +1026,7 @@ export default function ManagementDashboard({
                         transition: 'height 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
                       }} />
                     </div>
-                    <span style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.4rem', fontWeight: 700 }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.4rem', fontWeight: 700 }}>
                       {g.label}
                     </span>
                     <span style={{ fontSize: '0.6rem', color: '#ec4899', fontWeight: 800 }}>
@@ -977,19 +1053,19 @@ export default function ManagementDashboard({
                         <stop offset="100%" stopColor="#ec4899" />
                       </linearGradient>
                     </defs>
-                    <path d="M 10,65 A 50,50 0 0,1 110,65" fill="none" stroke="#1c203a" strokeWidth="8" strokeLinecap="round" />
+                    <path d="M 10,65 A 50,50 0 0,1 110,65" fill="none" className="cyber-track-ring" strokeWidth="8" strokeLinecap="round" />
                     <path d="M 10,65 A 50,50 0 0,1 110,65" fill="none" stroke="url(#arcGrad)" strokeWidth="8" strokeLinecap="round"
                       strokeDasharray="157" strokeDashoffset={157 - (Math.min(patrolPct, 100) / 100) * 157}
                       style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
                   </svg>
                   <div style={{
                     position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-                    fontSize: '0.9rem', fontWeight: 900, color: 'white'
+                    fontSize: '0.9rem', fontWeight: 900, color: 'var(--text-primary)'
                   }}>
                     {Math.round(patrolPct)}%
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                   <div>Dipatroli: <strong>{patrolledAreasToday.size}</strong> pos</div>
                   <div>Sisa: <strong style={{ color: '#ef4444' }}>{areas.length - patrolledAreasToday.size}</strong> pos</div>
                   <div>Target: <strong style={{ color: '#00f0ff' }}>90%</strong></div>
@@ -1003,11 +1079,11 @@ export default function ManagementDashboard({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexGrow: 1 }}>
                 <div style={{ position: 'relative', width: '70px', height: '70px', flexShrink: 0 }}>
                   <svg width="70" height="70" viewBox="0 0 80 80">
-                    <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" stroke="#1c203a" strokeWidth="5" strokeLinecap="round" />
+                    <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" className="cyber-track-ring" strokeWidth="5" strokeLinecap="round" />
                     <path d="M 25,15 A 25,25 0 0,0 25,65" fill="none" stroke="#00f0ff" strokeWidth="5" strokeLinecap="round"
                       strokeDasharray="78.5" strokeDashoffset={78.5 - (onlinePct / 100) * 78.5} />
                       
-                    <path d="M 55,65 A 25,25 0 0,0 55,15" fill="none" stroke="#1c203a" strokeWidth="5" strokeLinecap="round" />
+                    <path d="M 55,65 A 25,25 0 0,0 55,15" fill="none" className="cyber-track-ring" strokeWidth="5" strokeLinecap="round" />
                     <path d="M 55,65 A 25,25 0 0,0 55,15" fill="none" stroke="#ec4899" strokeWidth="5" strokeLinecap="round"
                       strokeDasharray="78.5" strokeDashoffset={78.5 - ((100 - onlinePct) / 100) * 78.5} />
                   </svg>
@@ -1019,14 +1095,14 @@ export default function ManagementDashboard({
                     <div style={{ fontSize: '0.5rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Score</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                   <div className="cyber-info-item">
                     <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
-                    <span>Aktif: <strong style={{ color: 'white' }}>{totalOnline}</strong></span>
+                    <span>Aktif: <strong style={{ color: 'var(--text-primary)' }}>{totalOnline}</strong></span>
                   </div>
                   <div className="cyber-info-item">
                     <div className="cyber-color-dot" style={{ background: '#ec4899' }} />
-                    <span>Pasif: <strong style={{ color: 'white' }}>{totalOffline}</strong></span>
+                    <span>Pasif: <strong style={{ color: 'var(--text-primary)' }}>{totalOffline}</strong></span>
                   </div>
                   <div style={{ fontSize: '0.65rem' }}>Indeks: <strong style={{ color: healthColor }}>{healthLabel}</strong></div>
                 </div>
@@ -1051,15 +1127,15 @@ export default function ManagementDashboard({
                 return (
                   <div key={r.regu} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
-                      <span style={{ fontWeight: 700, color: 'white' }}>{r.regu}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.regu}</span>
                       <span style={{ color: '#00f0ff', fontWeight: 800 }}>{pct}%</span>
                     </div>
                     <div style={{
                       height: '14px',
                       borderRadius: '999px',
-                      background: '#1c203a',
+                      background: 'var(--bg-tertiary)',
                       overflow: 'hidden',
-                      border: '1px solid rgba(255, 255, 255, 0.03)',
+                      border: '1px solid var(--border-glass)',
                       position: 'relative'
                     }}>
                       <div style={{
@@ -1087,10 +1163,10 @@ export default function ManagementDashboard({
                 boxShadow: '0 0 15px rgba(0,0,0,0.5)', flexShrink: 0
               }}>
                 <div style={{ 
-                  width: '75px', height: '75px', borderRadius: '50%', background: '#111625', 
+                  width: '75px', height: '75px', borderRadius: '50%', background: 'var(--bg-secondary)', 
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' 
                 }}>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: 'white' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text-primary)' }}>
                     {findings.length + complaints.length}
                   </span>
                   <span style={{ fontSize: '0.52rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
