@@ -20,6 +20,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { getGPSCoordinates, generateAntiFraudData } from '../utils/security';
 import { compressImage } from '../utils/image';
 import { registerBackHandler } from '../utils/navigation';
+import { hapticMedium, hapticSuccess, hapticHeavy } from '../utils/haptics';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -274,6 +275,7 @@ export default function SecurityPatrolApp({
   };
 
   const handleBarcodeScannedSuccessfully = (val) => {
+    hapticSuccess();
     let cleanVal = val.trim();
     if (!cleanVal) return;
 

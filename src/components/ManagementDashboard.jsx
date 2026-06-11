@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   Users, 
   MapPin, 
@@ -22,6 +22,7 @@ import {
   Shield
 } from 'lucide-react';
 import { getWAContacts, buildWAMessage, buildWALink } from '../data/waContacts';
+import { hapticMedium, hapticSuccess, hapticError, hapticWarning } from '../utils/haptics';
 
 const SEVERITY_COLOR = {
   Kritis: '#dc2626',
@@ -104,7 +105,7 @@ export default function ManagementDashboard({
     kpiHadir = users.filter(u => ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).length;
   }
 
-  const dispositionedComplaintsAsFindings = complaints
+  const dispositionedComplaintsAsFindings = useMemo(() => complaints
     .filter(c => c.department && c.status !== 'Baru')
     .map(c => ({
       id: `complaint-${c.id}`,
@@ -122,27 +123,28 @@ export default function ManagementDashboard({
       waSentAt: c.waSentAt,
       foto: c.photos && c.photos.length > 0 ? c.photos[0] : null,
       complaintData: c
-    }));
+    })), [complaints]);
 
-  const combinedFindings = [...findings, ...dispositionedComplaintsAsFindings].sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
+  const combinedFindings = useMemo(() => [...findings, ...dispositionedComplaintsAsFindings].sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0)), [findings, dispositionedComplaintsAsFindings]);
 
   const totalFindingsOpen = combinedFindings.filter(f => f.status !== 'Closed').length;
   const unvisitedAreas = areas.filter(a => !patrolledAreasToday.has(a.id));
   const missedAreas = unvisitedAreas.slice(0, 4);
 
   // ── Findings berdasarkan dept ──────────────────────────────────────────────
-  const findingsByDept = {
+  const findingsByDept = useMemo(() => ({
     Teknisi:  combinedFindings.filter(f => f.department === 'Teknisi'),
     Cleaning: combinedFindings.filter(f => f.department === 'Cleaning'),
     Keamanan: combinedFindings.filter(f => f.department === 'Keamanan'),
-  };
-  const filteredFindings = activeTab === 'semua' ? combinedFindings : findingsByDept[activeTab] || [];
+  }), [combinedFindings]);
+  const filteredFindings = useMemo(() => activeTab === 'semua' ? combinedFindings : findingsByDept[activeTab] || [], [activeTab, combinedFindings, findingsByDept]);
 
   // WA already sent count
   const waSentCount = dept => combinedFindings.filter(f => f.department === dept && f.waStatus?.startsWith('Terkirim')).length;
 
   // ── Dispatch handler ───────────────────────────────────────────────────────
   const handleDispatch = (finding, dept) => {
+    hapticMedium();
     if (finding.isFromComplaint) {
       const history = [...(finding.complaintData.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ulang ke ${dept} dari Dashboard` }];
       if (onUpdateComplaint) {

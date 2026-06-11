@@ -17,6 +17,7 @@ import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignat
 import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
 import db from './utils/db';
+import { hapticLight } from './utils/haptics';
 import { initSupabase,
   subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, deleteComplaintFromFirestore,
   subscribeReports, addReportToFirestore, updateReportInFirestore, deleteReportFromFirestore,
@@ -446,6 +447,22 @@ export default function App() {
       return next;
     });
   };
+
+  useEffect(() => {
+    const setStatusBarStyle = async () => {
+      try {
+        const { StatusBar } = await import('@capacitor/status-bar');
+        if (theme === 'dark') {
+          await StatusBar.setStyle({ style: 'DARK' });
+          await StatusBar.setBackgroundColor({ color: '#0f172a' });
+        } else {
+          await StatusBar.setStyle({ style: 'LIGHT' });
+          await StatusBar.setBackgroundColor({ color: '#ffffff' });
+        }
+      } catch (_) {}
+    };
+    setStatusBarStyle();
+  }, [theme]);
 
   // ── Inisialisasi Users: Prioritaskan localStorage → Firebase fallback ──────────
   // BASE_USERS HANYA digunakan jika localStorage benar-benar kosong (install baru)
