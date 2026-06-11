@@ -3867,31 +3867,62 @@ body.dashboard-active {
   color: #b91c1c;
 }
 
+/* Brand Logo and Title Header Styling */
+.header-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.header-brand-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.header-page-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
 /* Premium Android Mobile Header & Touch Target Refinements */
 @media (max-width: 768px) {
-  /* Clean mobile header: show only title */
+  /* Clean mobile header: show logo, brand name, and page title */
   .global-header .menu-toggle-btn {
     display: none !important;
   }
   .global-header .header-logo-box {
-    display: none !important;
+    display: flex !important; /* Show logo on mobile */
+    padding: 0.3rem !important;
+  }
+  .global-header .header-logo-box img {
+    height: 32px !important;
   }
   .global-header .header-right {
     display: none !important;
   }
   .global-header .header-left {
     flex-direction: row !important;
-    gap: 0 !important;
+    gap: 0.75rem !important;
     justify-content: flex-start;
     align-items: center;
     width: 100%;
   }
-  .global-header .header-text-box {
+  .global-header .header-brand-text {
     text-align: left;
-    width: 100%;
+    width: auto;
+    gap: 1px !important;
   }
-  .global-header .header-text-box h1 {
-    font-size: 1.15rem !important;
+  .global-header .header-brand-name {
+    font-size: 0.65rem !important;
+  }
+  .global-header .header-page-title {
+    font-size: 1.05rem !important;
     font-weight: 800 !important;
     color: var(--text-primary);
     margin: 0;

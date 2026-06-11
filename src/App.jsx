@@ -2131,36 +2131,23 @@ export default function App() {
               <div className="header-logo-box">
                 <img src="logo.png" alt="SMPJDC" className="logo-3d" />
               </div>
-            </div>
-            <div className="header-text-box">
-              <h1 className="header-title">
-                {currentTab === 'dashboard' && 'Dashboard Manajemen Keamanan'}
-                {currentTab === 'absensi' && 'Absensi & Plotting Penjagaan'}
-                {currentTab === 'target-compliance' && 'Dashboard Target & SLA'}
-                {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
-                {currentTab === 'mutasi' && 'Mutasi Penjagaan'}
-                {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
-                {currentTab === 'guard-simulator' && (isGodMode ? 'Simulasi HP Petugas' : 'Aplikasi Patroli')}
-                {currentTab === 'user-management' && 'Management User'}
-                {currentTab === 'roster' && 'Roster Jadwal Kerja Bulanan'}
-                {currentTab === 'backup' && 'Backup & Restore Data'}
-                {currentTab === 'lapor' && 'Lapor Cepat'}
-                {currentTab === 'complaint' && 'Komplain Masuk & Management Tiket'}
-              </h1>
-              <p className="header-desc">
-                {currentTab === 'dashboard' && 'Pemantauan real-time petugas, status area, dan statistik keamanan.'}
-                {currentTab === 'absensi' && 'Input absensi harian regu dan plotting pos penugasan personil security.'}
-                {currentTab === 'target-compliance' && 'Realisasi patroli, SLA penyelesaian kendala, dan target SMPJDC Tenant.'}
-                {currentTab === 'barcodes' && 'Daftar master area SMPJDC, cetak barcode QR, dan generate massal.'}
-                {currentTab === 'mutasi' && 'Catatan serah terima shift, informasi, dan kejadian antar petugas.'}
-                {currentTab === 'reports' && 'Filter laporan patroli harian/shift, ekspor ke PDF/Excel, dan follow-up temuan.'}
-                {currentTab === 'guard-simulator' && (isGodMode ? 'Uji coba alur patroli petugas security menggunakan HP virtual.' : 'Aplikasi patroli untuk scan barcode, laporan temuan, dan catatan mutasi.')}
-                {currentTab === 'user-management' && 'Kelola user, tambah anggota baru, atur role dan akses sistem.'}
-                {currentTab === 'roster' && 'Input jadwal shift bulanan per personil: P, S, M, MD1, MD2, KH1, KH2, BKO, X.'}
-                {currentTab === 'backup' && 'Ekspor dan impor seluruh data sistem untuk keamanan data.'}
-                {currentTab === 'lapor' && 'Form pengisian laporan cepat patroli dan mutasi kejadian.'}
-                {currentTab === 'complaint' && 'Kelola komplain masuk dari tenant/pelanggan, disposisi ke departemen, dan pantau status tiket.'}
-              </p>
+              <div className="header-brand-text">
+                <span className="header-brand-name">SMPJDC</span>
+                <h1 className="header-page-title">
+                  {currentTab === 'dashboard' && 'Dashboard Manajemen Keamanan'}
+                  {currentTab === 'absensi' && 'Absensi & Plotting Penjagaan'}
+                  {currentTab === 'target-compliance' && 'Dashboard Target & SLA'}
+                  {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
+                  {currentTab === 'mutasi' && 'Mutasi Penjagaan'}
+                  {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
+                  {currentTab === 'guard-simulator' && (isGodMode ? 'Simulasi HP Petugas' : 'Aplikasi Patroli')}
+                  {currentTab === 'user-management' && 'Management User'}
+                  {currentTab === 'roster' && 'Roster Jadwal Kerja Bulanan'}
+                  {currentTab === 'backup' && 'Backup & Restore Data'}
+                  {currentTab === 'lapor' && 'Lapor Cepat'}
+                  {currentTab === 'complaint' && 'Komplain Masuk & Management Tiket'}
+                </h1>
+              </div>
             </div>
           </div>
 
