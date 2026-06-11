@@ -275,8 +275,9 @@ export default function BarcodeGenerator({
         `;
       }));
       const pageHtml = [];
-      for (let i = 0; i < cards.length; i += 4) {
-        const chunk = cards.slice(i, i + 4);
+      const perPage = 6;
+      for (let i = 0; i < cards.length; i += perPage) {
+        const chunk = cards.slice(i, i + perPage);
         pageHtml.push(`<div class="page">${chunk.join('')}</div>`);
       }
       const printWin = window.open('', '_blank', 'width=500,height=700');
@@ -290,11 +291,11 @@ export default function BarcodeGenerator({
             <title>Cetak Semua QR Checkpoint</title>
             <style>
               body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; box-sizing: border-box; color: #0b0f19; }
-              .page { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; width: 100%; height: 100vh; page-break-after: always; box-sizing: border-box; padding: 12px; }
-              .qr-card { border: 2px solid #ccc; border-radius: 8px; background: #fff; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; page-break-inside: avoid; }
-              img { width: 140px; height: 140px; margin-bottom: 6px; }
-              h2 { margin: 0 0 2px 0; font-size: 13px; letter-spacing: 1px; }
-              p { margin: 0; font-size: 10px; color: #555; }
+              .page { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 4px; width: 100%; height: 100vh; page-break-after: always; box-sizing: border-box; padding: 8px; }
+              .qr-card { border: 1.5px solid #ccc; border-radius: 6px; background: #fff; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; page-break-inside: avoid; }
+              img { width: 100px; height: 100px; margin-bottom: 4px; }
+              h2 { margin: 0 0 1px 0; font-size: 11px; letter-spacing: 1px; }
+              p { margin: 0; font-size: 9px; color: #555; }
               @media print { body { -webkit-print-color-adjust: exact; } .page { page-break-after: always; } }
             </style>
           </head>
