@@ -16,6 +16,7 @@ import { executeBackHandlers } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
 import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
+import db from './utils/db';
 import { initSupabase,
   subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, deleteComplaintFromFirestore,
   subscribeReports, addReportToFirestore, updateReportInFirestore, deleteReportFromFirestore,
@@ -583,70 +584,9 @@ export default function App() {
     } catch { return []; }
   });
 
-  const pruneReportsAndRetry = () => {
-    setReports(prev => {
-      const pruned = prev.map((r, idx) => {
-        if (idx >= 10 && r.foto) {
-          return { ...r, foto: null };
-        }
-        return r;
-      });
-      try {
-        localStorage.setItem('sapujagat_reports', JSON.stringify(pruned));
-      } catch (e) {
-        const hardPruned = pruned.slice(0, 20).map(r => ({ ...r, foto: null }));
-        try {
-          localStorage.setItem('sapujagat_reports', JSON.stringify(hardPruned));
-        } catch (err) {
-          console.error('Hard prune of reports failed:', err);
-        }
-      }
-      return pruned;
-    });
-  };
-
-  const pruneFindingsAndRetry = () => {
-    setFindings(prev => {
-      const pruned = prev.map((f, idx) => {
-        if (idx >= 10 && f.foto) {
-          return { ...f, foto: null };
-        }
-        return f;
-      });
-      try {
-        localStorage.setItem('sapujagat_findings', JSON.stringify(pruned));
-      } catch (e) {
-        const hardPruned = pruned.slice(0, 20).map(f => ({ ...f, foto: null }));
-        try {
-          localStorage.setItem('sapujagat_findings', JSON.stringify(hardPruned));
-        } catch (err) {
-          console.error('Hard prune of findings failed:', err);
-        }
-      }
-      return pruned;
-    });
-  };
-
-  const pruneMutasiAndRetry = () => {
-    setMutasiLogs(prev => {
-      const pruned = prev.map((m, idx) => {
-        if (idx >= 10 && m.foto) {
-          return { ...m, foto: null };
-        }
-        return m;
-      });
-      try {
-        localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(pruned));
-      } catch (e) {
-        const hardPruned = pruned.slice(0, 20).map(m => ({ ...m, foto: null }));
-        try {
-          localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(hardPruned));
-        } catch (err) {
-          console.error('Hard prune of mutasi failed:', err);
-        }
-      }
-      return pruned;
-    });
+  const persistState = (key, data) => {
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) {}
+    db.set(key, data);
   };
 
   useEffect(() => {
@@ -686,46 +626,10 @@ export default function App() {
     }
   }, [posList]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('sapujagat_reports', JSON.stringify(reports));
-    } catch (e) {
-      console.error('Failed to save reports to localStorage', e);
-      if (e.name === 'QuotaExceededError' || e.code === 22) {
-        pruneReportsAndRetry();
-      }
-    }
-  }, [reports]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('sapujagat_findings', JSON.stringify(findings));
-    } catch (e) {
-      console.error('Failed to save findings to localStorage', e);
-      if (e.name === 'QuotaExceededError' || e.code === 22) {
-        pruneFindingsAndRetry();
-      }
-    }
-  }, [findings]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(mutasiLogs));
-    } catch (e) {
-      console.error('Failed to save mutasi logs to localStorage', e);
-      if (e.name === 'QuotaExceededError' || e.code === 22) {
-        pruneMutasiAndRetry();
-      }
-    }
-  }, [mutasiLogs]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(attendanceLogs));
-    } catch (e) {
-      console.error('Failed to save attendance logs to localStorage', e);
-    }
-  }, [attendanceLogs]);
+  useEffect(() => { persistState('sapujagat_reports', reports); }, [reports]);
+  useEffect(() => { persistState('sapujagat_findings', findings); }, [findings]);
+  useEffect(() => { persistState('smpjdc_mutasi_logs', mutasiLogs); }, [mutasiLogs]);
+  useEffect(() => { persistState('smpjdc_attendance_logs', attendanceLogs); }, [attendanceLogs]);
 
   useEffect(() => {
     try {
@@ -786,7 +690,7 @@ export default function App() {
           const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
           if (!exists && merged.length < 500) merged.push(local);
         });
-        try { localStorage.setItem('sapujagat_findings', JSON.stringify(merged)); } catch (e) {}
+        persistState('sapujagat_findings', merged);
         return merged;
       });
     }, { limit: 500 });

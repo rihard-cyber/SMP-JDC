@@ -3487,6 +3487,52 @@ input[type="file"] + label,
   touch-action: manipulation;
 }
 
+/* ═══════════════════════════════════════
+   PERFORMANCE OPTIMIZATIONS — Android WebView
+   ═══════════════════════════════════════ */
+
+/* GPU acceleration for animated/transitioned elements */
+.glass-panel,
+.sidebar,
+.bottom-nav,
+.modal-panel,
+.finding-ticket,
+.panic-card,
+.table-wrap,
+button,
+a,
+[role="button"] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Native scrolling for scroll containers */
+.table-wrap,
+.sidebar,
+.modal-panel,
+.main-content,
+.finding-card-content,
+[class*="scroll"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Prevent text size adjust on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Optimize paint for fixed elements */
+.sidebar,
+.bottom-nav,
+.panic-overlay,
+.toast-container {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 /* Danger icon button */
 .btn-icon-danger {
   display: inline-flex;
