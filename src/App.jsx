@@ -2111,6 +2111,10 @@ export default function App() {
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             <span>{theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}</span>
           </button>
+          <button onClick={handleLogout} className="sidebar-logout-btn" title="Keluar">
+            <LogOut size={15} />
+            <span>Keluar</span>
+          </button>
           <div className="sidebar-footer-copy">
             © 2026 SMPJDC By_RichardMeha.
           </div>
@@ -2165,9 +2169,6 @@ export default function App() {
               <Shield size={14} />
               <span>{currentUser.nama} ({jabatanShort[currentUser.jabatan] || currentUser.jabatan})</span>
             </div>
-            <button onClick={handleLogout} className="btn-logout" title="Logout">
-              <LogOut size={16} /> Keluar
-            </button>
           </div>
         </header>
 

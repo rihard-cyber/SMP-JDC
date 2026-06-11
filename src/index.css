@@ -3831,3 +3831,111 @@ body.dashboard-active {
 .sidebar-nav-item:hover {
   transform: none !important;
 }
+
+/* Sidebar Logout Button Styles */
+.sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--border-radius-sm);
+  color: #ef4444;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  width: 100%;
+  transition: var(--transition-smooth);
+  margin-top: 0.2rem;
+  box-sizing: border-box;
+}
+.sidebar-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+}
+.theme-light .sidebar-logout-btn {
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: #dc2626;
+}
+.theme-light .sidebar-logout-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #b91c1c;
+}
+
+/* Premium Android Mobile Header & Touch Target Refinements */
+@media (max-width: 768px) {
+  /* Clean mobile header: show only title */
+  .global-header .menu-toggle-btn {
+    display: none !important;
+  }
+  .global-header .header-logo-box {
+    display: none !important;
+  }
+  .global-header .header-right {
+    display: none !important;
+  }
+  .global-header .header-left {
+    flex-direction: row !important;
+    gap: 0 !important;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+  }
+  .global-header .header-text-box {
+    text-align: left;
+    width: 100%;
+  }
+  .global-header .header-text-box h1 {
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  .global-header .header-desc {
+    display: none !important;
+  }
+  .global-header {
+    padding: 0.85rem 0.25rem !important;
+    border-bottom: 1px solid var(--border-glass);
+    margin-bottom: 1.25rem !important;
+    justify-content: flex-start !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  
+  /* Mobile touch target scale-up to prevent accidental card toggles */
+  .btn-icon,
+  .btn-icon-primary,
+  .btn-icon-danger,
+  .user-action-btn,
+  .finding-card-actions button,
+  .finding-ticket button,
+  .glass-panel button:not(.btn-full):not(.theme-toggle-btn):not(.sidebar-logout-btn) {
+    min-height: 42px !important;
+    min-width: 42px;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.78rem !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  
+  /* Ensure lucide icons inside buttons scale nicely */
+  .btn-icon svg,
+  .btn-icon-primary svg,
+  .btn-icon-danger svg,
+  .user-action-btn svg,
+  .finding-card-actions button svg,
+  .finding-ticket button svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+}

@@ -225,29 +225,34 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(c => (
             <div key={c.id} className="glass-panel" style={{
-              padding: '0.75rem', cursor: 'pointer', transition: 'var(--transition-smooth)',
+              padding: '0.75rem', transition: 'var(--transition-smooth)',
               borderLeft: `3px solid ${statusColor(c.status)}`,
               background: detail?.id === c.id ? 'rgba(59,130,246,0.05)' : undefined
-            }} onClick={() => setDetail(detail?.id === c.id ? null : c)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.02em', color: 'var(--color-primary)' }}>{c.ticketId}</span>
-                  <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}>{c.name}</span>
+            }}>
+              <div
+                onClick={() => setDetail(detail?.id === c.id ? null : c)}
+                style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.02em', color: 'var(--color-primary)' }}>{c.ticketId}</span>
+                    <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}>{c.name}</span>
+                  </div>
+                  <span style={{
+                    fontSize: '0.6rem', padding: '0.12rem 0.5rem', borderRadius: '20px', fontWeight: 700, whiteSpace: 'nowrap',
+                    background: `${statusColor(c.status)}20`, color: statusColor(c.status)
+                  }}>{c.status}</span>
                 </div>
-                <span style={{
-                  fontSize: '0.6rem', padding: '0.12rem 0.5rem', borderRadius: '20px', fontWeight: 700, whiteSpace: 'nowrap',
-                  background: `${statusColor(c.status)}20`, color: statusColor(c.status)
-                }}>{c.status}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Building size={10} /> {c.tenant}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {c.location || c.floor}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><AlertTriangle size={10} /> {c.category}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={10} /> {new Date(c.createdAt).toLocaleDateString('id-ID', { dateStyle: 'short' })}</span>
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.3rem' }}>{c.description}</p>
+                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Building size={10} /> {c.tenant}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {c.location || c.floor}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><AlertTriangle size={10} /> {c.category}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={10} /> {new Date(c.createdAt).toLocaleDateString('id-ID', { dateStyle: 'short' })}</span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.3rem' }}>{c.description}</p>
 
-              {c.department && <div style={{ fontSize: '0.65rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '0.2rem' }}>Disposisi: {c.department}</div>}
+                {c.department && <div style={{ fontSize: '0.65rem', color: 'var(--color-primary)', fontWeight: 600, marginTop: '0.2rem' }}>Disposisi: {c.department}</div>}
+              </div>
 
               {/* Detail panel */}
               {detail?.id === c.id && (
