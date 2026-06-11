@@ -771,15 +771,34 @@ h1, h2, h3, h4, h5, h6 {
   }
   /* Mobile phone simulator: scale down to fit screen */
   .mobile-simulator-container {
-    padding: 0.5rem 0;
-    overflow-x: auto;
-    justify-content: flex-start;
+    padding: 0 !important;
+    width: 100% !important;
+    height: calc(100vh - 180px) !important;
+    min-height: 400px !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    overflow: hidden !important;
   }
   .mobile-phone-frame {
-    width: 320px;
-    height: 680px;
-    border-radius: 28px;
-    flex-shrink: 0;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 1 !important;
+  }
+  .mobile-phone-frame::before {
+    display: none !important;
+  }
+  .mobile-screen {
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
   }
 
   .main-content {
@@ -2817,10 +2836,14 @@ h1, h2, h3, h4, h5, h6 {
 /* Fix mobile phone frame overflow on very small screens */
 @media (max-width: 400px) {
   .mobile-phone-frame {
-    width: calc(100vw - 2rem) !important;
-    min-width: 280px;
-    border-radius: 20px !important;
-    border-width: 8px !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .mobile-screen {
     padding: 0.5rem !important;
@@ -3770,15 +3793,22 @@ html {
      tetap boleh pakai transform (sidebar, modal, dll) */
 }
 
-/* Pastikan html dan body SELALU bisa scroll */
-html {
+/* Pastikan html dan body bisa scroll hanya jika dashboard tidak aktif */
+html:not(.dashboard-active) {
   overflow-y: auto !important;
   height: auto !important;
 }
-body {
+body:not(.dashboard-active) {
   overflow-y: auto !important;
   min-height: 100vh !important;
   height: auto !important;
+}
+
+html.dashboard-active,
+body.dashboard-active {
+  overflow: hidden !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
 }
 
 /* Root React tidak boleh overflow hidden */

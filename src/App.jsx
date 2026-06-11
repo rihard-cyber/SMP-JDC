@@ -167,6 +167,20 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (authenticated) {
+      document.body.classList.add('dashboard-active');
+      document.documentElement.classList.add('dashboard-active');
+    } else {
+      document.body.classList.remove('dashboard-active');
+      document.documentElement.classList.remove('dashboard-active');
+    }
+    return () => {
+      document.body.classList.remove('dashboard-active');
+      document.documentElement.classList.remove('dashboard-active');
+    };
+  }, [authenticated]);
+
   // Profile & Email Verification State
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [verifStep, setVerifStep] = useState('idle'); // idle | send | verify | done
