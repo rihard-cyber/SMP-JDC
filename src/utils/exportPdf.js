@@ -45,19 +45,28 @@ const toInlineStyle = (style) => {
     .join(';');
 };
 
+const isPhotoCell = (cell) => cell && typeof cell === 'object' && !Array.isArray(cell) && ('image' in cell || 'images' in cell);
+
 const renderCell = (cell) => {
   if (cell && typeof cell === 'object' && !Array.isArray(cell)) {
-    const className = cell.className ? ` ${escapeHtml(cell.className)}` : '';
+    const className = cell.className ? ` class="${escapeHtml(cell.className)}"` : '';
     const style = cell.style ? ` style="${escapeHtml(toInlineStyle(cell.style))}"` : '';
     const text = cell.text ?? '';
-    const image = cell.image || getFirstPhoto(cell.images);
-    const imageHtml = image
-      ? `<div class="photo-box"><img src="${escapeHtml(image)}" alt="Foto" /></div>`
-      : '';
+    const isPhoto = isPhotoCell(cell);
+    if (isPhoto) {
+      const image = cell.image || getFirstPhoto(cell.images);
+      const imageHtml = image
+        ? `<div class="photo-box photo-box-has"><img src="${escapeHtml(image)}" alt="Foto" /></div>`
+        : '<div class="photo-box photo-box-empty"><span class="photo-na">-</span></div>';
+      const textHtml = text !== '' && text !== null && text !== undefined
+        ? `<div class="photo-caption">${escapeHtml(text)}</div>`
+        : '';
+      return `<td class="cell cell-photo${className}"${style}>${imageHtml}${textHtml}</td>`;
+    }
     const textHtml = text !== '' && text !== null && text !== undefined
       ? `<div>${escapeHtml(text)}</div>`
       : '';
-    return `<td class="cell${className}"${style}>${imageHtml || textHtml ? imageHtml + textHtml : '-'}</td>`;
+    return `<td class="cell${className}"${style}>${textHtml || '-'}</td>`;
   }
   return `<td class="cell">${escapeHtml(cell === '' || cell === null || cell === undefined ? '-' : cell)}</td>`;
 };
@@ -196,20 +205,30 @@ export function exportTableToPdf({
           .text-right { text-align: right; }
           .mono { font-family: Consolas, 'Courier New', monospace; }
           .status-done { font-weight: 700; }
+          .cell-photo { vertical-align: middle; }
           .photo-box {
             width: 100%;
-            min-height: 48px;
+            height: 72px;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
           }
-          .photo-box img {
-            max-width: 74px;
-            max-height: 58px;
-            object-fit: cover;
+          .photo-box-has img {
+            max-width: 100%;
+            max-height: 68px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
             border: 1px solid #555;
             display: block;
           }
+          .photo-box-empty {
+            color: #999;
+            font-size: 8px;
+          }
+          .photo-na { font-style: italic; }
+          .photo-caption { font-size: 7px; color: #666; margin-top: 1px; }
           .empty {
             padding: 22px;
             font-size: 11px;
