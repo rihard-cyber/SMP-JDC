@@ -637,7 +637,7 @@ export default function SecurityPatrolApp({
 
                 {/* Video Scanner Container */}
                 <div style={{ position: 'relative', width: '100%', minHeight: '220px', borderRadius: '12px', overflow: 'hidden', background: '#090f1d', border: '2px solid rgba(59, 130, 246, 0.4)', boxShadow: '0 0 20px rgba(59, 130, 246, 0.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
-                  <div id="reader" style={{ width: '100%', minHeight: '220px' }}></div>
+                  <div id="reader" style={{ width: '100%', minHeight: '220px', pointerEvents: scanLoading ? 'auto' : 'none' }}></div>
                   
                   {scanning && !scanLoading && (
                     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1rem', zIndex: 10 }}>

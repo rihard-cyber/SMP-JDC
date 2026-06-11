@@ -12,7 +12,7 @@ const KATEGORI_MUTASI = [
   { id: '__lainnya__', label: 'Lainnya...', icon: X, color: '#6b7280' }
 ];
 
-export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [] }) {
+export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [], canViewResults }) {
   const [jamKejadian, setJamKejadian] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   const [lokasi, setLokasi] = useState('');
   const [lokasiCustom, setLokasiCustom] = useState('');
@@ -163,6 +163,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
         </div>
 
         {/* TABEL MUTASI / LAPORAN */}
+        {canViewResults && (
         <div className="glass-panel grid-span-2" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -259,6 +260,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {/* LIGHTBOX MODAL UNTUK PREVIEW FOTO */}
