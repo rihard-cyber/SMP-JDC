@@ -2714,11 +2714,16 @@ h1, h2, h3, h4, h5, h6 {
   touch-action: manipulation;
 }
 
-@media (max-width: 768px), .mobile-screen {
+@media (max-width: 768px) {
   .severity-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.45rem !important;
   }
+}
+
+.mobile-screen .severity-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.45rem !important;
 }
 
 .mutasi-kategori-grid {
@@ -4245,4 +4250,60 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     touch-action: manipulation;
   }
 }
+
+/* ============================================================
+   RESPONSIVE SIMULATOR ADJUSTMENTS & AUTO-HIDE SCROLL FIXES
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Hide parent global header and footer inside the simulator on mobile */
+  .hide-on-simulator-mobile {
+    display: none !important;
+  }
+
+  /* Reset main-content padding and force full heights when simulator is active */
+  .in-simulator .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  /* Simulator container takes up exactly the screen height minus the bottom navbar height */
+  .in-simulator .mobile-simulator-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: calc(100vh - 68px) !important;
+    min-height: auto !important;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* When bottom navigation hides, let simulator expand to fill the entire viewport */
+  .dashboard-layout.in-simulator:has(.bottom-nav-hidden) .mobile-simulator-container {
+    height: 100vh !important;
+  }
+
+  /* Make sure the simulator phone frame occupies full height and width without boundaries */
+  .in-simulator .mobile-phone-frame {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 1 !important;
+  }
+
+  /* Inner mobile screen layout handles its own scrolling and has plenty of bottom padding */
+  .in-simulator .mobile-screen {
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow-y: auto !important;
+    padding: 1rem 1rem 4rem 1rem !important; /* Generous bottom padding so buttons aren't cut off */
+    box-sizing: border-box !important;
+  }
+}
+
 

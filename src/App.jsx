@@ -2351,7 +2351,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-    <div className={`dashboard-layout theme-${theme}`} style={{ position: 'relative' }}>
+    <div className={`dashboard-layout theme-${theme} ${currentTab === 'guard-simulator' ? 'in-simulator' : ''}`} style={{ position: 'relative' }}>
       <DeveloperWatermarkBackground theme={theme} />
       {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
@@ -2503,7 +2503,7 @@ export default function App() {
       </aside>
 
       <main className="main-content" tabIndex={-1} id="main-scroll-container">
-        <header className="global-header">
+        <header className={`global-header ${currentTab === 'guard-simulator' ? 'hide-on-simulator-mobile' : ''}`}>
           <div className="header-left">
             <div className="header-brand-row">
               <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="menu-toggle-btn" aria-label="Toggle Sidebar">
@@ -2677,7 +2677,7 @@ export default function App() {
             </Suspense>
           )}
 
-          <footer className="app-footer">
+          <footer className={`app-footer ${currentTab === 'guard-simulator' ? 'hide-on-simulator-mobile' : ''}`}>
             <span>© 2026 <strong className="text-primary">SMPJDC</strong>. Hak Cipta Dilindungi.</span>
             <span>Developer: <strong>Richard Meha</strong></span>
           </footer>

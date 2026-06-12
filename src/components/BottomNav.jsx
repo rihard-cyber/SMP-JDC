@@ -18,7 +18,11 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
     let ticking = false;
     const handleScroll = (e) => {
       const target = e.target;
-      if (!target || (target.id !== 'main-scroll-container' && !target.classList?.contains('main-content'))) {
+      if (!target || (
+        target.id !== 'main-scroll-container' && 
+        !target.classList?.contains('main-content') &&
+        !target.classList?.contains('mobile-screen')
+      )) {
         return;
       }
 
