@@ -240,6 +240,12 @@ export default function SecurityPatrolApp({
   // ── States & Handlers for Self Attendance (SI PRESENSI PRO MAX) ──
   const videoRef = React.useRef(null);
 
+  // ── States for Scanning Presensi (Attendance Specific QR) ──
+  const [scanningPresensi, setScanningPresensi] = useState(false);
+  const [presensiScanLoading, setPresensiScanLoading] = useState(false);
+  const [presensiScanError, setPresensiScanError] = useState('');
+  const [presensiBarcodeInput, setPresensiBarcodeInput] = useState('');
+
   // Sync initial clockedStatus from database plotting
   useEffect(() => {
     if (myPlotting && myPlotting.status === 'Hadir') {
@@ -282,7 +288,7 @@ export default function SecurityPatrolApp({
   // Camera stream and GPS fetching
   useEffect(() => {
     let activeStream = null;
-    if (tab === 'presensi' && clockedStatus !== 'in' && !selfiePhoto) {
+    if (tab === 'presensi' && clockedStatus !== 'in' && !selfiePhoto && !scanningPresensi) {
       setGpsLoading(true);
       getGPSCoordinates().then(coords => {
         setGpsLoading(false);
@@ -331,7 +337,114 @@ export default function SecurityPatrolApp({
         activeStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [tab, selfiePhoto, clockedStatus]);
+  }, [tab, selfiePhoto, clockedStatus, scanningPresensi]);
+
+  // Live Camera Scanner Lifecycle for Presensi QR (Staff Room)
+  useEffect(() => {
+    let html5QrCodePresensi;
+    const elementId = "reader-presensi";
+    
+    if (scanningPresensi) {
+      setPresensiScanLoading(true);
+      setPresensiScanError('');
+      
+      const timer = setTimeout(() => {
+        try {
+          html5QrCodePresensi = new Html5Qrcode(elementId);
+          html5QrCodePresensi.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 220, height: 220 }
+            },
+            (decodedText) => {
+              handlePresensiBarcodeScannedSuccessfully(decodedText);
+              if (html5QrCodePresensi && html5QrCodePresensi.isScanning) {
+                html5QrCodePresensi.stop().catch(err => console.error(err));
+              }
+            },
+            () => {
+              // scanning...
+            }
+          ).then(() => {
+            setPresensiScanLoading(false);
+          }).catch(err => {
+            console.warn("Kamera scanner presensi gagal aktif:", err);
+            setPresensiScanLoading(false);
+            setScanningPresensi(false);
+            setPresensiScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan. Gunakan input manual di bawah.`);
+          });
+        } catch (e) {
+          console.error("Html5Qrcode scanner presensi failed to initialize:", e);
+          setPresensiScanLoading(false);
+          setPresensiScanError(`Scanner Error: ${e.message || e}`);
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrCodePresensi && html5QrCodePresensi.isScanning) {
+          html5QrCodePresensi.stop().catch(err => console.error(err));
+        }
+      };
+    }
+  }, [scanningPresensi]);
+
+  const handlePresensiBarcodeScannedSuccessfully = (val) => {
+    hapticSuccess();
+    let cleanVal = val.trim();
+    if (!cleanVal) return;
+
+    // Smart URL Parsing
+    if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
+      try {
+        const urlObj = new URL(cleanVal);
+        const checkpointParam = urlObj.searchParams.get('checkpoint') || 
+                                urlObj.searchParams.get('code') || 
+                                urlObj.searchParams.get('id');
+        if (checkpointParam) {
+          cleanVal = checkpointParam.trim();
+        } else {
+          const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+          if (pathSegments.length > 0) {
+            cleanVal = pathSegments[pathSegments.length - 1].trim();
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal memproses QR URL:', e);
+      }
+    }
+
+    if (cleanVal === 'JDC-MASTER-PRESENSI') {
+      playBeepSound();
+      setScanningPresensi(false);
+      setPresensiScanError('');
+      
+      // Notify user, return to webcam view and auto clock-in/out after a small delay
+      if (addToast) {
+        addToast('✓ QR Presensi Terverifikasi! Mengambil foto selfie...', 'success');
+      } else {
+        alert('✓ QR Presensi Terverifikasi! Mengambil foto selfie...');
+      }
+      
+      setTimeout(() => {
+        if (clockedStatus === 'in') {
+          handleSelfClockOut();
+        } else {
+          handleSelfClockIn();
+        }
+      }, 1500);
+    } else {
+      setPresensiScanError(`QR Code "${cleanVal}" tidak valid untuk absensi staff. Harap scan Barcode Master Presensi di Ruang Staff.`);
+      setTimeout(() => {
+        setPresensiScanError('');
+      }, 5000);
+    }
+  };
+
+  const handlePresensiBarcodeScan = () => {
+    handlePresensiBarcodeScannedSuccessfully(presensiBarcodeInput);
+  };
 
   const getJamDinasCode = (shiftCode) => {
     const shiftMap = { P: '06:00 - 14:00', S: '14:00 - 22:00', M: '22:00 - 06:00' };
@@ -951,298 +1064,365 @@ export default function SecurityPatrolApp({
               border: '1px solid var(--border-glass)', 
               borderRadius: '10px' 
             }}>
-              <h3 style={{ fontSize: '0.8rem', fontWeight: 700, margin: '0 0 0.65rem 0', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Presensi Masuk/Pulang</h3>
-
-              {/* Camera Scanner Box */}
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '170px',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                background: '#090d16',
-                border: '1px solid var(--border-glass)',
-                marginBottom: '0.65rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {/* Overlay Header: Title */}
-                <div style={{
-                  position: 'absolute',
-                  top: '8px',
-                  left: '8px',
-                  background: 'rgba(0,0,0,0.6)',
-                  backdropFilter: 'blur(4px)',
-                  padding: '0.2rem 0.45rem',
-                  borderRadius: '5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  zIndex: 5,
-                  fontSize: '0.62rem',
-                  fontWeight: 700,
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.08)'
-                }}>
-                  <Camera size={10} />
-                  <span>Pengenalan Wajah</span>
-                </div>
-
-                {/* Overlay Header: Status */}
-                <div style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  background: faceRecognized ? '#10b981' : '#f59e0b',
-                  padding: '0.2rem 0.45rem',
-                  borderRadius: '5px',
-                  zIndex: 5,
-                  fontWeight: 800,
-                  fontSize: '0.58rem',
-                  color: '#fff',
-                  boxShadow: faceRecognized ? '0 0 8px rgba(16,185,129,0.3)' : 'none'
-                }}>
-                  {faceRecognized ? 'Wajah Dikenali' : 'Mencari Wajah...'}
-                </div>
-
-                {/* Video / Selfie Stream */}
-                {cameraStream ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                  />
-                ) : (
-                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                    <img
-                      src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
-                      alt="Selfie"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
-                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'; }}
-                    />
+              {scanningPresensi ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ textAlign: 'center', margin: '0.25rem 0' }}>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: '0 0 0.2rem 0', color: 'var(--text-primary)' }}>Pindai QR Presensi Staff</h3>
+                    <p style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', margin: 0 }}>Arahkan kamera ke Barcode Master Presensi di Ruang Staff</p>
                   </div>
-                )}
 
-                {/* Circular scanner overlay */}
-                <div style={{
-                  position: 'absolute',
-                  border: faceRecognized ? '2px solid #10b981' : '2px dashed rgba(255,255,255,0.35)',
-                  borderRadius: '50%',
-                  width: '90px',
-                  height: '120px',
-                  boxShadow: faceRecognized ? '0 0 15px rgba(16,185,129,0.25)' : 'none',
-                  zIndex: 2,
-                  pointerEvents: 'none',
-                  transition: 'all 0.3s'
-                }} />
+                  {/* Video Scanner Container */}
+                  <div style={{ position: 'relative', width: '100%', minHeight: '220px', borderRadius: '12px', overflow: 'hidden', background: '#090f1d', border: '2px solid rgba(167, 139, 250, 0.4)', boxShadow: '0 0 20px rgba(167, 139, 250, 0.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div id="reader-presensi" style={{ width: '100%', minHeight: '220px', pointerEvents: presensiScanLoading ? 'auto' : 'none' }}></div>
+                    
+                    {!presensiScanLoading && (
+                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1rem', zIndex: 10 }}>
+                        <div style={{ position: 'absolute', top: 15, left: 15, width: 22, height: 22, borderTop: '4px solid #a78bfa', borderLeft: '4px solid #a78bfa' }}></div>
+                        <div style={{ position: 'absolute', top: 15, right: 15, width: 22, height: 22, borderTop: '4px solid #a78bfa', borderRight: '4px solid #a78bfa' }}></div>
+                        <div style={{ position: 'absolute', bottom: 15, left: 15, width: 22, height: 22, borderBottom: '4px solid #a78bfa', borderLeft: '4px solid #a78bfa' }}></div>
+                        <div style={{ position: 'absolute', bottom: 15, right: 15, width: 22, height: 22, borderBottom: '4px solid #a78bfa', borderRight: '4px solid #a78bfa' }}></div>
+                        
+                        {/* Laser Line */}
+                        <div className="cyber-scanner-line" style={{
+                          position: 'absolute', left: '10%', right: '10%', height: '3px',
+                          background: 'linear-gradient(90deg, transparent, #a78bfa, transparent)',
+                          boxShadow: '0 0 10px #a78bfa',
+                          animation: 'scan-anim 2.5s linear infinite'
+                        }}></div>
+                      </div>
+                    )}
 
-                {/* Scanning animation laser bar */}
-                {!faceRecognized && (
+                    {presensiScanLoading && (
+                      <div style={{ zIndex: 5, color: '#a78bfa', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', position: 'absolute' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid rgba(167,139,250,0.2)', borderTopColor: '#a78bfa', animation: 'spin 0.8s linear infinite' }}></div>
+                        <span style={{ fontWeight: 600 }}>Menghidupkan Kamera Absensi...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fallback Manual Input for Presensi */}
+                  <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)' }}>
+                    <label style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>INPUT MANUAL BARCODE PRESENSI</label>
+                    <div className="scan-input-group" style={{ display: 'flex', gap: '0.35rem' }}>
+                      <input 
+                        type="text" 
+                        value={presensiBarcodeInput} 
+                        onChange={e => { setPresensiBarcodeInput(e.target.value); setPresensiScanError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handlePresensiBarcodeScan()}
+                        placeholder="Contoh: JDC-MASTER-PRESENSI" 
+                        className="modern-input" 
+                        style={{ flex: 1, fontSize: '0.8rem', padding: '0.4rem 0.6rem' }} 
+                      />
+                      <button onClick={handlePresensiBarcodeScan} className="btn-primary" style={{ padding: '0.4rem 0.8rem', whiteSpace: 'nowrap', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Verifikasi
+                      </button>
+                    </div>
+                    {presensiScanError && <div style={{ fontSize: '0.65rem', color: 'var(--color-danger)', marginTop: '0.3rem', fontWeight: 600 }}>⚠️ {presensiScanError}</div>}
+                  </div>
+
+                  <button 
+                    onClick={() => setScanningPresensi(false)} 
+                    className="btn-secondary btn-full"
+                    style={{ minHeight: '44px', fontWeight: 700, fontSize: '0.8rem' }}
+                  >
+                    Kembali
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h3 style={{ fontSize: '0.8rem', fontWeight: 700, margin: '0 0 0.65rem 0', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Presensi Masuk/Pulang</h3>
+
+                  {/* Camera Scanner Box */}
                   <div style={{
-                    position: 'absolute',
-                    left: 0,
+                    position: 'relative',
                     width: '100%',
-                    height: '2px',
-                    background: '#10b981',
-                    boxShadow: '0 0 8px #10b981, 0 0 12px #10b981',
-                    zIndex: 3,
-                    animation: 'laserScan 2.5s infinite linear',
-                    pointerEvents: 'none'
-                  }} />
-                )}
-
-                {/* Bounding/Profile Tag */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '8px',
-                  right: '8px',
-                  background: 'rgba(0,0,0,0.65)',
-                  backdropFilter: 'blur(4px)',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '5px',
-                  zIndex: 5,
-                  fontSize: '0.62rem',
-                  fontWeight: 800,
-                  color: '#fff',
-                  border: '1px solid rgba(16,185,129,0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem'
-                }}>
-                  <div style={{
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    background: faceRecognized ? '#10b981' : '#f59e0b',
-                    boxShadow: faceRecognized ? '0 0 5px #10b981' : 'none'
-                  }} />
-                  <span>{currentUser?.nama?.toUpperCase()} {currentUser?.jabatan === 'Admin Super' ? 'GOD MODE' : currentUser?.jabatan?.toUpperCase()}</span>
-                </div>
-              </div>
-
-              {/* GPS Information Panel */}
-              <div className="glass-panel" style={{
-                padding: '0.6rem 0.75rem',
-                background: 'rgba(0,0,0,0.15)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: '6px',
-                marginBottom: '0.85rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.35rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    <MapPin size={11} className="text-primary" />
-                    <span>Lokasi Presensi (GPS)</span>
-                  </div>
-                  <span style={{
-                    background: 'rgba(16,185,129,0.1)',
-                    color: '#10b981',
-                    fontSize: '0.55rem',
-                    fontWeight: 800,
-                    padding: '0.1rem 0.35rem',
-                    borderRadius: '3px',
-                    border: '1px solid rgba(16,185,129,0.15)'
-                  }}>
-                    AMAN
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-                  {/* Rotating/pulsing radar graphics */}
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    border: '1px solid rgba(16,185,129,0.25)',
+                    height: '170px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    background: '#090d16',
+                    border: '1px solid var(--border-glass)',
+                    marginBottom: '0.65rem',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    background: 'rgba(16,185,129,0.01)',
-                    flexShrink: 0
+                    justifyContent: 'center'
                   }}>
-                    {/* Outer pulse */}
+                    {/* Overlay Header: Title */}
                     <div style={{
                       position: 'absolute',
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: '50%',
-                      border: '1px solid rgba(16,185,129,0.15)',
-                      animation: 'radarPulse 2s infinite linear'
-                    }} />
-                    {/* Inner active marker */}
+                      top: '8px',
+                      left: '8px',
+                      background: 'rgba(0,0,0,0.6)',
+                      backdropFilter: 'blur(4px)',
+                      padding: '0.2rem 0.45rem',
+                      borderRadius: '5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      zIndex: 5,
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.08)'
+                    }}>
+                      <Camera size={10} />
+                      <span>Pengenalan Wajah</span>
+                    </div>
+
+                    {/* Overlay Header: Status */}
                     <div style={{
-                      width: '6px',
-                      height: '6px',
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: faceRecognized ? '#10b981' : '#f59e0b',
+                      padding: '0.2rem 0.45rem',
+                      borderRadius: '5px',
+                      zIndex: 5,
+                      fontWeight: 800,
+                      fontSize: '0.58rem',
+                      color: '#fff',
+                      boxShadow: faceRecognized ? '0 0 8px rgba(16,185,129,0.3)' : 'none'
+                    }}>
+                      {faceRecognized ? 'Wajah Dikenali' : 'Mencari Wajah...'}
+                    </div>
+
+                    {/* Video / Selfie Stream */}
+                    {cameraStream ? (
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                      />
+                    ) : (
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                        <img
+                          src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
+                          alt="Selfie"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'; }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Circular scanner overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      border: faceRecognized ? '2px solid #10b981' : '2px dashed rgba(255,255,255,0.35)',
                       borderRadius: '50%',
-                      background: '#3b82f6',
-                      boxShadow: '0 0 8px #3b82f6',
-                      zIndex: 2
+                      width: '90px',
+                      height: '120px',
+                      boxShadow: faceRecognized ? '0 0 15px rgba(16,185,129,0.25)' : 'none',
+                      zIndex: 2,
+                      pointerEvents: 'none',
+                      transition: 'all 0.3s'
                     }} />
-                  </div>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>
-                      <Check size={9} />
-                      <span>Dalam Area Radius</span>
-                    </div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.05rem' }}>
-                      Lat: {gpsLocation.lat.toFixed(4)}, Long: {gpsLocation.lng.toFixed(4)}
-                    </div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
-                      GPS: {gpsLoading ? 'Melacak koordinat...' : 'Terverifikasi (JDC Radius)'}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    {/* Scanning animation laser bar */}
+                    {!faceRecognized && (
+                      <div style={{
+                        position: 'absolute',
+                        left: 0,
+                        width: '100%',
+                        height: '2px',
+                        background: '#10b981',
+                        boxShadow: '0 0 8px #10b981, 0 0 12px #10b981',
+                        zIndex: 3,
+                        animation: 'laserScan 2.5s infinite linear',
+                        pointerEvents: 'none'
+                      }} />
+                    )}
 
-              {/* Action Trigger Buttons */}
-              <div style={{ display: 'flex', gap: '0.45rem' }}>
-                {clockedStatus === 'in' ? (
-                  <button
-                    onClick={handleSelfClockOut}
-                    className="btn-danger"
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      borderRadius: '6px',
+                    {/* Bounding/Profile Tag */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      right: '8px',
+                      background: 'rgba(0,0,0,0.65)',
+                      backdropFilter: 'blur(4px)',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '5px',
+                      zIndex: 5,
+                      fontSize: '0.62rem',
                       fontWeight: 800,
-                      fontSize: '0.78rem',
+                      color: '#fff',
+                      border: '1px solid rgba(16,185,129,0.25)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      cursor: 'pointer',
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-                      color: 'white',
-                      boxShadow: '0 3px 10px rgba(239,68,68,0.25)'
-                    }}
-                  >
-                    <Clock size={14} />
-                    <span>Presensi Pulang</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSelfClockIn}
-                    disabled={!faceRecognized || gpsLoading}
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      borderRadius: '6px',
-                      fontWeight: 800,
-                      fontSize: '0.78rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem',
-                      cursor: (!faceRecognized || gpsLoading) ? 'not-allowed' : 'pointer',
-                      border: 'none',
-                      background: (!faceRecognized || gpsLoading)
-                        ? 'rgba(255,255,255,0.05)'
-                        : 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)',
-                      color: (!faceRecognized || gpsLoading) ? 'var(--text-muted)' : 'white',
-                      boxShadow: (!faceRecognized || gpsLoading) ? 'none' : '0 3px 10px rgba(124,58,237,0.25)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Clock size={14} />
-                    <span>{gpsLoading ? 'Menyambung...' : 'Presensi Masuk'}</span>
-                  </button>
-                )}
+                      gap: '0.25rem'
+                    }}>
+                      <div style={{
+                        width: '5px',
+                        height: '5px',
+                        borderRadius: '50%',
+                        background: faceRecognized ? '#10b981' : '#f59e0b',
+                        boxShadow: faceRecognized ? '0 0 5px #10b981' : 'none'
+                      }} />
+                      <span>{currentUser?.nama?.toUpperCase()} {currentUser?.jabatan === 'Admin Super' ? 'GOD MODE' : currentUser?.jabatan?.toUpperCase()}</span>
+                    </div>
+                  </div>
 
-                {/* Manual QR Scan Shortcut */}
-                <button
-                  onClick={() => {
-                    hapticMedium();
-                    setTab('patroli');
-                    setStep(2);
-                  }}
-                  className="btn-secondary"
-                  style={{
-                    padding: '0.6rem 0.8rem',
-                    borderRadius: '6px',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.35rem',
-                    cursor: 'pointer',
-                    background: 'rgba(255, 255, 255, 0.04)',
+                  {/* GPS Information Panel */}
+                  <div className="glass-panel" style={{
+                    padding: '0.6rem 0.75rem',
+                    background: 'rgba(0,0,0,0.15)',
                     border: '1px solid var(--border-glass)',
-                    color: 'var(--text-primary)'
-                  }}
-                >
-                  <QrCode size={14} />
-                  <span>Scan QR Code</span>
-                </button>
-              </div>
+                    borderRadius: '6px',
+                    marginBottom: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.35rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <MapPin size={11} className="text-primary" />
+                        <span>Lokasi Presensi (GPS)</span>
+                      </div>
+                      <span style={{
+                        background: 'rgba(16,185,129,0.1)',
+                        color: '#10b981',
+                        fontSize: '0.55rem',
+                        fontWeight: 800,
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: '3px',
+                        border: '1px solid rgba(16,185,129,0.15)'
+                      }}>
+                        AMAN
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                      {/* Rotating/pulsing radar graphics */}
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        border: '1px solid rgba(16,185,129,0.25)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        background: 'rgba(16,185,129,0.01)',
+                        flexShrink: 0
+                      }}>
+                        {/* Outer pulse */}
+                        <div style={{
+                          position: 'absolute',
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '50%',
+                          border: '1px solid rgba(16,185,129,0.15)',
+                          animation: 'radarPulse 2s infinite linear'
+                        }} />
+                        {/* Inner active marker */}
+                        <div style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: '#3b82f6',
+                          boxShadow: '0 0 8px #3b82f6',
+                          zIndex: 2
+                        }} />
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>
+                          <Check size={9} />
+                          <span>Dalam Area Radius</span>
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.05rem' }}>
+                          Lat: {gpsLocation.lat.toFixed(4)}, Long: {gpsLocation.lng.toFixed(4)}
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                          GPS: {gpsLoading ? 'Melacak koordinat...' : 'Terverifikasi (JDC Radius)'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Trigger Buttons */}
+                  <div style={{ display: 'flex', gap: '0.45rem' }}>
+                    {clockedStatus === 'in' ? (
+                      <button
+                        onClick={handleSelfClockOut}
+                        className="btn-danger"
+                        style={{
+                          flex: 1,
+                          padding: '0.6rem',
+                          borderRadius: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          cursor: 'pointer',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                          color: 'white',
+                          boxShadow: '0 3px 10px rgba(239,68,68,0.25)'
+                        }}
+                      >
+                        <Clock size={14} />
+                        <span>Presensi Pulang</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleSelfClockIn}
+                        disabled={!faceRecognized || gpsLoading}
+                        style={{
+                          flex: 1,
+                          padding: '0.6rem',
+                          borderRadius: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          cursor: (!faceRecognized || gpsLoading) ? 'not-allowed' : 'pointer',
+                          border: 'none',
+                          background: (!faceRecognized || gpsLoading)
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)',
+                          color: (!faceRecognized || gpsLoading) ? 'var(--text-muted)' : 'white',
+                          boxShadow: (!faceRecognized || gpsLoading) ? 'none' : '0 3px 10px rgba(124,58,237,0.25)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Clock size={14} />
+                        <span>{gpsLoading ? 'Menyambung...' : 'Presensi Masuk'}</span>
+                      </button>
+                    )}
+
+                    {/* Scan QR Presensi */}
+                    <button
+                      onClick={() => {
+                        hapticMedium();
+                        setScanningPresensi(true);
+                      }}
+                      className="btn-secondary"
+                      style={{
+                        padding: '0.6rem 0.8rem',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                        cursor: 'pointer',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid var(--border-glass)',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <QrCode size={14} />
+                      <span>Scan QR Presensi</span>
+                    </button>
+                  </div>
+                </>
+              )}
 
               {/* Status details logging */}
               {clockedStatus && (

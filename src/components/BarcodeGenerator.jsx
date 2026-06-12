@@ -63,6 +63,7 @@ export default function BarcodeGenerator({
   const [editArea, setEditArea] = useState(null);
   const [editPos, setEditPos] = useState(null);
   const canvasRef = useRef(null);
+  const [presensiQrUrl, setPresensiQrUrl] = useState('');
 
   // ── Single Area Creator state ──
   const [floor, setFloor] = useState('1');
@@ -104,6 +105,12 @@ export default function BarcodeGenerator({
     const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
     if (!nomorTitik) setNomorTitik(next);
   }, [areas]);
+
+  useEffect(() => {
+    generateQRDataURL('JDC-MASTER-PRESENSI')
+      .then(url => setPresensiQrUrl(url))
+      .catch(err => console.warn('Failed to load Master Presensi QR:', err));
+  }, [generateQRDataURL]);
 
   // ── User & Role Creator state ──
   const [userName, setUserName] = useState('');
@@ -539,6 +546,14 @@ export default function BarcodeGenerator({
           cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
           minHeight: '44px', touchAction: 'manipulation'
         }}><User size={16} /> Registrasi Anggota</button>
+        <button onClick={() => setTab('presensi_qr')} style={{
+          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+          border: `1.5px solid ${tab === 'presensi_qr' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+          background: tab === 'presensi_qr' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          color: tab === 'presensi_qr' ? 'var(--color-primary)' : 'var(--text-secondary)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
+          minHeight: '44px', touchAction: 'manipulation'
+        }}><QrCode size={16} /> QR Presensi Staff</button>
       </div>
 
       {/* ════════════════════════════════════════════════════
@@ -961,6 +976,88 @@ export default function BarcodeGenerator({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          TAB: QR CODE PRESENSI (MASTER STAFF ROOM)
+          ════════════════════════════════════════════════════ */}
+      {tab === 'presensi_qr' && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
+          <div className="glass-panel" style={{
+            maxWidth: '500px',
+            width: '100%',
+            padding: '2rem',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                <QrCode className="text-primary" size={20} />
+                <span>MASTER QR CODE PRESENSI STAFF</span>
+              </h2>
+              <span className="badge badge-info" style={{ fontSize: '0.68rem', padding: '0.25rem 0.5rem', alignSelf: 'center', background: 'rgba(124,58,237,0.15)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.25)' }}>
+                📍 Ruang Staff / Kantor Security JDC
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.45', margin: 0, maxWidth: '400px' }}>
+              Cetak QR Code Master ini dan tempel di area Ruang Staff / Kantor Security. 
+              Petugas wajib memindai QR Code ini untuk melakukan **Absensi Masuk** dan **Absensi Pulang** pada simulator presensi.
+            </p>
+
+            {/* QR Code Container */}
+            <div style={{
+              padding: '1rem',
+              background: '#ffffff',
+              borderRadius: '10px',
+              border: '3px double #0b0f19',
+              boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+              display: 'inline-block'
+            }}>
+              {presensiQrUrl ? (
+                <img src={presensiQrUrl} alt="Master QR Presensi" style={{ width: '200px', height: '200px', display: 'block' }} />
+              ) : (
+                <div style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0b0f19' }}>
+                  <RefreshCw className="spin" size={24} />
+                </div>
+              )}
+            </div>
+
+            {/* Metadata code label */}
+            <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)', background: 'rgba(59,130,246,0.08)', padding: '0.3rem 0.8rem', borderRadius: '6px', border: '1px solid rgba(59,130,246,0.18)' }}>
+              JDC-MASTER-PRESENSI
+            </div>
+
+            {/* Actions for Master QR */}
+            <div style={{ display: 'flex', gap: '0.65rem', width: '100%', marginTop: '0.35rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ flex: 1, minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700 }}
+                onClick={() => handleDownloadQR({ qrCode: 'JDC-MASTER-PRESENSI' })}
+              >
+                <Download size={14} /> Download PNG
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ flex: 1, minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 700 }}
+                onClick={() => handlePrintQR({
+                  qrCode: 'JDC-MASTER-PRESENSI',
+                  titik: 'Master Presensi Staff Room',
+                  gedung: 'SMPJDC',
+                  lantai: 'Staff Room',
+                  zona: 'Staff Office'
+                })}
+              >
+                <Printer size={14} /> Cetak Stiker QR
+              </button>
             </div>
           </div>
         </div>
