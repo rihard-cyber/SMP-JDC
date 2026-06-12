@@ -4268,19 +4268,13 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     overflow: hidden !important;
   }
 
-  /* Simulator container takes up exactly the screen height minus the bottom navbar height */
+  /* Simulator container takes up the full screen height on mobile */
   .in-simulator .mobile-simulator-container {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    height: calc(100vh - 68px) !important;
-    min-height: auto !important;
-    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* When bottom navigation hides, let simulator expand to fill the entire viewport */
-  .dashboard-layout.in-simulator:has(.bottom-nav-hidden) .mobile-simulator-container {
     height: 100vh !important;
+    min-height: auto !important;
   }
 
   /* Make sure the simulator phone frame occupies full height and width without boundaries */
@@ -4301,7 +4295,7 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     height: 100% !important;
     min-height: 100% !important;
     overflow-y: auto !important;
-    padding: 1rem 1rem 4rem 1rem !important; /* Generous bottom padding so buttons aren't cut off */
+    padding: 1rem 1rem 5.5rem 1rem !important; /* Generous bottom padding to clear the bottom-nav when visible */
     box-sizing: border-box !important;
   }
 }

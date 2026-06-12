@@ -31,7 +31,10 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
           const currentScrollY = target.scrollTop;
           const delta = currentScrollY - lastScrollY.current;
 
-          if (Math.abs(delta) > 10) {
+          if (currentScrollY <= 10) {
+            setVisible(true);
+            lastScrollY.current = currentScrollY;
+          } else if (Math.abs(delta) > 10) {
             if (delta > 0 && currentScrollY > 60) {
               setVisible(false);
             } else if (delta < 0) {
