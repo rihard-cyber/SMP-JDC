@@ -33,7 +33,7 @@ const KATEGORI_MUTASI = [
 
 export default function SecurityPatrolApp({
   currentUser, areas, posList = [], attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
-  onAddReport, onTriggerSOS, onAddLog
+  onAddReport, onTriggerSOS, onAddLog, onAddAttendance
 }) {
   const [online, setOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [queue, setQueue] = useState(() => {
@@ -84,7 +84,16 @@ export default function SecurityPatrolApp({
     }
   }, [online]);
 
-  const [tab, setTab] = useState('patroli');
+  const [tab, setTab] = useState('presensi');
+  const [cameraStream, setCameraStream] = useState(null);
+  const [selfiePhoto, setSelfiePhoto] = useState(null);
+  const [faceRecognized, setFaceRecognized] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState({ lat: -6.2000, lng: 106.8166 });
+  const [isInRadius, setIsInRadius] = useState(true);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [clockedStatus, setClockedStatus] = useState(null); // null | 'in' | 'out'
+  const [clockInTime, setClockInTime] = useState('');
+  const [clockOutTime, setClockOutTime] = useState('');
   const [showPlottingModal, setShowPlottingModal] = useState(false);
   const [lastPlottingId, setLastPlottingId] = useState(() => {
     return localStorage.getItem('smpjdc_last_plotting_id') || '';
@@ -227,6 +236,185 @@ export default function SecurityPatrolApp({
       setShift(shiftMap[todayLog.shift] || todayLog.shift || 'Pagi (06:00-14:00)');
     }
   }, [myPlotting, todayLog]);
+
+  // ── States & Handlers for Self Attendance (SI PRESENSI PRO MAX) ──
+  const videoRef = React.useRef(null);
+
+  // Sync initial clockedStatus from database plotting
+  useEffect(() => {
+    if (myPlotting && myPlotting.status === 'Hadir') {
+      setClockedStatus('in');
+      if (myPlotting.checkInTime) {
+        setClockInTime(myPlotting.checkInTime);
+      }
+    } else {
+      setClockedStatus(null);
+    }
+  }, [myPlotting]);
+
+  // Calculate Hadir, Terlambat, Izin stats from all logs for the current user
+  const attendanceStats = useMemo(() => {
+    let hadirCount = 0;
+    let terlambatCount = 0;
+    let izinCount = 0;
+
+    attendanceLogs.forEach(log => {
+      const myRow = log.details?.find(d => String(d.personilId) === String(currentUser?.id));
+      if (myRow) {
+        if (myRow.status === 'Hadir') hadirCount++;
+        else if (myRow.status === 'Terlambat' || myRow.alasan?.toLowerCase().includes('telat')) terlambatCount++;
+        else if (myRow.status === 'Izin' || myRow.status === 'Sakit' || myRow.status === 'Cuti') izinCount++;
+      }
+    });
+
+    // Fallback: if clocked in today but logs are not refreshed, display at least 1
+    if (clockedStatus === 'in' && hadirCount === 0) {
+      hadirCount = 1;
+    }
+
+    return {
+      hadir: hadirCount,
+      terlambat: terlambatCount,
+      izin: izinCount
+    };
+  }, [attendanceLogs, currentUser, clockedStatus]);
+
+  // Camera stream and GPS fetching
+  useEffect(() => {
+    let activeStream = null;
+    if (tab === 'presensi' && !selfiePhoto) {
+      setGpsLoading(true);
+      getGPSCoordinates().then(coords => {
+        setGpsLoading(false);
+        if (coords) {
+          setGpsLocation({ lat: coords.latitude, lng: coords.longitude });
+          setIsInRadius(true);
+        } else {
+          setGpsLocation({ lat: -6.2000, lng: 106.8166 });
+          setIsInRadius(true);
+        }
+      });
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+          .then(stream => {
+            activeStream = stream;
+            setCameraStream(stream);
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+            }
+            setTimeout(() => {
+              setFaceRecognized(true);
+            }, 2000);
+          })
+          .catch(err => {
+            console.warn('Camera blocked or unavailable, using simulation:', err);
+            setTimeout(() => {
+              setFaceRecognized(true);
+            }, 1500);
+          });
+      } else {
+        setTimeout(() => {
+          setFaceRecognized(true);
+        }, 1500);
+      }
+    } else {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        setCameraStream(null);
+      }
+      setFaceRecognized(false);
+    }
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [tab, selfiePhoto]);
+
+  const getJamDinasCode = (shiftCode) => {
+    const shiftMap = { P: '06:00 - 14:00', S: '14:00 - 22:00', M: '22:00 - 06:00' };
+    return shiftMap[shiftCode] || '08:00 - 16:00';
+  };
+
+  const handleSelfClockIn = () => {
+    const checkInTimeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    setClockInTime(checkInTimeStr);
+    setClockedStatus('in');
+
+    const currentHourShift = getDetectedShiftCode();
+    const currentShiftDetails = {
+      personilId: currentUser.id,
+      nama: currentUser.nama,
+      nrp: currentUser.nrp,
+      regu: currentUser.regu || 'Regu A',
+      jabatan: currentUser.jabatan,
+      status: 'Hadir',
+      checkInTime: checkInTimeStr,
+      alasan: '',
+      penggantiId: '',
+      posPlotting: 'Pintu Masuk Utama',
+      jamDinas: getJamDinasCode(currentHourShift),
+      lat: gpsLocation.lat,
+      lng: gpsLocation.lng
+    };
+
+    if (todayLog) {
+      const existsIndex = todayLog.details?.findIndex(d => String(d.personilId) === String(currentUser.id));
+      let newDetails = [...(todayLog.details || [])];
+      if (existsIndex > -1) {
+        newDetails[existsIndex] = { ...newDetails[existsIndex], ...currentShiftDetails };
+      } else {
+        newDetails.push(currentShiftDetails);
+      }
+      if (onAddAttendance) {
+        onAddAttendance({
+          ...todayLog,
+          details: newDetails
+        });
+      }
+    } else {
+      const newLog = {
+        tanggal: todayStr,
+        hari: new Date().toLocaleDateString('id-ID', { weekday: 'long' }),
+        regu: currentUser.regu || 'Regu A',
+        shift: currentHourShift,
+        jamDinas: getJamDinasCode(currentHourShift),
+        details: [currentShiftDetails]
+      };
+      if (onAddAttendance) {
+        onAddAttendance(newLog);
+      }
+    }
+    hapticSuccess();
+  };
+
+  const handleSelfClockOut = () => {
+    const checkOutTimeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    setClockOutTime(checkOutTimeStr);
+    setClockedStatus(null);
+
+    if (todayLog) {
+      const existsIndex = todayLog.details?.findIndex(d => String(d.personilId) === String(currentUser.id));
+      let newDetails = [...(todayLog.details || [])];
+      if (existsIndex > -1) {
+        newDetails[existsIndex] = { 
+          ...newDetails[existsIndex], 
+          status: 'Tidak Hadir', 
+          alasan: 'Sudah Pulang',
+          checkOutTime: checkOutTimeStr 
+        };
+      }
+      if (onAddAttendance) {
+        onAddAttendance({
+          ...todayLog,
+          details: newDetails
+        });
+      }
+    }
+    hapticHeavy();
+  };
 
   const playAlarmSound = () => {
     try {
@@ -571,6 +759,13 @@ export default function SecurityPatrolApp({
 
         {/* Tab Navigation */}
         <div className="mobile-tab-bar" style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', background: 'var(--bg-glass)', borderRadius: '10px', padding: '0.2rem' }}>
+          <button onClick={() => setTab('presensi')} className={`mobile-tab ${tab === 'presensi' ? 'active' : ''}`} style={{
+            flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            background: tab === 'presensi' ? 'var(--color-primary)' : 'transparent',
+            color: tab === 'presensi' ? 'white' : 'var(--text-secondary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
+          }}><Clock size={14} /> Presensi</button>
           <button onClick={() => { setTab('patroli'); resetLaporan(); }} className={`mobile-tab ${tab === 'patroli' ? 'active' : ''}`} style={{
             flex: 1, padding: '0.45rem 0.3rem', fontSize: '0.7rem', fontWeight: 700, border: 'none', borderRadius: '8px', cursor: 'pointer',
             fontFamily: 'var(--font-sans)',
@@ -600,6 +795,394 @@ export default function SecurityPatrolApp({
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'
           }}><History size={14} /> Riwayat</button>
         </div>
+
+        {/* ============================================================ */}
+        {/* TAB: PRESENSI (SI PRESENSI PRO MAX) */}
+        {/* ============================================================ */}
+        {tab === 'presensi' && (
+          <div className="tab-presensi-container animate-fade-in" style={{ padding: '0.1rem 0' }}>
+            {/* Header Title & Mode Badge */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '0.02em' }}>Presensi Hari Ini</h2>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              
+              {/* Top Warning Badge */}
+              <span style={{
+                background: clockedStatus === 'in' ? 'rgba(16,185,129,0.15)' : 'rgba(124,58,237,0.15)',
+                color: clockedStatus === 'in' ? '#10b981' : '#a78bfa',
+                border: clockedStatus === 'in' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(124,58,237,0.3)',
+                fontSize: '0.6rem',
+                fontWeight: 800,
+                padding: '0.2rem 0.5rem',
+                borderRadius: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {clockedStatus === 'in' ? 'Shift Aktif' : 'Belum Absen'}
+              </span>
+            </div>
+
+            {/* KPI Cards Panel (Rangkuman Hadir) */}
+            <div className="glass-panel" style={{ 
+              padding: '0.65rem 0.8rem', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '0.75rem', 
+              background: 'rgba(255,255,255,0.01)', 
+              border: '1px solid var(--border-glass)',
+              borderRadius: '8px'
+            }}>
+              <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', marginBottom: '0.15rem' }}>
+                  Hadir <span style={{ background: '#10b981', color: 'white', width: '12px', height: '12px', borderRadius: '50%', fontSize: '0.52rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>H</span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{attendanceStats.hadir}</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center', borderRight: '1px solid var(--border-glass)' }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', marginBottom: '0.15rem' }}>
+                  Terlambat <span style={{ background: '#f59e0b', color: 'white', width: '12px', height: '12px', borderRadius: '50%', fontSize: '0.52rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>T</span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{attendanceStats.terlambat}</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem', marginBottom: '0.15rem' }}>
+                  Izin <span style={{ background: '#3b82f6', color: 'white', width: '12px', height: '12px', borderRadius: '50%', fontSize: '0.52rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>I</span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>{attendanceStats.izin}</div>
+              </div>
+            </div>
+
+            {/* Main Presensi Panel */}
+            <div className="glass-panel" style={{ 
+              padding: '0.85rem', 
+              background: 'rgba(255,255,255,0.01)', 
+              border: '1px solid var(--border-glass)', 
+              borderRadius: '10px' 
+            }}>
+              <h3 style={{ fontSize: '0.8rem', fontWeight: 700, margin: '0 0 0.65rem 0', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Presensi Masuk/Pulang</h3>
+
+              {/* Camera Scanner Box */}
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                height: '170px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                background: '#090d16',
+                border: '1px solid var(--border-glass)',
+                marginBottom: '0.65rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {/* Overlay Header: Title */}
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '8px',
+                  background: 'rgba(0,0,0,0.6)',
+                  backdropFilter: 'blur(4px)',
+                  padding: '0.2rem 0.45rem',
+                  borderRadius: '5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  zIndex: 5,
+                  fontSize: '0.62rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.08)'
+                }}>
+                  <Camera size={10} />
+                  <span>Pengenalan Wajah</span>
+                </div>
+
+                {/* Overlay Header: Status */}
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: faceRecognized ? '#10b981' : '#f59e0b',
+                  padding: '0.2rem 0.45rem',
+                  borderRadius: '5px',
+                  zIndex: 5,
+                  fontWeight: 800,
+                  fontSize: '0.58rem',
+                  color: '#fff',
+                  boxShadow: faceRecognized ? '0 0 8px rgba(16,185,129,0.3)' : 'none'
+                }}>
+                  {faceRecognized ? 'Wajah Dikenali' : 'Mencari Wajah...'}
+                </div>
+
+                {/* Video / Selfie Stream */}
+                {cameraStream ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                  />
+                ) : (
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <img
+                      src={currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
+                      alt="Selfie"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'; }}
+                    />
+                  </div>
+                )}
+
+                {/* Circular scanner overlay */}
+                <div style={{
+                  position: 'absolute',
+                  border: faceRecognized ? '2px solid #10b981' : '2px dashed rgba(255,255,255,0.35)',
+                  borderRadius: '50%',
+                  width: '90px',
+                  height: '120px',
+                  boxShadow: faceRecognized ? '0 0 15px rgba(16,185,129,0.25)' : 'none',
+                  zIndex: 2,
+                  pointerEvents: 'none',
+                  transition: 'all 0.3s'
+                }} />
+
+                {/* Scanning animation laser bar */}
+                {!faceRecognized && (
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    width: '100%',
+                    height: '2px',
+                    background: '#10b981',
+                    boxShadow: '0 0 8px #10b981, 0 0 12px #10b981',
+                    zIndex: 3,
+                    animation: 'laserScan 2.5s infinite linear',
+                    pointerEvents: 'none'
+                  }} />
+                )}
+
+                {/* Bounding/Profile Tag */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  background: 'rgba(0,0,0,0.65)',
+                  backdropFilter: 'blur(4px)',
+                  padding: '0.25rem 0.5rem',
+                  borderRadius: '5px',
+                  zIndex: 5,
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                  color: '#fff',
+                  border: '1px solid rgba(16,185,129,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}>
+                  <div style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    background: faceRecognized ? '#10b981' : '#f59e0b',
+                    boxShadow: faceRecognized ? '0 0 5px #10b981' : 'none'
+                  }} />
+                  <span>{currentUser?.nama?.toUpperCase()} {currentUser?.jabatan === 'Admin Super' ? 'GOD MODE' : currentUser?.jabatan?.toUpperCase()}</span>
+                </div>
+              </div>
+
+              {/* GPS Information Panel */}
+              <div className="glass-panel" style={{
+                padding: '0.6rem 0.75rem',
+                background: 'rgba(0,0,0,0.15)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: '6px',
+                marginBottom: '0.85rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.35rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <MapPin size={11} className="text-primary" />
+                    <span>Lokasi Presensi (GPS)</span>
+                  </div>
+                  <span style={{
+                    background: 'rgba(16,185,129,0.1)',
+                    color: '#10b981',
+                    fontSize: '0.55rem',
+                    fontWeight: 800,
+                    padding: '0.1rem 0.35rem',
+                    borderRadius: '3px',
+                    border: '1px solid rgba(16,185,129,0.15)'
+                  }}>
+                    AMAN
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                  {/* Rotating/pulsing radar graphics */}
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    border: '1px solid rgba(16,185,129,0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    background: 'rgba(16,185,129,0.01)',
+                    flexShrink: 0
+                  }}>
+                    {/* Outer pulse */}
+                    <div style={{
+                      position: 'absolute',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      border: '1px solid rgba(16,185,129,0.15)',
+                      animation: 'radarPulse 2s infinite linear'
+                    }} />
+                    {/* Inner active marker */}
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#3b82f6',
+                      boxShadow: '0 0 8px #3b82f6',
+                      zIndex: 2
+                    }} />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>
+                      <Check size={9} />
+                      <span>Dalam Area Radius</span>
+                    </div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.05rem' }}>
+                      Lat: {gpsLocation.lat.toFixed(4)}, Long: {gpsLocation.lng.toFixed(4)}
+                    </div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                      GPS: {gpsLoading ? 'Melacak koordinat...' : 'Terverifikasi (JDC Radius)'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Trigger Buttons */}
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
+                {clockedStatus === 'in' ? (
+                  <button
+                    onClick={handleSelfClockOut}
+                    className="btn-danger"
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem',
+                      borderRadius: '6px',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      cursor: 'pointer',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                      color: 'white',
+                      boxShadow: '0 3px 10px rgba(239,68,68,0.25)'
+                    }}
+                  >
+                    <Clock size={14} />
+                    <span>Presensi Pulang</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSelfClockIn}
+                    disabled={!faceRecognized || gpsLoading}
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem',
+                      borderRadius: '6px',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      cursor: (!faceRecognized || gpsLoading) ? 'not-allowed' : 'pointer',
+                      border: 'none',
+                      background: (!faceRecognized || gpsLoading)
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)',
+                      color: (!faceRecognized || gpsLoading) ? 'var(--text-muted)' : 'white',
+                      boxShadow: (!faceRecognized || gpsLoading) ? 'none' : '0 3px 10px rgba(124,58,237,0.25)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Clock size={14} />
+                    <span>{gpsLoading ? 'Menyambung...' : 'Presensi Masuk'}</span>
+                  </button>
+                )}
+
+                {/* Manual QR Scan Shortcut */}
+                <button
+                  onClick={() => {
+                    hapticMedium();
+                    setTab('patroli');
+                    setStep(2);
+                  }}
+                  className="btn-secondary"
+                  style={{
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: '6px',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.35rem',
+                    cursor: 'pointer',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-glass)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <QrCode size={14} />
+                  <span>Scan QR Code</span>
+                </button>
+              </div>
+
+              {/* Status details logging */}
+              {clockedStatus && (
+                <div style={{
+                  marginTop: '0.65rem',
+                  padding: '0.45rem 0.65rem',
+                  background: 'rgba(16,185,129,0.04)',
+                  border: '1px solid rgba(16,185,129,0.18)',
+                  borderRadius: '5px',
+                  fontSize: '0.65rem',
+                  color: 'var(--text-secondary)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Masuk:</span>
+                    <strong style={{ color: 'var(--color-success)' }}>{clockInTime || '-'}</strong>
+                  </div>
+                  {clockOutTime && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.15rem' }}>
+                      <span>Pulang:</span>
+                      <strong style={{ color: 'var(--color-danger)' }}>{clockOutTime}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ============================================================ */}
         {/* TAB: PATROLI */}

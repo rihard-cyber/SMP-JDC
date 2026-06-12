@@ -1,2 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-Clxv3l7J.js","./index-C6BLz5Y2.js","./index-FtpR1iVQ.css"])))=>i.map(i=>d[i]);
-import{y as c,_ as r}from"./index-C6BLz5Y2.js";let t=null;const i=async()=>{if(!t&&c.isNativePlatform())try{t=(await r(()=>import("./index-Clxv3l7J.js"),__vite__mapDeps([0,1,2]),import.meta.url)).Haptics}catch{}},e=async()=>{if(await i(),!!t)try{await t.impact({style:"Medium"})}catch{}},o=async()=>{if(await i(),!!t)try{await t.notification({type:"Success"})}catch{}};export{o as a,e as h};

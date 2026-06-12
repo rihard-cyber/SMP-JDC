@@ -2649,7 +2649,47 @@ export default function App() {
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
             <div className="mobile-simulator-container">
               <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Panel Patroli...</div>}>
-              <SecurityPatrolApp currentUser={currentUser} areas={areas} posList={posList} attendanceLogs={attendanceLogs} reports={reports} findings={findings} mutasiLogs={mutasiLogs} onAddReport={handleAddReport} onAddLog={handleAddMutasi} onTriggerSOS={triggerSOS} />
+              <SecurityPatrolApp 
+                currentUser={currentUser} 
+                areas={areas} 
+                posList={posList} 
+                attendanceLogs={attendanceLogs} 
+                reports={reports} 
+                findings={findings} 
+                mutasiLogs={mutasiLogs} 
+                onAddReport={handleAddReport} 
+                onAddLog={handleAddMutasi} 
+                onTriggerSOS={triggerSOS}
+                onAddAttendance={(newAttendance) => {
+                  const id = `att-${Date.now()}`;
+                  setAttendanceLogs(prev => {
+                    const existingIndex = prev.findIndex(
+                      l => l.tanggal === newAttendance.tanggal && l.regu === newAttendance.regu && l.shift === newAttendance.shift
+                    );
+                    if (existingIndex > -1) {
+                      const updated = [...prev];
+                      updated[existingIndex] = { id: prev[existingIndex].id, ...newAttendance };
+                      addToast(`Presensi Anda berhasil disimpan`, 'success');
+                      const fbId = prev[existingIndex].supabaseId || prev[existingIndex].firebaseId;
+                      if (fbId) {
+                        updateAttendanceLogInFirestore(fbId, newAttendance).catch(e => addToast(`Gagal update absensi: ${e.message}`, 'warning'));
+                      }
+                      return updated;
+                    } else {
+                      const entry = { id, ...newAttendance };
+                      addAttendanceLogToFirestore(entry).then(fid => {
+                        if (fid) {
+                          setAttendanceLogs(prev => prev.map(a =>
+                            a.id === id ? { ...a, supabaseId: fid, firebaseId: fid } : a
+                          ));
+                        }
+                      }).catch(e => addToast(`Gagal sync absensi: ${e.message}`, 'warning'));
+                      addToast(`Presensi Anda berhasil disimpan`, 'success');
+                      return [...prev, entry];
+                    }
+                  });
+                }}
+              />
               </Suspense>
             </div>
           )}
