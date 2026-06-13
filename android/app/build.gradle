@@ -46,9 +46,9 @@ if (file('google-services.json').exists()) {
 task webBuild(type: Exec) {
     workingDir '../../'
     if (System.getProperty('os.name').toLowerCase().contains('windows')) {
-        commandLine 'cmd', '/c', 'npm run build && npx cap sync android'
+        commandLine 'cmd', '/c', 'npm run build && npx cap copy android'
     } else {
-        commandLine 'sh', '-c', 'npm run build && npx cap sync android'
+        commandLine 'sh', '-c', 'npm run build && npx cap copy android'
     }
 }
 preBuild.dependsOn webBuild

@@ -63,7 +63,7 @@ export function initRipple() {
 
 function handleRipple(e) {
   const target = e.target.closest(
-    'button:not([data-no-ripple]), a:not([data-no-ripple]), .glass-panel, .nav-tab-btn, .status-btn, .severity-btn, .decision-btn, .mutasi-kat-btn, .scan-compact-item, .finding-card, [data-ripple]'
+    'button:not([data-no-ripple]), a:not([data-no-ripple]), .glass-panel.clickable, .glass-panel[data-ripple], .nav-tab-btn, .status-btn, .severity-btn, .decision-btn, .mutasi-kat-btn, .scan-compact-item, .finding-card, [data-ripple]'
   )
   if (!target) return
 

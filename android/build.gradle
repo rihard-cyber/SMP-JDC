@@ -24,6 +24,14 @@ allprojects {
     }
 }
 
+subprojects {
+    afterEvaluate {
+        if (name == 'capacitor-cordova-android-plugins') {
+            repositories.removeAll { it instanceof org.gradle.api.artifacts.repositories.FlatDirectoryArtifactRepository }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.layout.buildDirectory
 }

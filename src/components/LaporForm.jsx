@@ -145,19 +145,21 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
             {/* Jenis Laporan */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="button" onClick={() => setJenis('patroli')} style={{
-                flex: 1, padding: '0.5rem', borderRadius: '8px', border: `2px solid ${jenis === 'patroli' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                flex: 1, padding: '0.6rem 0.5rem', minHeight: '48px', borderRadius: '8px', border: `2px solid ${jenis === 'patroli' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
                 background: jenis === 'patroli' ? 'rgba(59,130,246,0.08)' : 'transparent',
                 color: jenis === 'patroli' ? 'var(--color-primary)' : 'var(--text-secondary)',
                 fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                 transition: 'all 0.2s'
               }}>
                 <MapPin size={14} /> Laporan Patroli
               </button>
               <button type="button" onClick={() => setJenis('mutasi')} style={{
-                flex: 1, padding: '0.5rem', borderRadius: '8px', border: `2px solid ${jenis === 'mutasi' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                flex: 1, padding: '0.6rem 0.5rem', minHeight: '48px', borderRadius: '8px', border: `2px solid ${jenis === 'mutasi' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
                 background: jenis === 'mutasi' ? 'rgba(59,130,246,0.08)' : 'transparent',
                 color: jenis === 'mutasi' ? 'var(--color-primary)' : 'var(--text-secondary)',
                 fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                 transition: 'all 0.2s'
               }}>
                 <AlertTriangle size={14} /> Mutasi / Kejadian

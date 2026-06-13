@@ -2569,9 +2569,6 @@ h1, h2, h3, h4, h5, h6 {
 .step-user-card p { font-size: 0.7rem; }
 
 .step-field { position: relative; display: flex; flex-direction: column; gap: 0.35rem; }
-.step-field:focus-within {
-  box-shadow: 0 0 0 2px var(--color-primary);
-}
 .step-field label {
   font-size: 0.7rem; color: var(--text-secondary);
   font-weight: 600; letter-spacing: 0.03em;
@@ -2701,13 +2698,13 @@ h1, h2, h3, h4, h5, h6 {
 .decision-btn-sub { font-size: 0.7rem; color: var(--text-muted); }
 
 /* Severity Grid */
-.severity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; }
+.severity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 .severity-btn {
-  padding: 0.45rem 0.25rem; border-radius: 8px; border: 1.5px solid var(--border-glass);
+  padding: 0.55rem 0.4rem; border-radius: 8px; border: 1.5px solid var(--border-glass);
   background: transparent; cursor: pointer; font-family: var(--font-sans);
-  font-size: 0.65rem; font-weight: 700; transition: var(--transition-smooth);
+  font-size: 0.78rem; font-weight: 700; transition: var(--transition-smooth);
   text-align: center;
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2717,19 +2714,19 @@ h1, h2, h3, h4, h5, h6 {
 @media (max-width: 768px) {
   .severity-grid {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.45rem !important;
+    gap: 0.6rem !important;
   }
 }
 
 .mobile-screen .severity-grid {
   grid-template-columns: repeat(2, 1fr) !important;
-  gap: 0.45rem !important;
+  gap: 0.6rem !important;
 }
 
 .mutasi-kategori-grid {
   display: grid !important;
   grid-template-columns: repeat(2, 1fr) !important;
-  gap: 0.45rem !important;
+  gap: 0.6rem !important;
 }
 .mutasi-kat-btn {
   width: 100% !important;
@@ -2737,11 +2734,12 @@ h1, h2, h3, h4, h5, h6 {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.35rem !important;
-  padding: 0.55rem 0.35rem !important;
+  gap: 0.5rem !important;
+  padding: 0.6rem 0.45rem !important;
+  min-height: 48px !important;
   border-radius: 8px !important;
   font-family: var(--font-sans) !important;
-  font-size: 0.72rem !important;
+  font-size: 0.78rem !important;
   font-weight: 600 !important;
   transition: var(--transition-smooth) !important;
 }
@@ -3063,9 +3061,6 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
-}
-.form-field:focus-within {
-  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 .form-label {

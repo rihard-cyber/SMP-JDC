@@ -407,7 +407,7 @@ export default function ComplaintForm({ onAddComplaint }) {
             <div className="complaint-cat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
               {CATEGORIES.map(c => (
                 <button key={c.id} type="button" onClick={() => { setCategory(c.id); setCategoryCustom(''); setErrors(p => ({ ...p, category: '' })); }} style={{
-                  padding: '0.5rem 0.4rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700, minHeight: '44px',
+                  padding: '0.6rem 0.45rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, minHeight: '48px',
                   border: `1.5px solid ${category === c.id ? c.color : 'var(--border-glass)'}`,
                   background: category === c.id ? `${c.color}18` : 'transparent',
                   color: category === c.id ? c.color : 'var(--text-secondary)',

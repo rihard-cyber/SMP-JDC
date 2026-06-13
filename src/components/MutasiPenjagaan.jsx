@@ -174,7 +174,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             
             <div className="step-field">
               <label>KATEGORI LAPORAN</label>
-              <div className="mutasi-kategori-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
+              <div className="mutasi-kategori-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
                 {KATEGORI_MUTASI.map(k => {
                   const Icon = k.icon;
                   return (
@@ -185,8 +185,9 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                         borderColor: kategori === k.id ? k.color : 'var(--border-glass)', 
                         background: kategori === k.id ? `${k.color}1A` : 'transparent', 
                         color: kategori === k.id ? k.color : 'var(--text-secondary)',
-                        padding: '0.4rem 0.5rem',
-                        fontSize: '0.75rem'
+                        padding: '0.6rem 0.45rem',
+                        minHeight: '48px',
+                        fontSize: '0.78rem'
                       }}>
                       <Icon size={14} /><span>{k.label}</span>
                     </button>
