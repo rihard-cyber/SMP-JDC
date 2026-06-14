@@ -162,10 +162,10 @@ h1, h2, h3, h4, h5, h6 {
 /* Glassmorphism utility */
 .glass-panel {
   position: relative;
-  background: rgba(13, 19, 36, 0.12) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 1px solid rgba(0, 240, 255, 0.18);
+  background: rgba(13, 19, 36, 0.38) !important; /* Elegant semi-transparency so watermark shows through */
+  backdrop-filter: blur(8px) !important; /* Frosted glass backing */
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.22) !important; /* Sleek neon cyan border */
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-premium);
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
@@ -173,19 +173,25 @@ h1, h2, h3, h4, h5, h6 {
   overscroll-behavior: auto;
 }
 
-/* Glass-panel elements containing text or interaction get blurred & shadowed backdrop to guarantee readability over watermark background */
+/* Elevate contrast, readability, and glow of text inside glass panels over watermark background */
 .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4, .glass-panel h5, .glass-panel h6,
-.glass-panel p, .glass-panel label, .glass-panel li, .glass-panel .info-row, .glass-panel table,
-.glass-panel input, .glass-panel select, .glass-panel textarea, .glass-panel button,
-.glass-panel .sidebar-user, .glass-panel .home-menu-card, .glass-panel .home-menu-card-sos,
-.glass-panel .step-user-card, .glass-panel .offline-badge {
-  background: rgba(7, 10, 19, 0.6) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border-radius: 6px;
-  padding: 4px 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 5px rgba(0, 0, 0, 0.85);
+.glass-panel p, .glass-panel span:not(.ornament-symbol):not(.ornament-line), .glass-panel label, .glass-panel li, .glass-panel td, .glass-panel th {
+  text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.95), 0 0 5px rgba(0, 0, 0, 0.9) !important;
+}
+
+.glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4 {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+.glass-panel p, .glass-panel li, .glass-panel td {
+  color: #f8fafc !important; /* Brighter white */
+  font-weight: 500 !important;
+}
+
+.glass-panel label {
+  color: #00f0ff !important; /* Cyber neon cyan for maximum contrast */
+  font-weight: 700 !important;
 }
 
 .glass-panel::after {
