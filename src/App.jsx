@@ -352,6 +352,15 @@ export default function App() {
         } catch (e) {
           console.warn('[Permissions] Failed to initialize native permissions:', e);
         }
+      } else {
+        // Web / PWA: Request Location permission proactively on mount
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => console.log('[PWA GPS] Permission granted, initial position fetched'),
+            (err) => console.warn('[PWA GPS] Initial permission check failed/denied:', err.message),
+            { enableHighAccuracy: true, timeout: 5000 }
+          );
+        }
       }
     };
     initNativePermissions();
