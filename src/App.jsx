@@ -73,6 +73,7 @@ import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
 import BottomNav from './components/BottomNav';
 import ConfirmModal from './components/ConfirmModal';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import INITIAL_POS_LIST from './data/posList';
 
 const ManagementDashboard = lazy(() => import('./components/ManagementDashboard'));
@@ -2936,6 +2937,8 @@ export default function App() {
           <span>⚠️ Koneksi terputus — data aman di lokal, sync otomatis saat online kembali</span>
         </div>
       )}
+
+      <PWAInstallPrompt />
 
       <ConfirmModal
         show={!!confirmDelete}
