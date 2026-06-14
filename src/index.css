@@ -1048,15 +1048,25 @@ h1, h2, h3, h4, h5, h6 {
   --bg-primary: #f1f5f9;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f8fafc;
-  --bg-glass: rgba(255, 255, 255, 0.82);
+  --bg-glass: rgba(255, 255, 255, 0.85);
   --border-glass: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
+  --text-primary: #000000;
+  --text-secondary: #0f172a;
+  --text-muted: #334155;
+  --text-hacker: #1e3a8a;
   --shadow-premium: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 20px;
+  
+  /* Bolder/clearer theme-specific accents in Light Mode to prevent blur */
+  --color-primary: #2563eb;
+  --color-primary-glow: rgba(37, 99, 235, 0.15);
+  --color-success: #16a34a;
+  --color-success-glow: rgba(22, 163, 74, 0.15);
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-danger-glow: rgba(220, 38, 38, 0.15);
 }
 
 .theme-light .glass-panel::before,
@@ -1074,8 +1084,8 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Glass Panel → Transparent Frosted Card ── */
 .theme-light .glass-panel {
-  background: rgba(255, 255, 255, 0.45) !important;
-  border: 1px solid rgba(30, 58, 138, 0.15) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(30, 58, 138, 0.2) !important;
   color: var(--text-primary);
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
@@ -1108,7 +1118,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .theme-light .glass-panel h1, .theme-light .glass-panel h2, .theme-light .glass-panel h3, .theme-light .glass-panel h4, .theme-light .glass-panel h5, .theme-light .glass-panel h6,
 .theme-light .glass-panel p, .theme-light .glass-panel span:not(.ornament-symbol):not(.ornament-line), .theme-light .glass-panel label, .theme-light .glass-panel li, .theme-light .glass-panel td, .theme-light .glass-panel th {
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95) !important; /* Soft white shadow glow */
+  text-shadow: none !important; /* Remove fuzzy text shadows to keep all small text sharp and legible */
 }
 .theme-light .glass-panel:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);

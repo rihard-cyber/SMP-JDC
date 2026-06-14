@@ -195,10 +195,10 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         
         .theme-dark .ukiran-watermark {
           color: #00f0ff;
-          box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.25), 0 0 15px rgba(0, 240, 255, 0.15);
-          border: 1.5px solid rgba(0, 240, 255, 0.35);
+          box-shadow: inset 0 0 25px rgba(0, 240, 255, 0.35), 0 0 20px rgba(0, 240, 255, 0.25);
+          border: 2px solid rgba(0, 240, 255, 0.65);
           background: rgba(13, 19, 36, 0.55);
-          opacity: 0.35;
+          opacity: 0.65;
         }
         .theme-dark .ukiran-logo-text {
           color: #00f0ff;
@@ -227,10 +227,10 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
         .theme-light .ukiran-watermark {
           color: #2563eb;
-          box-shadow: inset 0 0 18px rgba(59, 130, 246, 0.22), 0 0 12px rgba(59, 130, 246, 0.15);
-          border: 1.5px solid rgba(59, 130, 246, 0.35);
+          box-shadow: inset 0 0 22px rgba(59, 130, 246, 0.3), 0 0 16px rgba(59, 130, 246, 0.2);
+          border: 2px solid rgba(59, 130, 246, 0.55);
           background: rgba(255, 255, 255, 0.75);
-          opacity: 0.28;
+          opacity: 0.58;
         }
         .theme-light .ukiran-logo-text {
           color: #1e40af;
@@ -791,6 +791,14 @@ export default function App() {
   }, [showSplash]);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('smpjdc_theme') || 'dark');
+
+  useEffect(() => {
+    // Add theme class globally to html element (document.documentElement)
+    document.documentElement.className = `theme-${theme}`;
+    // Also sync to body for compatibility
+    document.body.className = `theme-${theme}`;
+  }, [theme]);
+
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === 'dark' ? 'light' : 'dark';
