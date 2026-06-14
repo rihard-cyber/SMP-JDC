@@ -1,52 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone, ArrowUpCircle } from 'lucide-react';
+import { Download, X, Smartphone, ArrowUpCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 export default function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isIos, setIsIos] = useState(false);
+  const [promptType, setPromptType] = useState('pwa'); // 'pwa' | 'android' | 'ios'
 
   useEffect(() => {
-    // 1. Detect if already in standalone (installed) mode
+    // 1. If running inside native Capacitor app, do absolutely nothing
+    if (Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    // 2. Detect if already in standalone (installed PWA) mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     if (isStandalone) {
       return;
     }
 
-    // 2. Check if user dismissed the prompt recently (e.g. dismissed for 3 days)
+    // 3. Check if user dismissed the prompt recently (e.g. dismissed for 1 day instead of 3 to make sure they see it)
     const dismissedUntil = localStorage.getItem('smpjdc_pwa_dismissed_until');
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
       return;
     }
 
-    // 3. Detect iOS device
     const userAgent = window.navigator.userAgent.toLowerCase();
     const iosDetected = /iphone|ipad|ipod/.test(userAgent);
-    setIsIos(iosDetected);
+    const androidDetected = /android/.test(userAgent);
 
-    // 4. Listen for beforeinstallprompt (Android / Chrome / Desktop)
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+    // 4. Handle Android specifically (Direct APK download & prompt)
+    if (androidDetected) {
+      setPromptType('android');
       setShowPrompt(true);
-    };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      // Trigger auto-download once per browser session
+      const hasDownloaded = sessionStorage.getItem('smpjdc_apk_downloaded');
+      if (!hasDownloaded) {
+        sessionStorage.setItem('smpjdc_apk_downloaded', 'true');
+        setTimeout(() => {
+          triggerApkDownload();
+        }, 1500); // 1.5 seconds delay for smoother page loading
+      }
+      return;
+    }
 
-    // 5. Fallback for iOS Safari: Show prompt after a short delay (e.g. 5 seconds)
+    // 5. Handle iOS Safari specifically
     if (iosDetected) {
+      setPromptType('ios');
       const timer = setTimeout(() => {
         setShowPrompt(true);
       }, 5000);
       return () => clearTimeout(timer);
     }
 
+    // 6. Fallback for Desktop/Other Chrome browsers: Listen for PWA installation
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setPromptType('pwa');
+      setShowPrompt(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
+  const triggerApkDownload = () => {
+    const link = document.createElement('a');
+    link.href = './App.SMPJDC.apk';
+    link.download = 'App.SMPJDC.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleInstallClick = async () => {
+    if (promptType === 'android') {
+      triggerApkDownload();
+      return;
+    }
+
     if (!deferredPrompt) return;
     
     setShowPrompt(false);
@@ -59,8 +96,8 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Dismiss for 3 days
-    const dismissedTime = Date.now() + 3 * 24 * 60 * 60 * 1000;
+    // Dismiss for 24 hours
+    const dismissedTime = Date.now() + 24 * 60 * 60 * 1000;
     localStorage.setItem('smpjdc_pwa_dismissed_until', dismissedTime.toString());
   };
 
@@ -81,22 +118,47 @@ export default function PWAInstallPrompt() {
           </div>
           
           <div className="pwa-prompt-body">
-            <h3>Pasang Aplikasi SMPJDC</h3>
-            <p>
-              Dapatkan akses cepat, notifikasi patroli real-time, dan kestabilan sistem langsung dari beranda Anda.
-            </p>
-            
-            {isIos && (
-              <div className="ios-instructions">
-                <p className="ios-step">
-                  <span className="step-num">1</span>
-                  Tap tombol share/bagikan <ArrowUpCircle size={15} style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--color-primary, #3b82f6)' }} /> di bagian bawah Safari.
+            {promptType === 'android' ? (
+              <>
+                <h3>Unduh Aplikasi Android (APK)</h3>
+                <p>
+                  Sistem mendeteksi Anda menggunakan perangkat Android. Unduhan file APK <strong>App.SMPJDC.apk</strong> seharusnya sudah berjalan otomatis.
                 </p>
-                <p className="ios-step">
-                  <span className="step-num">2</span>
-                  Pilih menu <strong>"Tambahkan ke Layar Utama"</strong> (Add to Home Screen).
+                <div className="apk-info-box">
+                  <AlertCircle size={16} className="text-warning" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ fontSize: '0.75rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>
+                    Pasang APK ini untuk mengaktifkan fitur patroli penuh: GPS Presisi (Anti-Fraud), Kamera Keamanan, Haptics, & Notifikasi Real-time.
+                  </div>
+                </div>
+                <div className="download-status-indicator">
+                  <RefreshCw className="spinner-icon" size={12} />
+                  <span>Jika unduhan tidak mulai otomatis, ketuk tombol di bawah.</span>
+                </div>
+              </>
+            ) : promptType === 'ios' ? (
+              <>
+                <h3>Pasang Aplikasi SMPJDC (PWA)</h3>
+                <p>
+                  Tambahkan ke Layar Utama perangkat iOS Anda untuk mendapatkan akses patroli cepat dan notifikasi real-time.
                 </p>
-              </div>
+                <div className="ios-instructions">
+                  <p className="ios-step">
+                    <span className="step-num">1</span>
+                    Tap tombol share/bagikan <ArrowUpCircle size={15} style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--color-primary, #3b82f6)' }} /> di bagian bawah Safari.
+                  </p>
+                  <p className="ios-step">
+                    <span className="step-num">2</span>
+                    Pilih menu <strong>"Tambahkan ke Layar Utama"</strong> (Add to Home Screen).
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>Pasang Aplikasi SMPJDC</h3>
+                <p>
+                  Dapatkan akses cepat, notifikasi patroli real-time, dan kestabilan sistem langsung dari beranda Anda.
+                </p>
+              </>
             )}
           </div>
 
@@ -104,14 +166,17 @@ export default function PWAInstallPrompt() {
             <button className="pwa-btn-dismiss" onClick={handleDismiss}>
               Nanti Saja
             </button>
-            {!isIos && (
-              <button className="pwa-btn-install" onClick={handleInstallClick}>
-                Pasang Sekarang
+            {promptType === 'android' ? (
+              <button className="pwa-btn-install android-download" onClick={handleInstallClick}>
+                Download APK (Manual)
               </button>
-            )}
-            {isIos && (
+            ) : promptType === 'ios' ? (
               <button className="pwa-btn-install ios-understand" onClick={handleDismiss}>
                 Saya Mengerti
+              </button>
+            ) : (
+              <button className="pwa-btn-install" onClick={handleInstallClick}>
+                Pasang Sekarang
               </button>
             )}
           </div>
@@ -125,7 +190,7 @@ export default function PWAInstallPrompt() {
           right: 24px;
           z-index: 999999;
           animation: pwaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          width: 360px;
+          width: 380px;
           max-width: calc(100vw - 48px);
         }
 
@@ -216,6 +281,36 @@ export default function PWAInstallPrompt() {
           color: var(--text-secondary, #cbd5e1);
         }
 
+        .apk-info-box {
+          margin-top: 0.75rem;
+          padding: 0.75rem;
+          background: rgba(245, 158, 11, 0.05);
+          border: 1px solid rgba(245, 158, 11, 0.15);
+          border-radius: 10px;
+          display: flex;
+          gap: 0.5rem;
+          align-items: flex-start;
+        }
+
+        .download-status-indicator {
+          margin-top: 0.6rem;
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.7rem;
+          color: var(--text-muted, #94a3b8);
+        }
+
+        .spinner-icon {
+          animation: spin 2s linear infinite;
+          color: var(--color-primary, #3b82f6);
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
         .ios-instructions {
           margin-top: 0.75rem;
           padding: 0.75rem;
@@ -302,14 +397,19 @@ export default function PWAInstallPrompt() {
           transform: translateY(0);
         }
 
-        .ios-understand {
-          background: linear-gradient(135deg, var(--color-success, #10b981), #059669);
+        .android-download {
+          background: linear-gradient(135deg, #10b981, #059669);
           box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
-        .ios-understand:hover {
+        .android-download:hover {
           background: linear-gradient(135deg, #059669, #047857);
           box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .ios-understand {
+          background: linear-gradient(135deg, var(--color-primary, #2563eb), #1d4ed8);
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
         @keyframes pwaSlideUp {
