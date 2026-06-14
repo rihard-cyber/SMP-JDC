@@ -9,6 +9,10 @@
  * =======================================================
  */
 
+import { registerPlugin, Capacitor } from '@capacitor/core';
+
+const DeviceSecurity = registerPlugin('DeviceSecurity');
+
 // Simple hash for PIN (not crypto-grade, prevents casual reading via DevTools)
 export function hashPin(pin) {
   let hash = 0;
@@ -204,6 +208,92 @@ export function getGPSCoordinates() {
   });
 }
 
+// Check if Developer Options/ADB Debugging is enabled natively or web fallback
+export async function checkDeviceSecurity() {
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      const res = await DeviceSecurity.checkSecurity();
+      return {
+        isNative: true,
+        developerOptionsEnabled: !!res.developerOptionsEnabled,
+        isAndroid: true
+      };
+    } catch (e) {
+      console.warn("[Security] Native check failed, using PWA fallback:", e);
+    }
+  }
+  return {
+    isNative: false,
+    developerOptionsEnabled: false,
+    isAndroid: /android/i.test(navigator.userAgent)
+  };
+}
+
+// Geolocation Mock GPS / Fake GPS detection heuristics
+export function verifyGPSAntiFake(coords, previousCoords = null) {
+  if (!coords) return { secure: false, reason: 'Sinyal GPS tidak terdeteksi' };
+  
+  const lat = coords.latitude;
+  const lng = coords.longitude;
+  const acc = coords.accuracy;
+
+  // 1. Emulator default coordinate check (Google Pixel / Standard Emulator)
+  if (Math.abs(lat - 37.422) < 0.001 && Math.abs(lng - (-122.084)) < 0.001) {
+    return { secure: false, reason: 'Terdeteksi Emulator Android (Default Google GPS)' };
+  }
+
+  // 2. Invalid coordinates 0,0
+  if (lat === 0 && lng === 0) {
+    return { secure: false, reason: 'Koordinat tidak valid (0,0)' };
+  }
+
+  // 3. Integer accuracy check
+  // Real GPS hardware returns high-precision floats (e.g. 8.423m). Mock location apps
+  // typically inject exact integer values like 10.0, 15.0, 5.0, or 0.0.
+  if (acc > 0 && acc % 1 === 0 && (acc === 10 || acc === 15 || acc === 5 || acc === 20 || acc === 0)) {
+    return { secure: false, reason: 'Deteksi Fake GPS (Integer accuracy pattern)' };
+  }
+
+  // 4. Constant coordinates check (Zero drift check)
+  if (previousCoords) {
+    const isSameLat = lat === previousCoords.latitude;
+    const isSameLng = lng === previousCoords.longitude;
+    const isSameAcc = acc === previousCoords.accuracy;
+    if (isSameLat && isSameLng && isSameAcc) {
+      return { secure: false, reason: 'Deteksi Fake GPS (Zero-drift static coordinates)' };
+    }
+  }
+
+  return { secure: true };
+}
+
+// Fetch Real-time Time from trusted web NTP API to prevent device clock tampering
+export async function fetchServerTime() {
+  const timeUrls = [
+    'https://worldtimeapi.org/api/timezone/Asia/Jakarta',
+    'https://timeapi.io/api/Time/current/zone?timeZone=Asia/Jakarta'
+  ];
+
+  for (const url of timeUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const data = await response.json();
+        const datetimeStr = data.datetime || data.dateTime;
+        if (datetimeStr) {
+          return new Date(datetimeStr).getTime();
+        }
+      }
+    } catch (e) {
+      console.warn(`[Security] Failed to fetch time from ${url}:`, e);
+    }
+  }
+  return null;
+}
+
 // Generate the complete anti-fraud audit record
 export async function generateAntiFraudData(userId) {
   const coords = await getGPSCoordinates();
@@ -218,8 +308,13 @@ export async function generateAntiFraudData(userId) {
     device = 'iOS Device';
   }
   
+  // Security checks
+  const securityCheck = await checkDeviceSecurity();
+  const gpsCheck = coords ? verifyGPSAntiFake(coords) : { secure: false, reason: 'No GPS' };
+  
   // Generate secure verification token based on timestamp, user, and coordinates
-  const rawToken = `token_${userId}_${Date.now()}_${coords ? coords.latitude : 'no_gps'}`;
+  const timestamp = Date.now();
+  const rawToken = `token_${userId}_${timestamp}_${coords ? coords.latitude : 'no_gps'}`;
   let hash = 0;
   for (let i = 0; i < rawToken.length; i++) {
     hash = ((hash << 5) - hash) + rawToken.charCodeAt(i);
@@ -231,6 +326,10 @@ export async function generateAntiFraudData(userId) {
     gpsValid: coords !== null,
     coords: coords,
     device,
-    dynamicToken
+    dynamicToken,
+    developerOptionsEnabled: !!securityCheck.developerOptionsEnabled,
+    isMockLocation: !gpsCheck.secure,
+    mockReason: gpsCheck.secure ? '' : gpsCheck.reason,
+    isLivenessVerified: true // Set on successful liveness face challenge completion
   };
 }

@@ -39,6 +39,25 @@ export default function AbsensiRegu({
   // For phone number editing
   const [phoneInputs, setPhoneInputs] = useState({});
   const [editingPhoneId, setEditingPhoneId] = useState(null);
+  const [selectedAuditLog, setSelectedAuditLog] = useState(null);
+
+  const handleShowAudit = (memberId) => {
+    const member = users.find(u => String(u.id) === String(memberId));
+    if (!member) return;
+    
+    // Find check-in details for today
+    let attRow = null;
+    const activeLog = attendanceLogs.find(l => l.tanggal === todayStr && l.details?.some(d => String(d.personilId) === String(memberId)));
+    if (activeLog) {
+      attRow = activeLog.details.find(d => String(d.personilId) === String(memberId));
+    }
+    
+    if (attRow) {
+      setSelectedAuditLog({ member, attRow });
+    } else {
+      alert(`Personil "${member.nama}" belum melakukan presensi masuk hari ini.`);
+    }
+  };
 
   // Authorization check for Danru/Wadanru/Admin
   const isAuthorizedFiller = useMemo(() => {
@@ -592,6 +611,7 @@ _Sistem Manajemen Keamanan JDC_`;
           reports={reports}
           todayStr={todayStr}
           getJamDinas={getJamDinas}
+          onShowAudit={handleShowAudit}
         />
       )}
 
@@ -739,7 +759,13 @@ _Sistem Manajemen Keamanan JDC_`;
                                     onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'; }}
                                   />
                                   <div>
-                                    <div style={{ fontWeight: 800, fontSize: '0.82rem' }}>{member.nama}</div>
+                                    <div 
+                                      style={{ fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', color: 'var(--color-primary)', textDecoration: 'underline' }}
+                                      onClick={() => handleShowAudit(member.id)}
+                                      title="Klik untuk detail audit presensi"
+                                    >
+                                      {member.nama}
+                                    </div>
                                     <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>NRP: {member.nrp}</div>
                                   </div>
                                 </div>
@@ -1281,6 +1307,214 @@ _Sistem Manajemen Keamanan JDC_`;
         </div>
       )}
 
+      {/* ======================================================== */}
+      {/* FUTURISTIC DETAILED AUDIT MODAL (ANTI-FRAUD) */}
+      {/* ======================================================== */}
+      {selectedAuditLog && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem'
+        }} onClick={() => setSelectedAuditLog(null)}>
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.95)',
+            border: '1px solid var(--border-glass)',
+            borderRadius: '16px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            padding: '1.25rem',
+            position: 'relative'
+          }} onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.65rem' }}>
+              <h3 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--text-primary)' }}>
+                <Shield size={18} className="text-primary" />
+                <span>Rincian Keamanan Presensi JDC</span>
+              </h3>
+              <button 
+                onClick={() => setSelectedAuditLog(null)} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Profile Overview */}
+            <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.65rem', borderRadius: '10px', border: '1px solid var(--border-glass)' }}>
+              <img 
+                src={selectedAuditLog.member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} 
+                alt="" 
+                style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary)' }} 
+                onError={e => e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{selectedAuditLog.member.nama}</strong>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>NRP: {selectedAuditLog.member.nrp} · {selectedAuditLog.member.jabatan}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)', fontWeight: 700 }}>{selectedAuditLog.member.regu || 'Semua Regu'}</span>
+              </div>
+            </div>
+
+            {/* Shift & Time Details */}
+            <div className="grid-cols-2" style={{ gap: '0.65rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-glass)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>JAM DINAS / SHIFT</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
+                  {selectedAuditLog.attRow.jamDinas}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-glass)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PLOTTING POS JAGA</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#06b6d4', marginTop: '0.15rem' }}>
+                  📍 {selectedAuditLog.attRow.posPlotting}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-glass)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PRESENSI MASUK</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '0.15rem' }}>
+                  {selectedAuditLog.attRow.checkInTime || '-'}
+                </div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-glass)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>PRESENSI PULANG</div>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-danger)', marginTop: '0.15rem' }}>
+                  {selectedAuditLog.attRow.checkOutTime || 'Belum Pulang'}
+                </div>
+              </div>
+            </div>
+
+            {/* Selfie Snapshot & Liveness Info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)' }}>FOTO SELFIE & VERIFIKASI WAJAH (ANTI-FAKE)</span>
+              <div style={{ position: 'relative', width: '100%', height: '180px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-glass)', background: '#090d16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {selectedAuditLog.attRow.fotoSelfie ? (
+                  <>
+                    <img 
+                      src={selectedAuditLog.attRow.fotoSelfie} 
+                      alt="Selfie Check-in" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    {/* Glowing face mesh box overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      border: '2.5px solid #10b981',
+                      borderRadius: '50%',
+                      width: '90px',
+                      height: '115px',
+                      boxShadow: '0 0 15px #10b981, inset 0 0 10px #10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pointerEvents: 'none'
+                    }}>
+                      <span style={{ background: '#10b981', color: 'white', fontSize: '0.45rem', fontWeight: 900, padding: '1px 3px', borderRadius: '3px', position: 'absolute', top: '-10px', whiteSpace: 'nowrap' }}>FACE OK</span>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Tidak ada foto selfie terlampir</div>
+                )}
+                
+                {/* Liveness Tag overlay */}
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: selectedAuditLog.attRow.isLivenessVerified ? 'rgba(16,185,129,0.9)' : 'rgba(245,158,11,0.9)',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '5px',
+                  fontSize: '0.58rem',
+                  fontWeight: 800,
+                  color: 'white',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                }}>
+                  {selectedAuditLog.attRow.isLivenessVerified ? 'Liveness Lulus (Anti-Fake)' : 'Liveness N/A (Manual)'}
+                </div>
+              </div>
+            </div>
+
+            {/* GPS Anti-Fake & Location */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)' }}>KOORDINAT LOKASI & DETEKSI GPS PALSU</span>
+              <div style={{ background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-glass)', padding: '0.75rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <MapPin size={13} className="text-primary" />
+                    <span>Lokasi GPS</span>
+                  </div>
+                  {selectedAuditLog.attRow.lat && selectedAuditLog.attRow.lng ? (
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${selectedAuditLog.attRow.lat},${selectedAuditLog.attRow.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
+                    >
+                      <ExternalLink size={10} /> Buka Peta
+                    </a>
+                  ) : null}
+                </div>
+
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                  Latitude: {selectedAuditLog.attRow.lat || '-'}<br />
+                  Longitude: {selectedAuditLog.attRow.lng || '-'}
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  {/* Developer options check */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Opsi Pengembang (Dev Options):</span>
+                    <strong style={{ color: selectedAuditLog.attRow.developerOptionsEnabled ? '#ef4444' : '#10b981' }}>
+                      {selectedAuditLog.attRow.developerOptionsEnabled ? 'AKTIF ❌ (Ditolak)' : 'NON-AKTIF ✅ (Aman)'}
+                    </strong>
+                  </div>
+                  {/* Mock GPS check */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Deteksi Fake GPS (Mock Location):</span>
+                    <strong style={{ color: selectedAuditLog.attRow.isMockLocation ? '#ef4444' : '#10b981' }}>
+                      {selectedAuditLog.attRow.isMockLocation ? 'TERDETEKSI MOCK ❌' : 'GPS FISIK AMAN ✅'}
+                    </strong>
+                  </div>
+                  {/* GPS Accuracy */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Akurasi Sinyal GPS:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>
+                      {selectedAuditLog.attRow.gpsAccuracy ? `${Number(selectedAuditLog.attRow.gpsAccuracy).toFixed(1)} meter` : 'N/A'}
+                    </strong>
+                  </div>
+                  {/* Device info */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Perangkat Pengirim:</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', maxWidth: '240px', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={selectedAuditLog.attRow.deviceInfo}>
+                      {selectedAuditLog.attRow.deviceInfo || 'PWA Web Browser'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              onClick={() => setSelectedAuditLog(null)} 
+              className="btn-primary btn-full"
+              style={{ padding: '0.6rem', fontWeight: 700, fontSize: '0.8rem', marginTop: '0.25rem' }}
+            >
+              Tutup Rincian Audit
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1456,7 +1690,15 @@ function AbsensiRosterHarian({ users, posList, attendanceLogs, onAddAttendance, 
               ) : rows.map((row, idx) => (
                 <tr key={`${row.personilId}-${idx}`} style={{ borderBottom: '1px solid var(--border-glass)' }}>
                   <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>{idx + 1}</td>
-                  <td style={{ padding: '0.65rem 0.75rem', fontWeight: 700 }}>{row.nama}</td>
+                  <td style={{ padding: '0.65rem 0.75rem', fontWeight: 700 }}>
+                    <span 
+                      style={{ cursor: 'pointer', color: 'var(--color-primary)', textDecoration: 'underline' }}
+                      onClick={() => onShowAudit && onShowAudit(row.personilId)}
+                      title="Klik untuk detail audit presensi"
+                    >
+                      {row.nama}
+                    </span>
+                  </td>
                   <td style={{ padding: '0.65rem 0.75rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{row.jabatan} · {row.regu}</td>
                   <td style={{ padding: '0.65rem 0.75rem' }}>
                     <select value={row.status} onChange={e => handleRowChange(idx, 'status', e.target.value)} className="modern-select" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
