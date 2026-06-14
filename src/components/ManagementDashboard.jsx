@@ -635,7 +635,7 @@ export default function ManagementDashboard({
 
   const renderLiveTerminal = () => {
     return (
-      <div className="cyber-card" style={{ flex: 1, minWidth: '280px', background: '#090d16', border: '1px solid rgba(0, 240, 255, 0.15)', padding: '1rem', borderRadius: '12px', boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)' }}>
+      <div className="cyber-card" style={{ flex: 1, minWidth: '280px', padding: '1rem', borderRadius: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 240, 255, 0.1)', paddingBottom: '0.4rem', marginBottom: '0.5rem' }}>
           <span style={{ fontFamily: 'Consolas, monospace', fontSize: '0.72rem', fontWeight: 'bold', color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00f0ff', display: 'inline-block' }} />
@@ -695,11 +695,13 @@ export default function ManagementDashboard({
           gap: 1.5rem;
         }
         .cyber-card {
-          background: #111625;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(17, 22, 37, 0.22) !important;
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+          border: 1px solid rgba(0, 240, 255, 0.15) !important;
           border-radius: 20px;
           padding: 1.5rem;
-          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
           position: relative;
           overflow: hidden;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -762,9 +764,11 @@ export default function ManagementDashboard({
         
         /* Premium Light Theme overrides for cyber-card and contents */
         .theme-light .cyber-card {
-          background: #ffffff !important;
-          border: 1px solid rgba(0, 0, 0, 0.08) !important;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+          background: rgba(255, 255, 255, 0.35) !important;
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+          border: 1px solid rgba(37, 99, 235, 0.15) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02) !important;
         }
         .theme-light .cyber-card:hover {
           box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08), 0 0 12px rgba(37, 99, 235, 0.12) !important;

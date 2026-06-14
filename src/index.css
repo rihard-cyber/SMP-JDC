@@ -162,7 +162,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Glassmorphism utility */
 .glass-panel {
   position: relative;
-  background: rgba(13, 19, 36, 0.38) !important; /* Elegant semi-transparency so watermark shows through */
+  background: rgba(13, 19, 36, 0.16) !important; /* Elegant semi-transparency so watermark shows through */
   backdrop-filter: blur(8px) !important; /* Frosted glass backing */
   -webkit-backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(0, 240, 255, 0.22) !important; /* Sleek neon cyan border */
@@ -1084,7 +1084,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── Glass Panel → Transparent Frosted Card ── */
 .theme-light .glass-panel {
-  background: rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
   border: 1px solid rgba(30, 58, 138, 0.2) !important;
   color: var(--text-primary);
   backdrop-filter: blur(8px) !important;
@@ -4447,4 +4447,183 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     font-size: 1rem;
   }
 }
+
+/* ── Global Card, Grid, Sidebar & Header Transparency Overrides ── */
+.glass-panel,
+.cyber-card,
+.kpi-card,
+.finding-card,
+.finding-ticket,
+.login-card,
+.panic-card,
+.step-user-card,
+.sidebar,
+.global-header,
+.scan-compact-item,
+.custom-role-btn,
+.toast-item {
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* Dark Mode Overrides */
+.theme-dark .glass-panel,
+.theme-dark .cyber-card,
+.theme-dark .kpi-card,
+.theme-dark .finding-card,
+.theme-dark .finding-ticket,
+.theme-dark .login-card,
+.theme-dark .step-user-card,
+.theme-dark .scan-compact-item,
+.theme-dark .custom-role-btn,
+.theme-dark .toast-item {
+  background: rgba(13, 19, 36, 0.16) !important;
+  border-color: rgba(0, 240, 255, 0.22) !important;
+}
+
+.theme-dark .sidebar {
+  background: rgba(7, 10, 19, 0.35) !important;
+}
+
+.theme-dark .global-header {
+  background: rgba(7, 10, 19, 0.2) !important;
+}
+
+/* Light Mode Overrides */
+.theme-light .glass-panel,
+.theme-light .cyber-card,
+.theme-light .kpi-card,
+.theme-light .finding-card,
+.theme-light .finding-ticket,
+.theme-light .login-card,
+.theme-light .step-user-card,
+.theme-light .scan-compact-item,
+.theme-light .custom-role-btn,
+.theme-light .toast-item {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(30, 58, 138, 0.15) !important;
+}
+
+.theme-light .sidebar {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
+.theme-light .global-header {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* ============================================================
+   LIGHT MODE RESET FOR DARK OVERLAYS (SECURITY & SPLASH)
+   ============================================================ */
+/* Force dark/neon colors for security check overlay even in light mode */
+.theme-light .security-shield-overlay {
+  background: radial-gradient(circle at center, #0b1329 0%, #020617 100%) !important;
+  color: #f8fafc !important;
+}
+.theme-light .security-shield-overlay .security-shield-card {
+  background: rgba(15, 23, 42, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+.theme-light .security-shield-overlay .shield-title {
+  color: #f8fafc !important;
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
+}
+.theme-light .security-shield-overlay .shield-subtitle {
+  color: #3b82f6 !important;
+}
+.theme-light .security-shield-overlay .shield-failed-subtitle {
+  color: #ef4444 !important;
+}
+.theme-light .security-shield-overlay .check-item {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+.theme-light .security-shield-overlay .check-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.theme-light .security-shield-overlay .check-name {
+  color: #cbd5e1 !important;
+}
+.theme-light .security-shield-overlay .check-item.item-granted .check-name {
+  color: #f8fafc !important;
+}
+.theme-light .security-shield-overlay .status-checking {
+  color: #3b82f6 !important;
+}
+.theme-light .security-shield-overlay .status-granted {
+  color: #10b981 !important;
+}
+.theme-light .security-shield-overlay .status-denied {
+  color: #ef4444 !important;
+}
+.theme-light .security-shield-overlay .check-icon-wrap {
+  color: #94a3b8 !important;
+}
+.theme-light .security-shield-overlay .check-item.item-checking .check-icon-wrap {
+  color: #3b82f6 !important;
+}
+.theme-light .security-shield-overlay .check-item.item-granted .check-icon-wrap {
+  color: #10b981 !important;
+}
+.theme-light .security-shield-overlay .check-item.item-denied .check-icon-wrap {
+  color: #ef4444 !important;
+}
+.theme-light .security-shield-overlay .security-console {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #10b981 !important;
+}
+.theme-light .security-shield-overlay .console-header-row {
+  color: #64748b !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.theme-light .security-shield-overlay .console-line {
+  color: #10b981 !important;
+  opacity: 0.85 !important;
+}
+.theme-light .security-shield-overlay .error-box-list {
+  color: #cbd5e1 !important;
+}
+
+/* Force dark/neon colors for splash screen even in light mode */
+.theme-light .splash-screen.cyber-screen {
+  background: radial-gradient(circle at center, #0a1424 0%, #03060f 100%) !important;
+}
+.theme-light .splash-screen.cyber-screen .progress-label {
+  color: #00f0ff !important;
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.35) !important;
+}
+.theme-light .splash-screen.cyber-screen .progress-percent {
+  color: #39ff14 !important;
+}
+.theme-light .splash-screen.cyber-screen .cyber-console {
+  background: rgba(11, 15, 25, 0.85) !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+}
+.theme-light .splash-screen.cyber-screen .console-title {
+  color: #00f0ff !important;
+}
+.theme-light .splash-screen.cyber-screen .console-status {
+  color: #39ff14 !important;
+}
+.theme-light .splash-screen.cyber-screen .console-line {
+  color: #39ff14 !important;
+  text-shadow: 0 0 3px rgba(16, 185, 129, 0.5) !important;
+}
+.theme-light .splash-screen.cyber-screen .splash-title,
+.theme-light .splash-screen.cyber-screen .cyber-title {
+  color: #f8fafc !important;
+}
+.theme-light .splash-screen.cyber-screen .splash-subtitle,
+.theme-light .splash-screen.cyber-screen .cyber-subtitle {
+  color: #64748b !important;
+}
+.theme-light .splash-screen.cyber-screen .console-header {
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
 

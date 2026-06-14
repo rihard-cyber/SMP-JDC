@@ -3,6 +3,7 @@ import { registerBackHandler } from '../utils/navigation';
 import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X, Printer } from 'lucide-react';
 import { compressImage } from '../utils/image';
 import { exportTableToPdf, formatDateForFile, formatDateOnlyId } from '../utils/exportPdf';
+import { getGPSCoordinates, verifyGPSAntiFake } from '../utils/security';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -36,10 +37,27 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     return unregister;
   }, [selectedPhoto]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!uraian.trim() || !lokasi.trim()) {
       alert('Lokasi dan uraian wajib diisi!');
+      return;
+    }
+
+    // Active Fake GPS validation for Mutation Report
+    try {
+      const coords = await getGPSCoordinates();
+      if (!coords) {
+        alert('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik sebelum mencatat mutasi.');
+        return;
+      }
+      const gpsCheck = verifyGPSAntiFake(coords);
+      if (!gpsCheck.secure) {
+        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Catatan mutasi dibatalkan!`);
+        return;
+      }
+    } catch (err) {
+      alert('⚠️ Gagal memvalidasi GPS. Pastikan izin lokasi diberikan.');
       return;
     }
     const now = new Date();

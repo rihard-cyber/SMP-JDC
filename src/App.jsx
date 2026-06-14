@@ -386,24 +386,8 @@ export default function App() {
       // Ignore native check issues
     }
 
-    // 4. Check Fake GPS (Only when active coordinates are fetched - run periodically)
-    try {
-      const coords = await getGPSCoordinates();
-      if (coords) {
-        const gpsCheck = verifyGPSAntiFake(coords);
-        if (!gpsCheck.secure) {
-          setIsSecurityPassed(false);
-          return false;
-        }
-      } else {
-        // GPS off or unreadable
-        setIsSecurityPassed(false);
-        return false;
-      }
-    } catch (e) {
-      setIsSecurityPassed(false);
-      return false;
-    }
+    // 4. Fake GPS checking is skipped during periodic intervals to prevent signal dropouts.
+    // It is verified on demand during App Entry, Barcode Scan, Presence/Face Scan, and Mutation Reports.
 
     setIsSecurityPassed(true);
     return true;

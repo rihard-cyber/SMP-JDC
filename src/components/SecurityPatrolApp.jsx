@@ -603,10 +603,30 @@ export default function SecurityPatrolApp({
     }
   }, [scanningPresensi]);
 
-  const handlePresensiBarcodeScannedSuccessfully = (val) => {
+  const handlePresensiBarcodeScannedSuccessfully = async (val) => {
     hapticSuccess();
     let cleanVal = val.trim();
     if (!cleanVal) return;
+
+    // Active Fake GPS validation for Presensi QR Scan
+    try {
+      const coords = await getGPSCoordinates();
+      if (!coords) {
+        setPresensiScanError('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik.');
+        setTimeout(() => setPresensiScanError(''), 4000);
+        return;
+      }
+      const gpsCheck = verifyGPSAntiFake(coords);
+      if (!gpsCheck.secure) {
+        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Presensi QR dibatalkan!`);
+        setScanningPresensi(false);
+        return;
+      }
+    } catch (err) {
+      setPresensiScanError('⚠️ Gagal memverifikasi GPS.');
+      setTimeout(() => setPresensiScanError(''), 4000);
+      return;
+    }
 
     // Smart URL Parsing
     if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
@@ -929,10 +949,30 @@ export default function SecurityPatrolApp({
     }
   };
 
-  const handleBarcodeScannedSuccessfully = (val) => {
+  const handleBarcodeScannedSuccessfully = async (val) => {
     hapticSuccess();
     let cleanVal = val.trim();
     if (!cleanVal) return;
+
+    // Active Fake GPS validation for Checkpoint Barcode Scan
+    try {
+      const coords = await getGPSCoordinates();
+      if (!coords) {
+        setScanError('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik.');
+        setTimeout(() => setScanError(''), 4000);
+        return;
+      }
+      const gpsCheck = verifyGPSAntiFake(coords);
+      if (!gpsCheck.secure) {
+        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Scan checkpoint dibatalkan!`);
+        setScanning(false);
+        return;
+      }
+    } catch (err) {
+      setScanError('⚠️ Gagal memverifikasi GPS.');
+      setTimeout(() => setScanError(''), 4000);
+      return;
+    }
 
     // Smart URL Parsing: Ekstrak parameter query jika QR code berisi URL lengkap
     if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
