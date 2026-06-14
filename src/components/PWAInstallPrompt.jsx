@@ -8,6 +8,11 @@ export default function PWAInstallPrompt() {
   const [promptType, setPromptType] = useState('pwa'); // 'pwa' | 'android' | 'ios'
 
   useEffect(() => {
+    // Clear old localStorage block to force prompt to show up immediately
+    try {
+      localStorage.removeItem('smpjdc_pwa_dismissed_until');
+    } catch (e) {}
+
     // 1. If running inside native Capacitor app, do absolutely nothing
     if (Capacitor.isNativePlatform()) {
       return;
@@ -19,9 +24,9 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    // 3. Check if user dismissed the prompt recently (e.g. dismissed for 1 day instead of 3 to make sure they see it)
-    const dismissedUntil = localStorage.getItem('smpjdc_pwa_dismissed_until');
-    if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) {
+    // 3. Check if user dismissed the prompt in the current session
+    const isDismissed = sessionStorage.getItem('smpjdc_pwa_dismissed') === 'true';
+    if (isDismissed) {
       return;
     }
 
@@ -96,9 +101,9 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Dismiss for 24 hours
-    const dismissedTime = Date.now() + 24 * 60 * 60 * 1000;
-    localStorage.setItem('smpjdc_pwa_dismissed_until', dismissedTime.toString());
+    try {
+      sessionStorage.setItem('smpjdc_pwa_dismissed', 'true');
+    } catch (e) {}
   };
 
   if (!showPrompt) return null;
