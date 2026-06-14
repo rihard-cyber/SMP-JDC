@@ -323,7 +323,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 375px;
   height: 780px;
   border-radius: 40px;
-  background: rgba(24, 29, 42, 0.4);
+  background: rgba(13, 19, 36, 0.15) !important; /* Extremely light semi-transparency so watermark shows through perfectly */
   border: 12px solid #2d3548;
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(59, 130, 246, 0.1);
   position: relative;
@@ -352,7 +352,7 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(15, 19, 34, 0.45);
+  background: transparent !important; /* Transparent background to reveal the drifting background watermark */
   overflow-y: auto;
   padding: 1.25rem;
   padding-top: 2rem;
@@ -1249,9 +1249,8 @@ h1, h2, h3, h4, h5, h6 {
 .theme-light .theme-toggle-btn { color: var(--text-secondary); border-color: var(--border-glass); }
 .theme-light .theme-toggle-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: #3b82f6; }
 
-/* ── Scanner / QR / Mobile Simulator ── */
-.theme-light .mobile-phone-frame { background: #ffffff; border-color: #d1d5db; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); }
-.theme-light .mobile-screen { background: #f8f9fa; }
+.theme-light .mobile-phone-frame { background: rgba(255, 255, 255, 0.25) !important; border-color: #d1d5db; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); }
+.theme-light .mobile-screen { background: transparent !important; }
 .theme-light .mobile-status-bar { color: var(--text-muted); }
 .theme-light .mobile-header { border-bottom-color: var(--border-glass); }
 .theme-light .mobile-app-title { color: var(--text-primary); }
@@ -2536,7 +2535,7 @@ h1, h2, h3, h4, h5, h6 {
 .mobile-phone-frame {
   max-width: 400px;
   margin: 0 auto;
-  background: #0a0e1a;
+  background: rgba(13, 19, 36, 0.15) !important; /* Extremely light semi-transparency so watermark shows through perfectly */
   border-radius: 24px;
   border: 1px solid rgba(255,255,255,0.08);
   overflow: hidden;
