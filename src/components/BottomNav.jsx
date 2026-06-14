@@ -7,7 +7,8 @@ import {
   BookOpen,
   FileText,
   Menu,
-  Smartphone
+  Smartphone,
+  Fingerprint
 } from 'lucide-react';
 
 export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
@@ -53,7 +54,6 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
   }, []);
 
   const isGuard = ['Danru', 'Wadanru', 'Anggota'].includes(user?.jabatan);
-  const isDanruWadanru = ['Danru', 'Wadanru'].includes(user?.jabatan);
   const isGuest = user?.jabatan === 'Guest Viewer';
 
   const getItems = () => {
@@ -64,20 +64,13 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
       ];
     }
     if (isGuard) {
-      const items = [
+      return [
         { id: 'guard-simulator', label: 'Patroli', icon: Smartphone },
-      ];
-      if (isDanruWadanru) {
-        items.push(
-          { id: 'absensi', label: 'Absensi', icon: ClipboardList },
-          { id: 'mutasi', label: 'Mutasi', icon: BookOpen },
-        );
-      }
-      items.push(
+        { id: 'mutasi', label: 'Mutasi', icon: BookOpen },
+        { id: 'absensi', label: 'Presensi', icon: Fingerprint, isCenter: true },
         { id: 'lapor', label: 'Lapor', icon: FileText },
         { id: null, label: 'Menu', icon: Menu, isMenu: true },
-      );
-      return items;
+      ];
     }
     return [
       { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
@@ -108,6 +101,19 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
           );
         }
         const Icon = item.icon;
+        if (item.isCenter) {
+          return (
+            <button
+              key={item.id}
+              className={`bottom-nav-btn bottom-nav-btn-center ${currentTab === item.id ? 'active' : ''}`}
+              onClick={() => onNavClick(item.id)}
+              aria-label={item.label}
+              title={item.label}
+            >
+              <Icon size={28} />
+            </button>
+          );
+        }
         return (
           <button
             key={item.id}

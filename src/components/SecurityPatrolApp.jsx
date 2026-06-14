@@ -237,6 +237,19 @@ export default function SecurityPatrolApp({
     }
   }, [myPlotting, todayLog]);
 
+  useEffect(() => {
+    const handleTabChange = () => {
+      const savedTab = localStorage.getItem('smpjdc_simulator_tab');
+      if (savedTab) {
+        setTab(savedTab);
+        localStorage.removeItem('smpjdc_simulator_tab');
+      }
+    };
+    window.addEventListener('smpjdc_simulator_tab_change', handleTabChange);
+    handleTabChange();
+    return () => window.removeEventListener('smpjdc_simulator_tab_change', handleTabChange);
+  }, []);
+
   // ── States & Handlers for Self Attendance (SI PRESENSI PRO MAX) ──
   const videoRef = React.useRef(null);
 

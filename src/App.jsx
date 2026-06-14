@@ -2151,9 +2151,17 @@ export default function App() {
   };
 
   const handleNavClick = (tabName) => {
-    setCurrentTab(tabName);
-    window.location.hash = '#/' + tabName;
-    localStorage.setItem('smpjdc_last_route', tabName);
+    if (tabName === 'absensi' && currentUser?.jabatan === 'Anggota') {
+      setCurrentTab('guard-simulator');
+      window.location.hash = '#/guard-simulator';
+      localStorage.setItem('smpjdc_last_route', 'guard-simulator');
+      localStorage.setItem('smpjdc_simulator_tab', 'presensi');
+      window.dispatchEvent(new Event('smpjdc_simulator_tab_change'));
+    } else {
+      setCurrentTab(tabName);
+      window.location.hash = '#/' + tabName;
+      localStorage.setItem('smpjdc_last_route', tabName);
+    }
     setIsSidebarOpen(false);
   };
 
