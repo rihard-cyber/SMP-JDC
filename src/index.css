@@ -1065,19 +1065,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ── Main Background ── */
-.theme-light body,
-.theme-light .main-content {
+.theme-light body {
   background: var(--bg-primary);
 }
+.theme-light .main-content {
+  background: transparent;
+}
 
-/* ── Glass Panel → Solid White Card ── */
+/* ── Glass Panel → Transparent Frosted Card ── */
 .theme-light .glass-panel {
-  background: var(--bg-glass);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(30, 58, 138, 0.15) !important;
   color: var(--text-primary);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 0 10px 30px rgba(30, 58, 138, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+.theme-light .glass-panel h1, 
+.theme-light .glass-panel h2, 
+.theme-light .glass-panel h3, 
+.theme-light .glass-panel h4,
+.theme-light .glass-panel h5,
+.theme-light .glass-panel h6 {
+  color: #0f172a !important; /* Deep Slate Black */
+  font-weight: 800 !important;
+}
+
+.theme-light .glass-panel p,
+.theme-light .glass-panel li,
+.theme-light .glass-panel td,
+.theme-light .glass-panel th,
+.theme-light .glass-panel span:not(.ornament-symbol):not(.ornament-line) {
+  color: #1e293b !important; /* Deep Slate Gray */
+  font-weight: 600 !important; /* High thickness/weight for readability */
+}
+
+.theme-light .glass-panel label {
+  color: #1e3a8a !important; /* Deep Royal Blue */
+  font-weight: 700 !important;
+}
+
+.theme-light .glass-panel h1, .theme-light .glass-panel h2, .theme-light .glass-panel h3, .theme-light .glass-panel h4, .theme-light .glass-panel h5, .theme-light .glass-panel h6,
+.theme-light .glass-panel p, .theme-light .glass-panel span:not(.ornament-symbol):not(.ornament-line), .theme-light .glass-panel label, .theme-light .glass-panel li, .theme-light .glass-panel td, .theme-light .glass-panel th {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95) !important; /* Soft white shadow glow */
 }
 .theme-light .glass-panel:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);

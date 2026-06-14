@@ -198,7 +198,7 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.25), 0 0 15px rgba(0, 240, 255, 0.15);
           border: 1.5px solid rgba(0, 240, 255, 0.35);
           background: rgba(13, 19, 36, 0.55);
-          opacity: 0.26;
+          opacity: 0.35;
         }
         .theme-dark .ukiran-logo-text {
           color: #00f0ff;
@@ -226,18 +226,18 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         }
 
         .theme-light .ukiran-watermark {
-          color: #1e3a8a;
-          box-shadow: inset 0 0 15px rgba(59, 130, 246, 0.2);
-          border: 1.5px solid rgba(59, 130, 246, 0.25);
-          background: rgba(255, 255, 255, 0.65);
-          opacity: 0.18;
+          color: #2563eb;
+          box-shadow: inset 0 0 18px rgba(59, 130, 246, 0.22), 0 0 12px rgba(59, 130, 246, 0.15);
+          border: 1.5px solid rgba(59, 130, 246, 0.35);
+          background: rgba(255, 255, 255, 0.75);
+          opacity: 0.28;
         }
         .theme-light .ukiran-logo-text {
-          color: #1e3a8a;
+          color: #1e40af;
           font-size: 1.5rem;
           font-weight: 900;
           letter-spacing: 0.2em;
-          text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+          text-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
           -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.95);
         }
         .theme-light .ukiran-sub-text {
