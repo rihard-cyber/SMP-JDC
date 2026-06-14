@@ -2611,6 +2611,33 @@ export default function SecurityPatrolApp({
             </div>
           </div>
         )}
+        {/* ============================================================ */}
+        {/* FOOTER WATERMARK FOR MOBILE APP / SIMULATOR */}
+        {/* ============================================================ */}
+        <div className="mobile-app-footer" style={{
+          marginTop: '2rem',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          opacity: 0.85,
+          padding: '0 0.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.2rem',
+          width: '100%',
+          clear: 'both'
+        }}>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+            © 2026 <strong style={{ color: 'var(--color-primary)' }}>SMPJDC</strong>. Hak Cipta Dilindungi.
+          </span>
+          <div className="ornamental-watermark" style={{ margin: '0.5rem auto 0.2rem' }}>
+            <span className="ornament-line"></span>
+            <span className="ornament-symbol">❁❀❁</span>
+            <span className="watermark-text" style={{ fontSize: '0.95rem' }}>Developer Richard Meha</span>
+            <span className="ornament-symbol">❁❀❁</span>
+            <span className="ornament-line"></span>
+          </div>
+        </div>
       </div>
 
       {/* Bottom Tab Bar Navigation */}

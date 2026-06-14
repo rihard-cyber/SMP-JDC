@@ -194,63 +194,67 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         }
         
         .theme-dark .ukiran-watermark {
-          color: #00ffff;
-          box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.15);
-          border: 1px solid rgba(0, 255, 255, 0.2);
-          background: rgba(13, 19, 36, 0.45);
-          opacity: 0.12;
+          color: #00f0ff;
+          box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.25), 0 0 15px rgba(0, 240, 255, 0.15);
+          border: 1.5px solid rgba(0, 240, 255, 0.35);
+          background: rgba(13, 19, 36, 0.55);
+          opacity: 0.26;
         }
         .theme-dark .ukiran-logo-text {
-          color: #00ffff;
-          font-size: 1.45rem;
+          color: #00f0ff;
+          font-size: 1.5rem;
           font-weight: 900;
-          letter-spacing: 0.18em;
-          text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
+          letter-spacing: 0.2em;
+          text-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.9);
         }
         .theme-dark .ukiran-sub-text {
-          font-size: 0.75rem;
-          letter-spacing: 0.22em;
+          font-size: 0.8rem;
+          letter-spacing: 0.24em;
           color: #c7d2fe;
           font-weight: bold;
-          -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
+          text-shadow: 0 0 10px rgba(199, 210, 254, 0.4);
+          -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.6);
         }
         .theme-dark .ukiran-ornament-top, .theme-dark .ukiran-ornament-bottom {
-          font-size: 1.05rem;
-          color: #00ffff;
+          font-size: 1.1rem;
+          color: #00f0ff;
           letter-spacing: 0.1em;
           font-weight: bold;
-          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
+          text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+          -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.9);
         }
 
         .theme-light .ukiran-watermark {
           color: #1e3a8a;
-          box-shadow: inset 0 0 12px rgba(59, 130, 246, 0.1);
-          border: 1px solid rgba(59, 130, 246, 0.15);
-          background: rgba(255, 255, 255, 0.5);
-          opacity: 0.08;
+          box-shadow: inset 0 0 15px rgba(59, 130, 246, 0.2);
+          border: 1.5px solid rgba(59, 130, 246, 0.25);
+          background: rgba(255, 255, 255, 0.65);
+          opacity: 0.18;
         }
         .theme-light .ukiran-logo-text {
           color: #1e3a8a;
-          font-size: 1.45rem;
+          font-size: 1.5rem;
           font-weight: 900;
-          letter-spacing: 0.18em;
-          text-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
-          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
+          letter-spacing: 0.2em;
+          text-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.95);
         }
         .theme-light .ukiran-sub-text {
-          font-size: 0.75rem;
-          letter-spacing: 0.22em;
+          font-size: 0.8rem;
+          letter-spacing: 0.24em;
           color: #2563eb;
           font-weight: bold;
-          -webkit-text-stroke: 0.3px rgba(255, 255, 255, 0.7);
+          text-shadow: 0 0 8px rgba(37, 99, 235, 0.3);
+          -webkit-text-stroke: 0.3px rgba(255, 255, 255, 0.8);
         }
         .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
-          font-size: 1.05rem;
+          font-size: 1.1rem;
           color: #2563eb;
           letter-spacing: 0.1em;
           font-weight: bold;
-          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
+          text-shadow: 0 0 8px rgba(37, 99, 235, 0.3);
+          -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.95);
         }
 
         .login-page {
