@@ -333,3 +333,24 @@ export async function generateAntiFraudData(userId) {
     isLivenessVerified: true // Set on successful liveness face challenge completion
   };
 }
+
+// Check permissions passively (Web/PWA permissions query API)
+export async function queryWebPermissions() {
+  const result = { camera: 'prompt', geolocation: 'prompt' };
+  if (typeof navigator === 'undefined' || !navigator.permissions) {
+    return result;
+  }
+  try {
+    const geoPermission = await navigator.permissions.query({ name: 'geolocation' });
+    result.geolocation = geoPermission.state; // 'granted' | 'denied' | 'prompt'
+  } catch (e) {
+    console.warn('[Security] Geolocation permission query not supported:', e);
+  }
+  try {
+    const camPermission = await navigator.permissions.query({ name: 'camera' });
+    result.camera = camPermission.state; // 'granted' | 'denied' | 'prompt'
+  } catch (e) {
+    console.warn('[Security] Camera permission query not supported:', e);
+  }
+  return result;
+}

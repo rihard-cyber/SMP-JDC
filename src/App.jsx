@@ -9,13 +9,14 @@
  * =======================================================
  */
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera as CapCamera } from '@capacitor/camera';
 import { executeBackHandlers } from './utils/navigation';
-import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
+import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession, queryWebPermissions, checkDeviceSecurity, getGPSCoordinates, verifyGPSAntiFake } from './utils/security';
+import SecurityCheckBlock from './components/SecurityCheckBlock';
 import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
 import db from './utils/db';
@@ -311,6 +312,7 @@ export function OrnamentalWatermark() {
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
+  const [isSecurityPassed, setIsSecurityPassed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUsers, setHasUsers] = useState(true);
   const [firebaseUsersLoaded, setFirebaseUsersLoaded] = useState(false);
@@ -334,37 +336,152 @@ export default function App() {
     };
   }, []);
 
-  // Request native permissions on mount for camera and GPS to prevent crashes and enable auto-start
-  useEffect(() => {
-    const initNativePermissions = async () => {
+  // Real-time security verification checker
+  const verifyAppSecurityRealtime = useCallback(async () => {
+    // 1. Check Camera
+    let cameraOk = false;
+    try {
       if (Capacitor.isNativePlatform()) {
-        try {
-          // Check/Request Camera permission
-          const cameraStatus = await CapCamera.checkPermissions();
-          if (cameraStatus.camera !== 'granted') {
-            await CapCamera.requestPermissions();
-          }
-          // Check/Request Location permission
-          const locationStatus = await Geolocation.checkPermissions();
-          if (locationStatus.location !== 'granted') {
-            await Geolocation.requestPermissions();
-          }
-        } catch (e) {
-          console.warn('[Permissions] Failed to initialize native permissions:', e);
+        const camStatus = await CapCamera.checkPermissions();
+        cameraOk = camStatus.camera === 'granted';
+      } else {
+        const webPerms = await queryWebPermissions();
+        cameraOk = webPerms.camera === 'granted';
+      }
+    } catch (e) {
+      cameraOk = false;
+    }
+
+    // 2. Check Location
+    let locationOk = false;
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const locStatus = await Geolocation.checkPermissions();
+        locationOk = locStatus.location === 'granted';
+      } else {
+        const webPerms = await queryWebPermissions();
+        locationOk = webPerms.geolocation === 'granted';
+      }
+    } catch (e) {
+      locationOk = false;
+    }
+
+    if (!cameraOk || !locationOk) {
+      setIsSecurityPassed(false);
+      return false;
+    }
+
+    // 3. Check Opsi Pengembang (Android Security)
+    try {
+      const secCheck = await checkDeviceSecurity();
+      if (secCheck.developerOptionsEnabled) {
+        setIsSecurityPassed(false);
+        return false;
+      }
+    } catch (e) {
+      // Ignore native check issues
+    }
+
+    // 4. Check Fake GPS (Only when active coordinates are fetched - run periodically)
+    try {
+      const coords = await getGPSCoordinates();
+      if (coords) {
+        const gpsCheck = verifyGPSAntiFake(coords);
+        if (!gpsCheck.secure) {
+          setIsSecurityPassed(false);
+          return false;
         }
       } else {
-        // Web / PWA: Request Location permission proactively on mount
-        if ('geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => console.log('[PWA GPS] Permission granted, initial position fetched'),
-            (err) => console.warn('[PWA GPS] Initial permission check failed/denied:', err.message),
-            { enableHighAccuracy: true, timeout: 5000 }
-          );
-        }
+        // GPS off or unreadable
+        setIsSecurityPassed(false);
+        return false;
+      }
+    } catch (e) {
+      setIsSecurityPassed(false);
+      return false;
+    }
+
+    setIsSecurityPassed(true);
+    return true;
+  }, []);
+
+  // Periodic security validation & active real-time security trackers
+  useEffect(() => {
+    if (!isSecurityPassed) return;
+
+    // 1. Run check immediately on load
+    verifyAppSecurityRealtime();
+
+    // 2. Set up background verification interval (Developer Options & general state)
+    const interval = setInterval(() => {
+      verifyAppSecurityRealtime();
+    }, 10000); // Every 10 seconds
+
+    // 3. Listen to focus and visibility changes for instant verification
+    const handleFocus = () => {
+      verifyAppSecurityRealtime();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    // 4. Listen to browser permission state changes (Camera & Geolocation)
+    let camStatusObj = null;
+    let geoStatusObj = null;
+    if (typeof navigator !== 'undefined' && navigator.permissions) {
+      navigator.permissions.query({ name: 'camera' }).then(status => {
+        camStatusObj = status;
+        status.onchange = () => {
+          if (status.state !== 'granted') {
+            setIsSecurityPassed(false);
+          }
+        };
+      }).catch(() => {});
+
+      navigator.permissions.query({ name: 'geolocation' }).then(status => {
+        geoStatusObj = status;
+        status.onchange = () => {
+          if (status.state !== 'granted') {
+            setIsSecurityPassed(false);
+          }
+        };
+      }).catch(() => {});
+    }
+
+    // 5. Active Geolocation Watcher for real-time Fake GPS & location toggles
+    let watchId = null;
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const coords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          };
+          const gpsCheck = verifyGPSAntiFake(coords);
+          if (!gpsCheck.secure) {
+            console.warn('[Security] Real-time Fake GPS detected:', gpsCheck.reason);
+            setIsSecurityPassed(false);
+          }
+        },
+        (error) => {
+          console.warn('[Security] Real-time location tracking failed or disabled:', error);
+          setIsSecurityPassed(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      if (camStatusObj) camStatusObj.onchange = null;
+      if (geoStatusObj) geoStatusObj.onchange = null;
+      if (watchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
       }
     };
-    initNativePermissions();
-  }, []);
+  }, [isSecurityPassed, verifyAppSecurityRealtime]);
 
   useEffect(() => {
     if (authenticated) {
@@ -2215,6 +2332,10 @@ export default function App() {
         <ComplaintForm onAddComplaint={handleAddComplaint} />
       </div>
     );
+  }
+
+  if (!isSecurityPassed) {
+    return <SecurityCheckBlock onPassed={() => setIsSecurityPassed(true)} theme={theme} />;
   }
 
   if (authenticated === null) {
