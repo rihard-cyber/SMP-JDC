@@ -84,7 +84,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
       ],
       rows: filtered.map((c, idx) => [
         idx + 1,
-        formatDateTimeId(c.createdAt),
+        formatDateTimeId(c.createdAt || c.tanggal || new Date()),
         c.name || '-',
         c.phone || '-',
         c.tenant || '-',
@@ -92,7 +92,11 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
         c.category || '-',
         { text: c.description || '-', className: 'text-left' },
         { image: getFirstPhoto(c.photos), text: c.photos?.length ? `${c.photos.length} foto` : '-' },
-        c.department ? `DI TERUSKAN KE ${String(c.department).toUpperCase()}` : (c.status || '-'),
+        c.status === 'Selesai'
+          ? `SELESAI (${c.department ? String(c.department).toUpperCase() : 'MANAGEMENT'})`
+          : c.status === 'Diproses' || c.status === 'Diterima'
+            ? `DIPROSES (${c.department ? String(c.department).toUpperCase() : 'MANAGEMENT'})`
+            : `DITERIMA (${c.department ? String(c.department).toUpperCase() : 'MANAGEMENT'})`,
         c.remarks || (c.status === 'Selesai' ? 'DONE' : (c.waStatus || '-'))
       ])
     });

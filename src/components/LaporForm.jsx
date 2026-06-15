@@ -27,6 +27,8 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
   const [lokasiCustom, setLokasiCustom] = useState('');
   const [isCustomLokasi, setIsCustomLokasi] = useState(false);
   const [uraianMutasi, setUraianMutasi] = useState('');
+  const [tanggalKejadian, setTanggalKejadian] = useState(() => new Date().toISOString().split('T')[0]);
+  const [jamKejadian, setJamKejadian] = useState(() => new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState({});
@@ -95,7 +97,8 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
       const today = new Date().toISOString().split('T')[0];
       onAddLog({
         waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-        jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        tanggalKejadian: tanggalKejadian,
+        jamKejadian: jamKejadian,
         lokasi: lokasiMutasi,
         uraian: uraianMutasi,
         kategori: katMutasi === '__lainnya__' ? `Lainnya: ${katMutasiLainnya.trim() || 'Custom'}` : katMutasi,
@@ -114,6 +117,8 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
     setKondisi('Aman dan Kondusif');
     setKondisiCustom('');
     setUraianMutasi('');
+    setTanggalKejadian(new Date().toISOString().split('T')[0]);
+    setJamKejadian(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
     setLokasiMutasi('');
     setLokasiCustom('');
     setIsCustomLokasi(false);
@@ -162,7 +167,7 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
                 transition: 'all 0.2s'
               }}>
-                <AlertTriangle size={14} /> Mutasi / Kejadian
+                <AlertTriangle size={14} /> Mutasi Jaga
               </button>
             </div>
 
@@ -198,7 +203,7 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
               </>
             )}
 
-            {/* ── MUTASI / KEJADIAN ── */}
+            {/* ── MUTASI PENJAGAAN ── */}
             {jenis === 'mutasi' && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -219,6 +224,17 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
                     <input type="text" value={katMutasiLainnya} onChange={e => setKatMutasiLainnya(e.target.value)}
                       placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.3rem', fontSize: '0.8rem' }} />
                   )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TANGGAL KEJADIAN</label>
+                    <input type="date" value={tanggalKejadian} onChange={e => setTanggalKejadian(e.target.value)} className="modern-input" style={{ fontSize: '0.82rem', padding: '0.5rem' }} />
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>JAM KEJADIAN</label>
+                    <input type="time" value={jamKejadian} onChange={e => setJamKejadian(e.target.value)} className="modern-input" style={{ fontSize: '0.82rem', padding: '0.5rem' }} />
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -255,8 +271,8 @@ export default function LaporForm({ currentUser, areas, posList = [], onAddRepor
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>URAIAN KEJADIAN</label>
-                  <textarea value={uraianMutasi} onChange={e => setUraianMutasi(e.target.value)} placeholder="Jelaskan kejadian secara detail..." className="modern-input" style={{ height: '100px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }} required />
+                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>URAIAN ATAU KETERANGAN</label>
+                  <textarea value={uraianMutasi} onChange={e => setUraianMutasi(e.target.value)} placeholder="Jelaskan uraian atau keterangan secara detail..." className="modern-input" style={{ height: '100px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }} required />
                   {errors.uraian && <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)' }}>{errors.uraian}</span>}
                 </div>
               </>

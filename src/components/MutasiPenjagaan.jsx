@@ -14,9 +14,9 @@ const KATEGORI_MUTASI = [
   { id: '__lainnya__', label: 'Lainnya...', icon: X, color: '#6b7280' }
 ];
 
-export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [], canViewResults }) {
-  const [jamKejadian, setJamKejadian] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-  const [tanggalKejadian, setTanggalKejadian] = useState(new Date().toISOString().split('T')[0]);
+export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [], attendanceLogs = [], canViewResults }) {
+  const [jamKejadian, setJamKejadian] = useState(() => new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+  const [tanggalKejadian, setTanggalKejadian] = useState(() => new Date().toISOString().split('T')[0]);
   const [lokasi, setLokasi] = useState('');
   const [lokasiCustom, setLokasiCustom] = useState('');
   const [isCustomLokasi, setIsCustomLokasi] = useState(false);
@@ -27,6 +27,33 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
   const [search, setSearch] = useState('');
   const [filterKat, setFilterKat] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const myPlotting = React.useMemo(() => {
+    if (!attendanceLogs || !currentUser) return null;
+    const hour = new Date().getHours();
+    let currentHourShift = 'M';
+    if (hour >= 6 && hour < 14) currentHourShift = 'P';
+    else if (hour >= 14 && hour < 22) currentHourShift = 'S';
+
+    let activeLog = attendanceLogs.find(
+      log => log.tanggal === todayStr && log.shift === currentHourShift
+    );
+    if (!activeLog) {
+      activeLog = attendanceLogs.find(log => log.tanggal === todayStr);
+    }
+    return activeLog?.details?.find(d => String(d.personilId) === String(currentUser?.id)) || null;
+  }, [attendanceLogs, currentUser, todayStr]);
+
+  useEffect(() => {
+    const updateRealtime = () => {
+      const now = new Date();
+      setJamKejadian(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+      setTanggalKejadian(now.toISOString().split('T')[0]);
+    };
+    updateRealtime();
+  }, []);
 
   useEffect(() => {
     if (!selectedPhoto) return;
@@ -65,8 +92,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     const today = now.toISOString().split('T')[0];
     onAddLog({
       waktu: jamLapor,
-      tanggalKejadian,
-      jamKejadian,
+      tanggalKejadian: tanggalKejadian,
+      jamKejadian: jamKejadian,
       lokasi,
       uraian: uraian.trim(),
       kategori: kategori === '__lainnya__' ? `Lainnya: ${kategoriLainnya.trim() || 'Custom'}` : kategori,
@@ -97,9 +124,50 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     return found?.label || value || '-';
   };
 
+  const getReportDate = (log) => {
+    if (log.tanggal) return log.tanggal;
+    if (log.createdAt) return log.createdAt.slice(0, 10);
+    if (log.timestamp) return new Date(log.timestamp).toISOString().slice(0, 10);
+    return '';
+  };
+
+  const getReportTime = (log) => {
+    if (log.waktu) return log.waktu.replace(':', '.');
+    if (log.createdAt) {
+      const d = new Date(log.createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
+      }
+    }
+    return '-';
+  };
+
+  const autoDeduceAction = (log) => {
+    if (log.tindakLanjut && log.tindakLanjut !== '-') return log.tindakLanjut;
+    const text = (log.uraian || log.deskripsi || '').toLowerCase();
+    const kat = (log.kategori || '').toLowerCase();
+    const isResolved = /aman|kondusif|selesai|clear|sudah|done|rapi|kembali|ditemukan|diperbaiki|stabil/i.test(text);
+    
+    let dept = 'Keamanan';
+    const wordMatch = (words) => {
+      return words.some(w => text.includes(w));
+    };
+    
+    if (kat === 'kerusakan' || wordMatch(['ahu', 'chiller', 'lift', 'eskalator', 'listrik', 'pipa', 'lampu', 'teknik', 'bocor', 'rusak', 'fasilitas', 'komputer', 'jaringan', 'printer', 'internet', 'sistem', 'it'])) {
+      dept = 'Teknisi';
+    } else if (wordMatch(['kotor', 'sampah', 'bersih', 'basah', 'cleaning', 'toilet', 'jamban', 'bau', 'aroma'])) {
+      dept = 'Cleaning';
+    }
+    
+    if (kat === 'informasi') {
+      return 'DITERIMA (KEAMANAN)';
+    }
+    return isResolved ? `SELESAI (${dept.toUpperCase()})` : `DIPROSES (${dept.toUpperCase()})`;
+  };
+
   const handleExportMutasiPDF = () => {
     const ok = exportTableToPdf({
-      title: 'Mutasi / Pelaporan Kejadian Penjagaan',
+      title: 'Buku Mutasi Jaga',
       fileName: `mutasi-pelaporan-smpjdc-${formatDateForFile()}`,
       meta: [
         { label: 'Filter Kategori', value: filterKat ? getKategoriLabel(filterKat) : 'Semua' },
@@ -110,31 +178,35 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       columns: [
         { header: 'NO', width: '4%' },
         { header: 'TANGGAL', width: '8%' },
-        { header: 'TGL. KEJADIAN', width: '8%' },
+        { header: 'TGL. MUTASI', width: '8%' },
         { header: 'JAM LAPORAN', width: '7%' },
-        { header: 'JAM KEJADIAN', width: '7%' },
+        { header: 'JAM MUTASI', width: '7%' },
         { header: 'NAMA PETUGAS', width: '10%' },
         { header: 'NRP', width: '7%' },
         { header: 'LOKASI / POS', width: '10%' },
         { header: 'KATEGORI', width: '8%' },
-        { header: 'URAIAN LAPORAN / KEJADIAN / PERISTIWA', width: '22%' },
+        { header: 'URAIAN ATAU KETERANGAN', width: '22%' },
         { header: 'FOTO', width: '9%' },
         { header: 'AKSI / TINDAK LANJUT', width: '8%' }
       ],
-      rows: filtered.map((log, idx) => [
-        idx + 1,
-        formatDateOnlyId(log.tanggal),
-        log.tanggalKejadian ? formatDateOnlyId(log.tanggalKejadian) : formatDateOnlyId(log.tanggal) || '-',
-        log.waktu || '-',
-        log.jamKejadian || log.waktu || '-',
-        log.petugas || log.pelapor || '-',
-        log.nrp || '-',
-        log.lokasi || '-',
-        getKategoriLabel(log.kategori),
-        { text: log.uraian || log.deskripsi || '-', className: 'text-left' },
-        { image: log.foto, text: log.foto ? 'Foto bukti' : '-' },
-        log.tindakLanjut || '-'
-      ])
+      rows: filtered.map((log, idx) => {
+        const reportDate = getReportDate(log);
+        const reportTime = getReportTime(log);
+        return [
+          idx + 1,
+          formatDateOnlyId(reportDate),
+          log.tanggalKejadian ? formatDateOnlyId(log.tanggalKejadian) : formatDateOnlyId(reportDate) || '-',
+          reportTime,
+          log.jamKejadian ? log.jamKejadian.replace(':', '.') : reportTime,
+          log.petugas || log.pelapor || log.userName || '-',
+          log.nrp || '-',
+          log.lokasi || log.area || log.titik || '-',
+          getKategoriLabel(log.kategori),
+          { text: log.uraian || log.deskripsi || log.temuan || log.keterangan || '-', className: 'text-left' },
+          { image: log.foto, text: log.foto ? 'Foto bukti' : '-' },
+          autoDeduceAction(log)
+        ];
+      })
     });
     if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
   };
@@ -149,15 +221,17 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             <span>Input Catatan Mutasi</span>
           </h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-              <div className="step-field">
-                <label><Clock size={12} /> TANGGAL KEJADIAN</label>
-                <input type="date" value={tanggalKejadian} onChange={e => setTanggalKejadian(e.target.value)} className="modern-input" />
-              </div>
-              <div className="step-field">
-                <label><Clock size={12} /> JAM KEJADIAN</label>
-                <input type="time" value={jamKejadian} onChange={e => setJamKejadian(e.target.value)} className="modern-input" />
-              </div>
+            <div className="step-field">
+              <label>NAMA PENGIRIM</label>
+              <input type="text" value={`${currentUser.nama} (${currentUser.nrp || '-'})`} readOnly className="modern-input" style={{ opacity: 0.8, cursor: 'not-allowed' }} />
+            </div>
+            <div className="step-field">
+              <label><Clock size={12} /> TANGGAL KEJADIAN</label>
+              <input type="date" value={tanggalKejadian} onChange={e => setTanggalKejadian(e.target.value)} className="modern-input" />
+            </div>
+            <div className="step-field">
+              <label><Clock size={12} /> JAM KEJADIAN</label>
+              <input type="time" value={jamKejadian} onChange={e => setJamKejadian(e.target.value)} className="modern-input" />
             </div>
             
             <div className="step-field">
@@ -173,7 +247,12 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                   }
                 }} className="modern-select" required>
                   <option value="">-- Pilih Pos Jaga --</option>
-                  {posList.map(p => <option key={p.id} value={p.titik}>{p.titik}</option>)}
+                  {myPlotting?.posPlotting && (
+                    <option value={myPlotting.posPlotting}>{myPlotting.posPlotting} (Plotting Anda)</option>
+                  )}
+                  {posList.filter(p => p.titik && p.titik !== myPlotting?.posPlotting).map(p => (
+                    <option key={p.id} value={p.titik}>{p.titik}</option>
+                  ))}
                   <option value="__custom__">-- Lainnya (Ketik Manual) --</option>
                 </select>
               ) : (
@@ -219,8 +298,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             </div>
             
             <div className="step-field">
-              <label>URAIAN KEJADIAN / PERISTIWA</label>
-              <textarea value={uraian} onChange={e => setUraian(e.target.value)} className="modern-input form-textarea" rows={3} placeholder="Tuliskan detail kejadian di pos jaga..." required />
+              <label>URAIAN ATAU KETERANGAN</label>
+              <textarea value={uraian} onChange={e => setUraian(e.target.value)} className="modern-input form-textarea" rows={3} placeholder="Tuliskan uraian atau keterangan mutasi..." required />
             </div>
             
             <div className="step-field">
@@ -246,7 +325,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <History size={18} className="text-primary" />
-              <span>Tabel Mutasi / Laporan (Kejadian / Peristiwa)</span>
+              <span>Tabel Buku Mutasi Jaga</span>
             </h3>
             
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -256,8 +335,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 {KATEGORI_MUTASI.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
               </select>
               <button onClick={handleExportMutasiPDF} className="btn-primary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Printer size={14} /> Export PDF</button>
-              </div>
             </div>
+          </div>
 
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
             <table className="mutasi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
@@ -265,17 +344,18 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                   <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '50px' }}>No</th>
                   <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '100px' }}>Jam (Laporan)</th>
-                  <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '100px' }}>Jam Kejadian</th>
-                  <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Uraian Laporan / Kejadian / Peristiwa</th>
+                  <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '100px' }}>Jam Mutasi</th>
+                  <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Uraian atau Keterangan</th>
                   <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '100px' }}>Foto (Bukti)</th>
+                  <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '120px' }}>Tindak Lanjut</th>
                   <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', width: '60px' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Belum ada catatan mutasi atau kejadian terdaftar.
+                    <td colSpan="7" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Belum ada catatan mutasi terdaftar.
                     </td>
                   </tr>
                 ) : (
@@ -316,6 +396,19 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tidak ada</span>
                           )}
                         </td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          {(() => {
+                            const actionText = autoDeduceAction(log);
+                            let badgeClass = 'info';
+                            if (actionText.startsWith('SELESAI')) badgeClass = 'success';
+                            else if (actionText.startsWith('DIPROSES')) badgeClass = 'warning';
+                            return (
+                              <span className={`badge badge-${badgeClass}`} style={{ fontSize: '0.65rem', padding: '0.2rem 0.45rem', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                                {actionText}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                           {onDeleteLog && (
                             <button 
@@ -337,7 +430,6 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
         </div>
         )}
       </div>
-
       {/* LIGHTBOX MODAL UNTUK PREVIEW FOTO */}
       {selectedPhoto && (
         <div 
@@ -371,7 +463,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             >
               <X size={18} /> Tutup
             </button>
-            <img src={selectedPhoto} alt="Bukti Kejadian" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', border: '2px solid var(--border-glass)' }} />
+            <img src={selectedPhoto} alt="Bukti Mutasi" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', border: '2px solid var(--border-glass)' }} />
           </div>
         </div>
       )}

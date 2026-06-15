@@ -30,6 +30,8 @@ const FLOORS = [
 export default function ComplaintForm({ onAddComplaint }) {
   const [step, setStep] = useState('splash');
   const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState('BOOTING CORE...');
+  const [cyberLogs, setCyberLogs] = useState([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [floor, setFloor] = useState('');
@@ -49,14 +51,68 @@ export default function ComplaintForm({ onAddComplaint }) {
   // Ref ke hidden file input untuk kamera Android
   const photoInputRef = useRef(null);
 
-  // Splash animation
+  // Splash animation (Cyberpunk Simulated Boot)
   useEffect(() => {
     if (step !== 'splash') return;
-    const t1 = setTimeout(() => setProgress(30), 200);
-    const t2 = setTimeout(() => setProgress(70), 500);
-    const t3 = setTimeout(() => setProgress(100), 800);
-    const t4 = setTimeout(() => setStep('form'), 1200);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+
+    const allLogs = [
+      '>> INITIALIZING COMPLAINT PORTAL...',
+      '>> LOADING SECURE GATEWAY UTILITIES...',
+      '>> CONNECTING CENTRAL DATABASE DIRECTORY...',
+      '>> SYNCING COMPLAINT CATEGORIES...',
+      '>> LOAD SECURITY TOKEN: OK',
+      '>> INTEGRATION STACK STATUS: OPERATIONAL',
+      '>> PORTAL INTERFACE STABILIZED... SECURE',
+      '>> SYSTEM COMPLAINT PORTAL IS READY!'
+    ];
+
+    setProgress(0);
+    setCyberLogs([]);
+    setStatusText('BOOTING CORE...');
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        return Math.min(prev + Math.floor(Math.random() * 8) + 4, 100);
+      });
+    }, 100);
+
+    let logIndex = 0;
+    const logInterval = setInterval(() => {
+      if (logIndex < allLogs.length) {
+        setCyberLogs(prev => [...prev, allLogs[logIndex]]);
+        logIndex++;
+      } else {
+        clearInterval(logInterval);
+      }
+    }, 300);
+
+    const statusInterval = setInterval(() => {
+      setProgress(p => {
+        if (p < 30) setStatusText('BOOTING CORE...');
+        else if (p < 65) setStatusText('CALIBRATING PORTAL...');
+        else if (p < 90) setStatusText('DECRYPTING INTERFACE...');
+        else {
+          setStatusText('SECURE & OPERATIONAL');
+          clearInterval(statusInterval);
+        }
+        return p;
+      });
+    }, 200);
+
+    const transitionTimer = setTimeout(() => {
+      setStep('form');
+    }, 3200);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(logInterval);
+      clearInterval(statusInterval);
+      clearTimeout(transitionTimer);
+    };
   }, [step]);
 
   // Handle back button to go back from track mode to main form
@@ -156,39 +212,53 @@ export default function ComplaintForm({ onAddComplaint }) {
 
   if (step === 'splash') {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'transparent',
-        position: 'relative', overflow: 'hidden', width: '100%'
-      }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjAgMjBtMC0xOC41YTE4LjUgMTguNSAwIDEgMCAwIDM3IDE4LjUgMTguNSAwIDEgMCAwLTM3eiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LDEzMCwyNDYsMC4wNykiIHN0cm9rZS13aWR0aD0iMC41Ii8+PC9zdmc+)', opacity: 0.3 }} />
-        <div className="cyber-grid" style={{ position: 'absolute', inset: 0, opacity: 0.15 }}></div>
-        <div style={{ textAlign: 'center', zIndex: 1, padding: '2rem' }}>
-          <div style={{
-            width: 100, height: 100, margin: '0 auto 1.5rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: '50%', background: 'rgba(59,130,246,0.1)',
-            border: '2px solid rgba(59,130,246,0.2)',
-            animation: 'pulse 2s infinite'
-          }}>
-            <img src="./logo.png" alt="SMPJDC" className="logo-3d-spin" style={{ width: 60, height: 'auto' }} />
+      <div className="splash-screen cyber-screen">
+        <div className="cyber-corner corner-tl"></div>
+        <div className="cyber-corner corner-tr"></div>
+        <div className="cyber-corner corner-bl"></div>
+        <div className="cyber-corner corner-br"></div>
+        <div className="cyber-grid"></div>
+        <div className="cyber-scanline"></div>
+        <div className="cyber-hud-container">
+          <div className="hud-ring ring-outer"></div>
+          <div className="hud-ring ring-middle"></div>
+          <div className="hud-ring ring-inner"></div>
+          <div className="hud-ring ring-dashed"></div>
+          <div className="splash-logo-container">
+            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
-          <div className="hud-ring ring-outer" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 200, height: 200, opacity: 0.2 }}></div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-            SMPJDC
-          </h1>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1.5rem' }}>
-            Sistem Komplain Terpadu
-          </p>
-          <div style={{ width: 200, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, margin: '0 auto', overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: 2, transition: 'width 0.4s ease' }} />
+        </div>
+        <div className="cyber-progress-container">
+          <div className="cyber-progress-header">
+            <span className="progress-label">COMPLAINT PORTAL INITIALIZATION</span>
+            <span className="progress-percent">{progress}%</span>
           </div>
-          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.75rem', letterSpacing: '0.1em' }}>
-            LOADING {progress}%
-          </p>
-          <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center', marginTop: '1rem' }}>
-            {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6', animation: `bounce 1.4s ${i * 0.2}s infinite` }} />)}
+          <div className="cyber-progress-bar">
+            <div className="cyber-progress-fill" style={{ width: `${progress}%` }}></div>
           </div>
+        </div>
+        <div className="cyber-console">
+          <div className="console-header">
+            <span className="console-title">[SECURE CORE COMPLAINT PROT]</span>
+            <span className="console-status blink">{statusText}</span>
+          </div>
+          <div className="console-body">
+            {cyberLogs.slice(-4).map((log, idx) => (
+              <p key={idx} className="console-line">{log}</p>
+            ))}
+          </div>
+        </div>
+        <div className="splash-footer cyber-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%', maxWidth: '420px', padding: '0 1rem' }}>
+          <div className="ornamental-watermark" style={{ margin: '0 auto', opacity: 0.95, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontFamily: "'Great Vibes', 'Brush Script MT', cursive", fontSize: '1.25rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Developer Richard Meha
+            </span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+          </div>
+          <span style={{ fontSize: '0.62rem', color: '#c7d2fe', letterSpacing: '0.12em', marginTop: '0.2rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            ★ JDC SECURITY CORE ARCHITECT ★
+          </span>
         </div>
       </div>
     );
@@ -201,7 +271,7 @@ export default function ComplaintForm({ onAddComplaint }) {
         background: 'transparent',
         padding: '2rem', width: '100%'
       }}>
-        <div className="glass-panel" style={{ maxWidth: 420, width: '100%', padding: '2rem', textAlign: 'center' }}>
+        <div className="glass-panel complaint-glass-panel" style={{ maxWidth: 420, width: '100%', padding: '2rem', textAlign: 'center' }}>
           <div style={{ width: 64, height: 64, margin: '0 auto 1rem', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckCircle size={36} style={{ color: '#10b981' }} />
           </div>
@@ -234,7 +304,7 @@ export default function ComplaintForm({ onAddComplaint }) {
         background: 'transparent',
         padding: '2rem', width: '100%'
       }}>
-        <div className="glass-panel" style={{ maxWidth: 500, width: '100%', padding: '2rem' }}>
+        <div className="glass-panel complaint-glass-panel" style={{ maxWidth: 500, width: '100%', padding: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
             <button onClick={() => { setTrackMode(false); setTrackData(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
               <ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} />
@@ -335,7 +405,7 @@ export default function ComplaintForm({ onAddComplaint }) {
       padding: '2rem 1rem',
       display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%'
     }}>
-      <div className="glass-panel" style={{ maxWidth: 520, width: '100%', padding: '1.5rem 1.75rem', position: 'relative', overflow: 'hidden' }}>
+      <div className="glass-panel complaint-glass-panel" style={{ maxWidth: 520, width: '100%', padding: '1.5rem 1.75rem', position: 'relative', overflow: 'hidden' }}>
         {/* Background decoration */}
         <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: 'rgba(59,130,246,0.05)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -30, left: -30, width: 100, height: 100, borderRadius: '50%', background: 'rgba(139,92,246,0.05)', pointerEvents: 'none' }} />
@@ -481,9 +551,16 @@ export default function ComplaintForm({ onAddComplaint }) {
           </button>
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
-          SMPJDC — Sistem Management Keamanan JDC &copy; 2026
-        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%', opacity: 0.9, position: 'relative', zIndex: 1 }}>
+          <p style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0, color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+            SMPJDC &mdash; SISTEM MANAGEMENT KEAMANAN JDC &copy; 2026
+          </p>
+          <div className="ornamental-watermark" style={{ margin: '0.2rem auto 0', width: '100%', maxWidth: '380px' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontSize: '0.95rem', fontFamily: "'Great Vibes', 'Brush Script MT', cursive" }}>Developer Richard Meha</span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+          </div>
+        </div>
       </div>
     </div>
   );

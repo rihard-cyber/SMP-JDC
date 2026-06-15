@@ -113,19 +113,69 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
     }, 600);
   };
 
-  // Show loading while Firebase syncs user data
-  if (!firebaseUsersLoaded) {
+  // Show loading while Firebase syncs user data or authenticating user
+  if (!firebaseUsersLoaded || loading) {
+    const isSync = !firebaseUsersLoaded;
     return (
-      <div className="login-page">
-        <div className="login-bg-animation">
-          <div className="login-grid"></div>
-          <div className="login-scanline"></div>
-        </div>
-        <div className="login-container" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', minHeight: '60vh' }}>
-          <div className="login-card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <Loader size={40} className="text-primary" style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} />
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Memuat data pengguna dari server...</p>
+      <div className="splash-screen cyber-screen">
+        <div className="cyber-corner corner-tl"></div>
+        <div className="cyber-corner corner-tr"></div>
+        <div className="cyber-corner corner-bl"></div>
+        <div className="cyber-corner corner-br"></div>
+        <div className="cyber-grid"></div>
+        <div className="cyber-scanline"></div>
+        <div className="cyber-hud-container">
+          <div className="hud-ring ring-outer"></div>
+          <div className="hud-ring ring-middle"></div>
+          <div className="hud-ring ring-inner"></div>
+          <div className="hud-ring ring-dashed"></div>
+          <div className="splash-logo-container">
+            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
+        </div>
+        <div className="cyber-progress-container">
+          <div className="cyber-progress-header">
+            <span className="progress-label">{isSync ? 'CORE SYSTEM LOAD' : 'AUTHENTICATING PROFILE'}</span>
+            <span className="progress-percent">{isSync ? 'SYNCHRONIZING...' : 'SECURE CONTEXT'}</span>
+          </div>
+          <div className="cyber-progress-bar">
+            <div className="cyber-progress-fill" style={{ width: '75%', animation: 'pulse 1.5s infinite' }}></div>
+          </div>
+        </div>
+        <div className="cyber-console">
+          <div className="console-header">
+            <span className="console-title">{isSync ? '[SYSTEM CLOUD SYNC]' : '[SECURE ACCESS VERIFICATION]'}</span>
+            <span className="console-status blink">{isSync ? 'CONNECTING DATABASE' : 'VERIFYING CREDENTIALS'}</span>
+          </div>
+          <div className="console-body">
+            {isSync ? (
+              <>
+                <p className="console-line">&gt;&gt; FETCHING USER REGISTRY FROM FIREBASE...</p>
+                <p className="console-line">&gt;&gt; CONFIGURING OFFLINE SESSION HANDLERS...</p>
+                <p className="console-line">&gt;&gt; STABILIZING CRYPTO PRIVILEGES...</p>
+                <p className="console-line">&gt;&gt; CENTRAL NETWORK LINK ACTIVE ... OK</p>
+              </>
+            ) : (
+              <>
+                <p className="console-line">&gt;&gt; COMPILING CLIENT CRYPTO SIGNATURES...</p>
+                <p className="console-line">&gt;&gt; MATCHING REGISTERED SECURITY NRP...</p>
+                <p className="console-line">&gt;&gt; STABILIZING TOKEN SESSION KEYS...</p>
+                <p className="console-line">&gt;&gt; PIN COMPONENT AUTHENTICATION ACTIVE... OK</p>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="splash-footer cyber-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%', maxWidth: '420px', padding: '0 1rem' }}>
+          <div className="ornamental-watermark" style={{ margin: '0 auto', opacity: 0.95, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontFamily: "'Great Vibes', 'Brush Script MT', cursive", fontSize: '1.25rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Developer Richard Meha
+            </span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+          </div>
+          <span style={{ fontSize: '0.62rem', color: '#c7d2fe', letterSpacing: '0.12em', marginTop: '0.2rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            ★ JDC SECURITY CORE ARCHITECT ★
+          </span>
         </div>
       </div>
     );
@@ -214,9 +264,16 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
               </button>
             </form>
 
-            <p className="login-footer-text">
-              <Building size={14} /> SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC
-            </p>
+            <div className="login-footer-text" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-glass)', paddingTop: '1rem' }}>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                <Building size={12} /> SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC
+              </p>
+              <div className="ornamental-watermark" style={{ margin: '0.2rem auto 0', width: '100%', maxWidth: '340px' }}>
+                <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+                <span className="watermark-text" style={{ fontSize: '0.95rem', fontFamily: "'Great Vibes', 'Brush Script MT', cursive" }}>Developer Richard Meha</span>
+                <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -283,9 +340,16 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
             <span>Aman & Terenkripsi</span>
           </div>
 
-          <p className="login-footer-text">
-            <Building size={14} /> SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC
-          </p>
+          <div className="login-footer-text" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', marginTop: '1.25rem', borderTop: '1px solid var(--border-glass)', paddingTop: '1rem' }}>
+            <p style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+              <Building size={12} /> SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC
+            </p>
+            <div className="ornamental-watermark" style={{ margin: '0.2rem auto 0', width: '100%', maxWidth: '340px' }}>
+              <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+              <span className="watermark-text" style={{ fontSize: '0.95rem', fontFamily: "'Great Vibes', 'Brush Script MT', cursive" }}>Developer Richard Meha</span>
+              <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

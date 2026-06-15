@@ -132,7 +132,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
       ],
       rows: filteredReports.map((r, idx) => [
         idx + 1,
-        formatDateTimeId(r.timestamp),
+        formatDateTimeId(r.timestamp || r.createdAt || new Date()),
         r.userName || '-',
         r.gedung || '-',
         `${r.lantai || '-'} / ${r.zona || '-'}`,
@@ -173,14 +173,14 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
       ],
       rows: findings.map((f, idx) => [
         idx + 1,
-        formatDateTimeId(f.tanggal || f.createdAt),
+        formatDateTimeId(f.createdAt || f.tanggal || new Date()),
         f.pelapor || '-',
         f.area || '-',
         f.kategori || '-',
         { text: f.detail || '-', className: 'text-left' },
         f.severity || '-',
         f.department || '-',
-        f.status || '-',
+        f.status === 'Closed' ? 'SELESAI' : f.status === 'On Progress' ? 'DIPROSES' : 'DITERIMA',
         f.waStatus || '-',
         { image: getFirstPhoto(f.foto), text: f.foto ? 'Foto bukti' : '-' }
       ])

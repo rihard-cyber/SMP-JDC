@@ -7,7 +7,7 @@
 html {
     scrollbar-gutter: stable;
     overflow-x: hidden;
-    /* overflow-y dibiarkan default (visible/auto) agar body bisa scroll */
+    scroll-behavior: smooth !important;
 }
 
 body {
@@ -19,11 +19,21 @@ body {
     overflow-y: auto; /* Pastikan body bisa scroll vertikal */
     overscroll-behavior-x: none;
     position: relative;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important; /* Momentum scrolling on iOS/mobile */
+}
+
+/* Enable hardware acceleration globally on components for responsive typing & scrolling */
+body, input, select, textarea, button, a {
+    transform: translate3d(0, 0, 0);
+    will-change: auto;
 }
 
 /* 2. KUNCI UKURAN BOX (Mencegah elemen keluar dari grid) */
 *, *::before, *::after {
     box-sizing: border-box !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
 }
 
 /* 3. KUNCI INTERAKSI ELEMEN & NAVIGASI */
@@ -1302,7 +1312,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Splash Screen Styles - Movie Cyber HUD Style */
 .splash-screen.cyber-screen {
-  position: fixed;
+  position: fixed !important;
   top: 0;
   left: 0;
   right: 0;
@@ -1315,7 +1325,6 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 99999;
   font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
-  position: relative;
   transition: opacity 0.5s ease-in-out;
   background: radial-gradient(circle at center, #0a1424 0%, #03060f 100%);
 }
@@ -1333,9 +1342,9 @@ h1, h2, h3, h4, h5, h6 {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(0, 240, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.12) 1px, transparent 1px);
+  background-size: 45px 45px;
   background-position: center;
   z-index: 1;
   pointer-events: none;
@@ -2167,15 +2176,15 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  animation: loginGridScroll 8s linear infinite;
+    linear-gradient(rgba(0, 240, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.12) 1px, transparent 1px);
+  background-size: 45px 45px;
+  animation: loginGridScroll 10s linear infinite;
 }
 
 @keyframes loginGridScroll {
   0% { transform: translate(0, 0); }
-  100% { transform: translate(40px, 40px); }
+  100% { transform: translate(45px, 45px); }
 }
 
 .login-scanline {
@@ -4482,6 +4491,28 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
   border-color: rgba(0, 240, 255, 0.22) !important;
 }
 
+/* Elegant glassmorphic transparent inputs in dark theme */
+.theme-dark .modern-input,
+.theme-dark .modern-select {
+  background: rgba(13, 19, 36, 0.25) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.05) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.theme-dark .modern-input:focus,
+.theme-dark .modern-select:focus {
+  border-color: rgba(0, 240, 255, 0.55) !important;
+  box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.08), 0 0 10px rgba(0, 240, 255, 0.15) !important;
+}
+
+.theme-dark .modern-select option {
+  background: #0d1324 !important;
+  color: #fff !important;
+}
+
 .theme-dark .sidebar {
   background: rgba(7, 10, 19, 0.35) !important;
 }
@@ -4625,5 +4656,62 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
   color: #f8fafc !important;
   border-bottom: 1px solid rgba(59, 130, 246, 0.2) !important;
 }
+
+/* Custom transparent styles for public complaint form to allow background grid and watermark to be fully visible */
+.complaint-glass-panel {
+  background: rgba(7, 10, 19, 0.03) !important; /* Extremely high transparency (3% opacity) */
+  backdrop-filter: blur(1.5px) !important; /* Low blur to keep watermark text sharp */
+  -webkit-backdrop-filter: blur(1.5px) !important;
+  border: 1.5px solid rgba(0, 240, 255, 0.35) !important; /* Vibrant neon cyber cyan border */
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.18), 0 8px 32px 0 rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Make inputs inside complaint panel glassy and transparent so watermark shows through them */
+.theme-dark .complaint-glass-panel .modern-input,
+.theme-dark .complaint-glass-panel .modern-select {
+  background: rgba(13, 19, 36, 0.1) !important;
+  border-color: rgba(0, 240, 255, 0.25) !important;
+  backdrop-filter: blur(1px) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+}
+
+.theme-dark .complaint-glass-panel .modern-input:focus,
+.theme-dark .complaint-glass-panel .modern-select:focus {
+  border-color: rgba(0, 240, 255, 0.6) !important;
+  background: rgba(13, 19, 36, 0.15) !important;
+}
+
+/* Glassmorphic secondary buttons inside public complaint form */
+.theme-dark .complaint-glass-panel .btn-secondary {
+  background: rgba(13, 19, 36, 0.15) !important;
+  border: 1.5px solid rgba(0, 240, 255, 0.25) !important;
+  color: var(--color-primary) !important;
+  backdrop-filter: blur(1px) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+}
+
+.theme-dark .complaint-glass-panel .btn-secondary:hover {
+  background: rgba(0, 240, 255, 0.1) !important;
+  border-color: rgba(0, 240, 255, 0.45) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2) !important;
+}
+
+.theme-light .complaint-glass-panel {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(1.5px) !important;
+  -webkit-backdrop-filter: blur(1.5px) !important;
+  border: 1.5px solid rgba(37, 99, 235, 0.35) !important;
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.12), 0 8px 32px 0 rgba(0, 0, 0, 0.15) !important;
+}
+
+.theme-light .complaint-glass-panel .modern-input,
+.theme-light .complaint-glass-panel .modern-select {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.25) !important;
+  backdrop-filter: blur(1px) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+}
+
+
 
 

@@ -15,7 +15,7 @@ import {
   Wifi, WifiOff, Database, ThumbsUp, MapPin,
   FileText, History, Send, Info, Search, Wrench, Radio, X, Home, Fingerprint
 } from 'lucide-react';
-import KATEGORI_TEMUAN from '../data/kategoriTemuan';
+import KATEGORI_TEMUAN, { KATEGORI_STANDALONE } from '../data/kategoriTemuan';
 import { Html5Qrcode } from 'html5-qrcode';
 import { getGPSCoordinates, generateAntiFraudData, checkDeviceSecurity, verifyGPSAntiFake, fetchServerTime } from '../utils/security';
 import { compressImage } from '../utils/image';
@@ -122,6 +122,10 @@ export default function SecurityPatrolApp({
   const [severity, setSeverity] = useState('low');
   const [deskripsi, setDeskripsi] = useState('');
   const [foto, setFoto] = useState(null);
+  const [isCustomKategori, setIsCustomKategori] = useState(false);
+  const [kategoriCustom, setKategoriCustom] = useState('');
+  const [isCustomTemuan, setIsCustomTemuan] = useState(false);
+  const [temuanCustom, setTemuanCustom] = useState('');
   const [scanError, setScanError] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
@@ -920,7 +924,11 @@ export default function SecurityPatrolApp({
     }
   }, [myPlotting, todayLog]);
 
-  useEffect(() => { if (kategori) setTemuan(''); }, [kategori]);
+  useEffect(() => {
+    setTemuan('');
+    setIsCustomTemuan(false);
+    setTemuanCustom('');
+  }, [kategori]);
 
   const kategoriData = KATEGORI_TEMUAN;
   const daftarTemuan = kategori ? kategoriData.find(k => k.id === kategori)?.items || [] : [];
@@ -930,6 +938,8 @@ export default function SecurityPatrolApp({
     setMode(null); setKategori(''); setTemuan('');
     setSeverity('low'); setDeskripsi(''); setFoto(null);
     setBarcodeInput(''); setScanError('');
+    setIsCustomKategori(false); setKategoriCustom('');
+    setIsCustomTemuan(false); setTemuanCustom('');
   };
 
   const playBeepSound = () => {
@@ -1051,14 +1061,23 @@ export default function SecurityPatrolApp({
     const item = daftarTemuan.find(t => t.kode === temuan);
     const severityMap = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
     
+    const categoryName = isCustomKategori ? kategoriCustom : (kat?.nama || kategori || 'Lainnya');
+    const findingName = isCustomTemuan ? temuanCustom : (item?.nama || temuan || 'Ada Temuan');
+
     const fraudData = await generateAntiFraudData(currentUser.id);
     const r = {
       timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
       userId: currentUser.id, userName: currentUser.nama,
       areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
-      shift, kategori: kat?.nama || '', kodeTemuan: item?.kode || '', temuan: item?.nama || '',
-      status: 'temuan', kondisi: item?.nama || 'Temuan', severity: severityMap[severity] || 'Rendah',
-      keterangan: deskripsi, foto,
+      shift,
+      kategori: categoryName,
+      kodeTemuan: isCustomTemuan ? '__lainnya__' : (item?.kode || temuan || ''),
+      temuan: findingName,
+      status: 'temuan',
+      kondisi: findingName,
+      severity: severityMap[severity] || 'Rendah',
+      keterangan: deskripsi,
+      foto,
       antiFraud: fraudData
     };
     (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
@@ -1069,14 +1088,26 @@ export default function SecurityPatrolApp({
   const [mKat, setMKat] = useState('informasi');
   const [mKatLainnya, setMKatLainnya] = useState('');
   const [mLokasi, setMLokasi] = useState('');
+  const [mIsCustomLokasi, setMIsCustomLokasi] = useState(false);
+  const [mLokasiCustom, setMLokasiCustom] = useState('');
   const [mUraian, setMUraian] = useState('');
   const [mFoto, setMFoto] = useState(null);
   const [mErrors, setMErrors] = useState({});
   const [mSent, setMSent] = useState(false);
   const [mJamKejadian, setMJamKejadian] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [mTanggalKejadian, setMTanggalKejadian] = useState(() => new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    if (tab !== 'mutasi') return;
+    const now = new Date();
+    setMJamKejadian(now.toTimeString().slice(0, 5));
+    setMTanggalKejadian(now.toISOString().split('T')[0]);
+  }, [tab]);
 
   // ── Tab: Temuan (Standalone) ──
   const [tLokasi, setTLokasi] = useState('');
+  const [tIsCustomLokasi, setTIsCustomLokasi] = useState(false);
+  const [tLokasiCustom, setTLokasiCustom] = useState('');
   const [tKategori, setTKategori] = useState('');
   const [tTemuan, setTTemuan] = useState('');
   const [tSeverity, setTSeverity] = useState('low');
@@ -1084,17 +1115,38 @@ export default function SecurityPatrolApp({
   const [tFoto, setTFoto] = useState(null);
   const [tSent, setTSent] = useState(false);
   const [tWaktu, setTWaktu] = useState(() => new Date().toTimeString().slice(0, 5));
+  const [tTanggal, setTTanggal] = useState(() => new Date().toISOString().split('T')[0]);
+  const [tIsCustomKategori, setTIsCustomKategori] = useState(false);
+  const [tKategoriCustom, setTKategoriCustom] = useState('');
+  const [tIsCustomTemuan, setTIsCustomTemuan] = useState(false);
+  const [tTemuanCustom, setTTemuanCustom] = useState('');
+
+  useEffect(() => {
+    setTTemuan('');
+    setTTemuanCustom('');
+  }, [tKategori]);
 
   const handleTemuanStandaloneSubmit = async (e) => {
     e.preventDefault();
     if (!tLokasi || !tKategori || !tTemuan) return;
     const fraudData = await generateAntiFraudData(currentUser.id);
-    const selectedArea = areas.find(a => tLokasi.includes(a.titik));
+    const selectedArea = areas.find(a => tLokasi.includes(a.titik) || a.titik.includes(tLokasi));
     const reportDate = new Date();
+    if (tTanggal) {
+      const [yy, mm, dd] = tTanggal.split('-');
+      reportDate.setFullYear(parseInt(yy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
+    }
     if (tWaktu) {
       const [h, m] = tWaktu.split(':');
       reportDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
     }
+
+    const selectedCategoryObj = KATEGORI_TEMUAN.find(k => k.id === tKategori);
+    const selectedFindingObj = selectedCategoryObj?.items?.find(i => i.kode === tTemuan);
+
+    const categoryName = tIsCustomKategori ? tKategoriCustom : (selectedCategoryObj?.nama || tKategori || 'Lainnya');
+    const findingName = tIsCustomTemuan ? tTemuanCustom : (selectedFindingObj?.nama || tTemuan || 'Ada Temuan');
+
     const reportData = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       areaId: selectedArea?.id || 'manual',
@@ -1106,7 +1158,7 @@ export default function SecurityPatrolApp({
       userName: currentUser.nama,
       userId: currentUser.id,
       nrp: currentUser.nrp,
-      kondisi: 'Ada Temuan',
+      kondisi: findingName,
       keterangan: tDeskripsi,
       severity: colorSeverity(tSeverity).replace('#','') === '10b981' ? 'Rendah' : tSeverity === 'medium' ? 'Sedang' : tSeverity === 'high' ? 'Tinggi' : 'Kritis',
       foto: tFoto,
@@ -1116,7 +1168,10 @@ export default function SecurityPatrolApp({
       shift: shift,
       antiFraud: fraudData,
       jabatan: currentUser.jabatan,
-      regu: currentUser.regu || ''
+      regu: currentUser.regu || '',
+      kategori: categoryName,
+      kodeTemuan: tIsCustomTemuan ? '__lainnya__' : (tTemuan || ''),
+      temuan: findingName
     };
     if (online) {
       onAddReport(reportData);
@@ -1125,7 +1180,11 @@ export default function SecurityPatrolApp({
     }
     setTSent(true);
     setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi('');
+    setTIsCustomLokasi(false); setTLokasiCustom('');
+    setTIsCustomKategori(false); setTKategoriCustom('');
+    setTIsCustomTemuan(false); setTTemuanCustom('');
     setTWaktu(new Date().toTimeString().slice(0, 5));
+    setTTanggal(new Date().toISOString().split('T')[0]);
     setTimeout(() => setTSent(false), 3000);
   };
 
@@ -1134,16 +1193,19 @@ export default function SecurityPatrolApp({
     if (!mLokasi.trim()) { setMErrors(p => ({ ...p, lokasi: 'Lokasi wajib diisi!' })); return; }
     if (!mUraian.trim()) { setMErrors(p => ({ ...p, uraian: 'Uraian wajib diisi!' })); return; }
     const fraudData = await generateAntiFraudData(currentUser.id);
+    const now = new Date();
+    const currentJam = now.toTimeString().slice(0, 5);
+    const currentTanggal = now.toISOString().split('T')[0];
     const mutasiData = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      waktu: mJamKejadian,
-      tanggalKejadian: todayStr,
+      waktu: currentJam,
+      tanggalKejadian: mTanggalKejadian,
       jamKejadian: mJamKejadian,
       lokasi: mLokasi,
       uraian: mUraian,
       kategori: mKat === '__lainnya__' ? `Lainnya: ${mKatLainnya}` : mKat,
       foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
-      tanggal: todayStr, pelapor: currentUser.nama,
+      tanggal: currentTanggal, pelapor: currentUser.nama,
       antiFraud: fraudData
     };
     if (online) {
@@ -1153,7 +1215,9 @@ export default function SecurityPatrolApp({
     }
     setMSent(true);
     setMLokasi(''); setMUraian(''); setMFoto(null); setMKat('informasi'); setMKatLainnya('');
+    setMIsCustomLokasi(false); setMLokasiCustom('');
     setMJamKejadian(new Date().toTimeString().slice(0, 5));
+    setMTanggalKejadian(new Date().toISOString().split('T')[0]);
     setTimeout(() => setMSent(false), 3000);
   };
 
@@ -2252,17 +2316,61 @@ export default function SecurityPatrolApp({
                   <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN</h5>
                   <div className="step-field">
                     <label>KATEGORI</label>
-                    <select value={kategori} onChange={e => setKategori(e.target.value)} className="modern-select" required>
-                      <option value="">-- Pilih --</option>
-                      {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                    </select>
+                    {!isCustomKategori ? (
+                      <select value={kategori} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__' || val === '__lainnya__') {
+                          setIsCustomKategori(true);
+                          setKategori('');
+                        } else {
+                          setKategori(val);
+                        }
+                      }} className="modern-select" required>
+                        <option value="">-- Pilih --</option>
+                        {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                      </select>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={kategoriCustom} onChange={e => {
+                          setKategoriCustom(e.target.value);
+                          setKategori(e.target.value);
+                        }} placeholder="Ketik kategori manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        <button type="button" onClick={() => { setIsCustomKategori(false); setKategoriCustom(''); setKategori(''); }}
+                          style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          ← Kembali ke pilihan kategori
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="step-field">
                     <label>JENIS TEMUAN</label>
-                    <select value={temuan} onChange={e => setTemuan(e.target.value)} className="modern-select" disabled={!kategori} required>
-                      <option value="">-- Pilih --</option>
-                      {daftarTemuan.map(t => <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>)}
-                    </select>
+                    {isCustomKategori || isCustomTemuan ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={temuanCustom} onChange={e => {
+                          setTemuanCustom(e.target.value);
+                          setTemuan(e.target.value);
+                        }} placeholder="Ketik jenis temuan manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        {!isCustomKategori && (
+                          <button type="button" onClick={() => { setIsCustomTemuan(false); setTemuanCustom(''); setTemuan(''); }}
+                            style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                            ← Kembali ke pilihan temuan
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <select value={temuan} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__lainnya__' || val === '__custom__') {
+                          setIsCustomTemuan(true);
+                          setTemuan('');
+                        } else {
+                          setTemuan(val);
+                        }
+                      }} className="modern-select" disabled={!kategori} required>
+                        <option value="">-- Pilih --</option>
+                        {daftarTemuan.map(t => <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>)}
+                      </select>
+                    )}
                   </div>
                   <div className="step-field">
                     <label>SEVERITY</label>
@@ -2340,7 +2448,7 @@ export default function SecurityPatrolApp({
                 <Check size={36} style={{ color: 'var(--color-success)', marginBottom: '0.5rem' }} />
                 <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-success)' }}>Temuan Terkirim!</h4>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Laporan temuan berhasil disimpan ke Dashboard.</p>
-                <button onClick={() => { setTSent(false); setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi(''); }} className="btn-secondary btn-full" style={{ marginTop: '0.75rem' }}>
+                <button onClick={() => { setTSent(false); setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi(''); setTIsCustomLokasi(false); setTLokasiCustom(''); setTIsCustomKategori(false); setTKategoriCustom(''); setTIsCustomTemuan(false); setTTemuanCustom(''); setTWaktu(new Date().toTimeString().slice(0, 5)); setTTanggal(new Date().toISOString().split('T')[0]); }} className="btn-secondary btn-full" style={{ marginTop: '0.75rem' }}>
                   Buat Temuan Baru
                 </button>
               </div>
@@ -2353,41 +2461,111 @@ export default function SecurityPatrolApp({
                   borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: '0.35rem 0.65rem', marginBottom: '0.75rem', width: 'fit-content'
                 }}>← Kembali ke Beranda</button>
                 <div className="glass-panel form-section">
-                  <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN / KENDALA</h5>
+                  <h5 className="form-section-title"><AlertTriangle size={14} /> FORM TEMUAN / KENDALA & KEJADIAN</h5>
                   
                   <div className="step-field">
                     <label>LOKASI / AREA</label>
-                    <select value={tLokasi} onChange={e => setTLokasi(e.target.value)} className="modern-select" required>
-                      <option value="">-- Pilih Area --</option>
-                      {areas.map(a => (
-                        <option key={a.id} value={`${a.titik} (${a.zona} - ${['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai})`}>
-                          {a.titik} — {a.qrCode}
-                        </option>
-                      ))}
-                    </select>
+                    {!tIsCustomLokasi ? (
+                      <select value={tLokasi} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__') {
+                          setTIsCustomLokasi(true);
+                          setTLokasi('');
+                        } else {
+                          setTLokasi(val);
+                        }
+                      }} className="modern-select" required>
+                        <option value="">-- Pilih Area --</option>
+                        {myPlotting?.posPlotting && (
+                          <option value={myPlotting.posPlotting}>{myPlotting.posPlotting} (Plotting Anda)</option>
+                        )}
+                        {posList.filter(p => p.titik && p.titik !== myPlotting?.posPlotting).map(p => (
+                          <option key={p.id} value={p.titik}>{p.titik}</option>
+                        ))}
+                        <option value="__custom__">-- Lainnya (Ketik Manual) --</option>
+                      </select>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={tLokasiCustom} onChange={e => {
+                          setTLokasiCustom(e.target.value);
+                          setTLokasi(e.target.value);
+                        }} placeholder="Ketik lokasi manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        <button type="button" onClick={() => { setTIsCustomLokasi(false); setTLokasiCustom(''); setTLokasi(''); }}
+                          style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          ← Kembali ke pilihan area
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="step-field">
                     <label><Clock size={12} /> WAKTU TEMUAN / KEJADIAN</label>
-                    <input type="time" value={tWaktu} onChange={e => setTWaktu(e.target.value)} className="modern-input" required />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.5rem' }}>
+                      <input type="date" value={tTanggal} onChange={e => setTTanggal(e.target.value)} className="modern-input" style={{ fontSize: '0.78rem' }} required />
+                      <input type="time" value={tWaktu} onChange={e => setTWaktu(e.target.value)} className="modern-input" style={{ fontSize: '0.78rem' }} required />
+                    </div>
                   </div>
 
                   <div className="step-field">
                     <label>KATEGORI</label>
-                    <select value={tKategori} onChange={e => setTKategori(e.target.value)} className="modern-select" required>
-                      <option value="">-- Pilih --</option>
-                      {kategoriData.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                    </select>
+                    {!tIsCustomKategori ? (
+                      <select value={tKategori} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__' || val === '__lainnya__') {
+                          setTIsCustomKategori(true);
+                          setTKategori('');
+                        } else {
+                          setTKategori(val);
+                        }
+                      }} className="modern-select" required>
+                        <option value="">-- Pilih --</option>
+                        {KATEGORI_TEMUAN.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                      </select>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={tKategoriCustom} onChange={e => {
+                          setTKategoriCustom(e.target.value);
+                          setTKategori(e.target.value);
+                        }} placeholder="Ketik kategori manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        <button type="button" onClick={() => { setTIsCustomKategori(false); setTKategoriCustom(''); setTKategori(''); }}
+                          style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                          ← Kembali ke pilihan kategori
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="step-field">
                     <label>JENIS TEMUAN</label>
-                    <select value={tTemuan} onChange={e => setTTemuan(e.target.value)} className="modern-select" disabled={!tKategori} required>
-                      <option value="">-- Pilih --</option>
-                      {daftarTemuan.filter(t => t.kategori === tKategori).map(t => (
-                        <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>
-                      ))}
-                    </select>
+                    {tIsCustomKategori || tIsCustomTemuan ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={tTemuanCustom} onChange={e => {
+                          setTTemuanCustom(e.target.value);
+                          setTTemuan(e.target.value);
+                        }} placeholder="Ketik jenis temuan manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        {!tIsCustomKategori && (
+                          <button type="button" onClick={() => { setTIsCustomTemuan(false); setTTemuanCustom(''); setTTemuan(''); }}
+                            style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                            ← Kembali ke pilihan temuan
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <select value={tTemuan} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__' || val === '__lainnya__') {
+                          setTIsCustomTemuan(true);
+                          setTTemuan('');
+                        } else {
+                          setTTemuan(val);
+                        }
+                      }} className="modern-select" disabled={!tKategori} required>
+                        <option value="">-- Pilih --</option>
+                        {(tKategori ? KATEGORI_TEMUAN.find(k => k.id === tKategori)?.items || [] : []).map(t => (
+                          <option key={t.kode} value={t.kode}>[{t.kode}] {t.nama}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="step-field">
@@ -2478,7 +2656,7 @@ export default function SecurityPatrolApp({
                   borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', padding: '0.35rem 0.65rem', marginBottom: '0.75rem', width: 'fit-content'
                 }}>← Kembali ke Beranda</button>
                 <div className="glass-panel form-section">
-                  <h5 className="form-section-title"><FileText size={14} /> FORM MUTASI / KEJADIAN</h5>
+                  <h5 className="form-section-title"><FileText size={14} /> FORM MUTASI PENJAGAAN</h5>
 
                   <div className="step-field">
                     <label>KATEGORI</label>
@@ -2504,21 +2682,62 @@ export default function SecurityPatrolApp({
                   </div>
 
                   <div className="step-field">
-                    <label>LOKASI / POS</label>
-                    <input type="text" value={mLokasi} onChange={e => { setMLokasi(e.target.value); setMErrors(p => ({ ...p, lokasi: '' })); }}
-                      placeholder="Contoh: Lobby Utama / Lt.3" className="modern-input" style={{ fontSize: '0.8rem' }} />
-                    {mErrors.lokasi && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.lokasi}</span>}
+                    <label>NAMA PENGIRIM</label>
+                    <input type="text" value={`${currentUser.nama} (${currentUser.nrp || '-'})`} readOnly className="modern-input" style={{ opacity: 0.8, cursor: 'not-allowed', fontSize: '0.8rem' }} />
+                  </div>
+
+                  <div className="step-field">
+                    <label><Clock size={12} /> TANGGAL KEJADIAN</label>
+                    <input type="date" value={mTanggalKejadian} onChange={e => setMTanggalKejadian(e.target.value)} className="modern-input" style={{ fontSize: '0.8rem' }} />
                   </div>
 
                   <div className="step-field">
                     <label><Clock size={12} /> JAM KEJADIAN</label>
-                    <input type="time" value={mJamKejadian} onChange={e => setMJamKejadian(e.target.value)} className="modern-input" required />
+                    <input type="time" value={mJamKejadian} onChange={e => setMJamKejadian(e.target.value)} className="modern-input" style={{ fontSize: '0.8rem' }} />
                   </div>
 
                   <div className="step-field">
-                    <label>URAIAN KEJADIAN</label>
+                    <label>LOKASI / POS</label>
+                    {!mIsCustomLokasi ? (
+                      <select value={mLokasi} onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__') {
+                          setMIsCustomLokasi(true);
+                          setMLokasi('');
+                        } else {
+                          setMLokasi(val);
+                        }
+                        setMErrors(p => ({ ...p, lokasi: '' }));
+                      }} className="modern-select" style={{ fontSize: '0.8rem' }}>
+                        <option value="">-- Pilih Pos Jaga --</option>
+                        {myPlotting?.posPlotting && (
+                          <option value={myPlotting.posPlotting}>{myPlotting.posPlotting} (Plotting Anda)</option>
+                        )}
+                        {posList.filter(p => p.titik && p.titik !== myPlotting?.posPlotting).map(p => (
+                          <option key={p.id} value={p.titik}>{p.titik}</option>
+                        ))}
+                        <option value="__custom__">-- Lainnya (Ketik Manual) --</option>
+                      </select>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <input type="text" value={mLokasiCustom} onChange={e => {
+                          setMLokasiCustom(e.target.value);
+                          setMLokasi(e.target.value);
+                          setMErrors(p => ({ ...p, lokasi: '' }));
+                        }} placeholder="Ketik lokasi manual..." className="modern-input" style={{ fontSize: '0.8rem' }} required />
+                        <button type="button" onClick={() => { setMIsCustomLokasi(false); setMLokasiCustom(''); setMLokasi(''); }}
+                          style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0', textDecoration: 'underline', minHeight: '36px', touchAction: 'manipulation' }}>
+                          ← Kembali ke pilihan pos
+                        </button>
+                      </div>
+                    )}
+                    {mErrors.lokasi && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.lokasi}</span>}
+                  </div>
+
+                  <div className="step-field">
+                    <label>URAIAN ATAU KETERANGAN</label>
                     <textarea value={mUraian} onChange={e => { setMUraian(e.target.value); setMErrors(p => ({ ...p, uraian: '' })); }}
-                      placeholder="Jelaskan kejadian secara detail..." className="modern-input" style={{ height: '80px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }} />
+                      placeholder="Jelaskan uraian atau keterangan secara detail..." className="modern-input" style={{ height: '80px', resize: 'vertical', fontSize: '0.8rem', padding: '0.5rem' }} />
                     {mErrors.uraian && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.uraian}</span>}
                   </div>
 
@@ -2670,12 +2889,10 @@ export default function SecurityPatrolApp({
           <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
             © 2026 <strong style={{ color: 'var(--color-primary)' }}>SMPJDC</strong>. Hak Cipta Dilindungi.
           </span>
-          <div className="ornamental-watermark" style={{ margin: '0.5rem auto 0.2rem' }}>
-            <span className="ornament-line"></span>
-            <span className="ornament-symbol">❁❀❁</span>
-            <span className="watermark-text" style={{ fontSize: '0.95rem' }}>Developer Richard Meha</span>
-            <span className="ornament-symbol">❁❀❁</span>
-            <span className="ornament-line"></span>
+          <div className="ornamental-watermark" style={{ margin: '0.5rem auto 0.2rem', width: '100%', maxWidth: '340px' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontSize: '0.95rem', fontFamily: "'Great Vibes', 'Brush Script MT', cursive" }}>Developer Richard Meha</span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
           </div>
         </div>
       </div>

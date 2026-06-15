@@ -194,6 +194,8 @@ export function exportTableToPdf({
             text-transform: uppercase;
           }
           td {
+            background: #fff;
+            color: #000;
             border: 1px solid #000;
             padding: 5px 4px;
             font-size: 8px;

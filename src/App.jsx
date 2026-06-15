@@ -140,7 +140,7 @@ const mapDepartment = (kategori, temuanText = '') => {
     const escaped = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     return new RegExp('\\b(' + escaped.join('|') + ')\\b', 'i').test(text);
   };
-  if (wordMatch(['ahu', 'chiller', 'lift', 'eskalator', 'listrik', 'pipa', 'lampu', 'teknik', 'bocor', 'rusak', 'fasilitas'])) {
+  if (wordMatch(['ahu', 'chiller', 'lift', 'eskalator', 'listrik', 'pipa', 'lampu', 'teknik', 'bocor', 'rusak', 'fasilitas', 'komputer', 'jaringan', 'printer', 'internet', 'sistem', 'it'])) {
     return 'Teknisi';
   }
   if (wordMatch(['kotor', 'sampah', 'bersih', 'basah', 'cleaning', 'toilet', 'jamban', 'bau', 'aroma'])) {
@@ -305,11 +305,9 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 export function OrnamentalWatermark() {
   return (
     <div className="ornamental-watermark">
-      <span className="ornament-line"></span>
-      <span className="ornament-symbol">❁❀❁</span>
-      <span className="watermark-text">Developer Richard Meha</span>
-      <span className="ornament-symbol">❁❀❁</span>
-      <span className="ornament-line"></span>
+      <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+      <span className="watermark-text" style={{ fontSize: '0.95rem', fontFamily: "'Great Vibes', 'Brush Script MT', cursive" }}>Developer Richard Meha</span>
+      <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.75, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
     </div>
   );
 }
@@ -2323,9 +2321,32 @@ export default function App() {
   const isPublicComplaint = typeof window !== 'undefined' && window.location.search.includes('complaint');
   if (isPublicComplaint) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', position: 'relative' }}>
+      <div className="theme-dark" style={{
+        minHeight: '100vh',
+        width: '100%',
+        position: 'relative',
+        background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
+        overflow: 'hidden'
+      }}>
+        {/* Background animation fixed to the viewport behind content */}
+        <div className="login-bg-animation" style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+          <div className="login-grid"></div>
+          <div className="login-scanline"></div>
+        </div>
+        {/* Floating Developer Watermark matching the main app layout */}
         <DeveloperWatermarkBackground theme="dark" />
-        <ComplaintForm onAddComplaint={handleAddComplaint} />
+        {/* Scrollable container for the complaint form */}
+        <div style={{
+          position: 'relative',
+          zIndex: 2,
+          height: '100vh',
+          overflowY: 'auto',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch',
+          width: '100%'
+        }}>
+          <ComplaintForm onAddComplaint={handleAddComplaint} />
+        </div>
       </div>
     );
   }
@@ -2335,7 +2356,58 @@ export default function App() {
   }
 
   if (authenticated === null) {
-    return <div className="login-page" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex' }}><div className="cyber-grid" style={{ position: 'absolute', inset: 0 }}></div></div>;
+    return (
+      <div className="splash-screen cyber-screen">
+        <div className="cyber-corner corner-tl"></div>
+        <div className="cyber-corner corner-tr"></div>
+        <div className="cyber-corner corner-bl"></div>
+        <div className="cyber-corner corner-br"></div>
+        <div className="cyber-grid"></div>
+        <div className="cyber-scanline"></div>
+        <div className="cyber-hud-container">
+          <div className="hud-ring ring-outer"></div>
+          <div className="hud-ring ring-middle"></div>
+          <div className="hud-ring ring-inner"></div>
+          <div className="hud-ring ring-dashed"></div>
+          <div className="splash-logo-container">
+            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
+          </div>
+        </div>
+        <div className="cyber-progress-container">
+          <div className="cyber-progress-header">
+            <span className="progress-label">SESSION INITIALIZATION</span>
+            <span className="progress-percent">SECURE CONTEXT</span>
+          </div>
+          <div className="cyber-progress-bar">
+            <div className="cyber-progress-fill" style={{ width: '100%', animation: 'pulse 1.5s infinite' }}></div>
+          </div>
+        </div>
+        <div className="cyber-console">
+          <div className="console-header">
+            <span className="console-title">[SMPJDC SECURE BOOT]</span>
+            <span className="console-status blink">VERIFYING AUTHENTICATION</span>
+          </div>
+          <div className="console-body">
+            <p className="console-line">&gt;&gt; DETECTING ACTIVE SESSION DRIVERS...</p>
+            <p className="console-line">&gt;&gt; DECRYPTING LOCAL PRIVILEGES...</p>
+            <p className="console-line">&gt;&gt; SYNCING REALTIME CRYPTO KEYS...</p>
+            <p className="console-line">&gt;&gt; STATUS: SECURE CONNECTION RESOLVING...</p>
+          </div>
+        </div>
+        <div className="splash-footer cyber-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%', maxWidth: '420px', padding: '0 1rem' }}>
+          <div className="ornamental-watermark" style={{ margin: '0 auto', opacity: 0.95, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontFamily: "'Great Vibes', 'Brush Script MT', cursive", fontSize: '1.25rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Developer Richard Meha
+            </span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+          </div>
+          <span style={{ fontSize: '0.62rem', color: '#c7d2fe', letterSpacing: '0.12em', marginTop: '0.2rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            ★ JDC SECURITY CORE ARCHITECT ★
+          </span>
+        </div>
+      </div>
+    );
   }
 
   if (!authenticated) {
@@ -2385,9 +2457,17 @@ export default function App() {
             ))}
           </div>
         </div>
-        <div className="splash-footer cyber-footer">
-          <p className="splash-title cyber-title">SMPJDC v2.0</p>
-          <p className="splash-subtitle cyber-subtitle">SISTEM MANAGEMENT KEAMANAN JDC // DEVELOPER: RICHARD MEHA</p>
+        <div className="splash-footer cyber-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%', maxWidth: '420px', padding: '0 1rem' }}>
+          <div className="ornamental-watermark" style={{ margin: '0 auto', opacity: 0.95, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%' }}>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+            <span className="watermark-text" style={{ fontFamily: "'Great Vibes', 'Brush Script MT', cursive", fontSize: '1.25rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Developer Richard Meha
+            </span>
+            <span className="ornament-symbol" style={{ fontSize: '0.65rem', color: 'var(--color-primary)', opacity: 0.8, whiteSpace: 'nowrap' }}>✧═════•❁❀❁•═════✧</span>
+          </div>
+          <span style={{ fontSize: '0.62rem', color: '#c7d2fe', letterSpacing: '0.12em', marginTop: '0.2rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            ★ JDC SECURITY CORE ARCHITECT ★
+          </span>
         </div>
       </div>
     );
@@ -2684,7 +2764,7 @@ export default function App() {
           )}
 
           {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser?.jabatan)) && (
-            <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} posList={posList} canViewResults={isGodMode || isAdmin} />
+            <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} posList={posList} attendanceLogs={attendanceLogs} canViewResults={isGodMode || isAdmin} />
           )}
 
           {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
