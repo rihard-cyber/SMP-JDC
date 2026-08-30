@@ -1690,6 +1690,29 @@ export default function App() {
     });
   };
 
+  const handleUpdateReport = (id, updates) => {
+    const target = reports.find(r => r.id === id);
+    if (!target) return;
+    setReports(prev => {
+      const updated = prev.map(r => r.id === id ? { ...r, ...updates } : r);
+      try { localStorage.setItem('sapujagat_reports', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    const fid = target.supabaseId || target.firebaseId;
+    if (fid) {
+      updateReportInFirestore(fid, updates).catch(e => addToast(`Gagal update laporan: ${e.message}`, 'warning'));
+    } else {
+      addReportToFirestore({ ...target, ...updates }).then(fid2 => {
+        if (fid2) {
+          setReports(prev => prev.map(r =>
+            r.id === id ? { ...r, supabaseId: fid2, firebaseId: fid2 } : r
+          ));
+        }
+      }).catch(e => addToast(`Gagal sync laporan: ${e.message}`, 'warning'));
+    }
+    addToast('Laporan patroli berhasil diperbarui!', 'success');
+  };
+
   const updateFindingStatus = (findingId, newStatus) => {
     let updatedFinding = null;
     setFindings(prev => prev.map(f => {
@@ -2768,7 +2791,7 @@ export default function App() {
           )}
 
           {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
-            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onDeleteReport={handleDeleteReport} />
+            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onDeleteReport={handleDeleteReport} onUpdateReport={handleUpdateReport} />
           )}
 
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
