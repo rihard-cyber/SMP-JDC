@@ -329,6 +329,7 @@ CREATE POLICY "Allow all for anon config" ON config
 
 -- ============================================
 -- PART 3: STORAGE BUCKET & POLICIES
+
 -- Pastikan buat bucket 'photos' di Dashboard → Storage:
 -- ============================================
 
