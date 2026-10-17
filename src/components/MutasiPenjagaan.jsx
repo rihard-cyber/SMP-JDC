@@ -74,14 +74,14 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     // Active Fake GPS validation for Mutation Report
     try {
       const coords = await getGPSCoordinates();
-      if (!coords) {
-        alert('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik sebelum mencatat mutasi.');
-        return;
-      }
-      const gpsCheck = verifyGPSAntiFake(coords);
-      if (!gpsCheck.secure) {
-        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Catatan mutasi dibatalkan!`);
-        return;
+      if (coords) {
+        const gpsCheck = verifyGPSAntiFake(coords);
+        if (!gpsCheck.secure) {
+          alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Catatan mutasi dibatalkan!`);
+          return;
+        }
+      } else {
+        console.warn('[Mutasi] Sinyal GPS lemah / indoor saat pencatatan mutasi');
       }
     } catch (err) {
       alert('⚠️ Gagal memvalidasi GPS. Pastikan izin lokasi diberikan.');

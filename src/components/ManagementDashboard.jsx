@@ -46,10 +46,10 @@ const COMPLAINT_STATUS_COLOR = {
 
 export default function ManagementDashboard({ 
   theme = 'dark',
-  reports, 
-  findings, 
-  areas, 
-  users, 
+  reports = [], 
+  findings = [], 
+  areas = [], 
+  users = [], 
   attendanceLogs = [], 
   mutasiLogs = [], 
   complaints = [], 
@@ -431,8 +431,8 @@ export default function ManagementDashboard({
       const mapEl = document.getElementById('leaflet-map');
       if (!mapEl) return;
 
-      const defaultLat = -6.2023;
-      const defaultLng = 106.7996;
+      const defaultLat = -6.2088;
+      const defaultLng = 106.8021;
 
       let map = mapInstanceRef.current;
       if (!map) {

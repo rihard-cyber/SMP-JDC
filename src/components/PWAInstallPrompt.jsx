@@ -55,7 +55,7 @@ export default function PWAInstallPrompt() {
       setPromptType('ios');
       const timer = setTimeout(() => {
         setShowPrompt(true);
-      }, 5000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
 
@@ -69,8 +69,14 @@ export default function PWAInstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    // Auto-show prompt after 1.5 seconds even if beforeinstallprompt hasn't fired yet
+    const desktopTimer = setTimeout(() => {
+      setShowPrompt(true);
+    }, 1500);
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearTimeout(desktopTimer);
     };
   }, []);
 
@@ -89,7 +95,10 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      triggerApkDownload();
+      return;
+    }
     
     setShowPrompt(false);
     deferredPrompt.prompt();

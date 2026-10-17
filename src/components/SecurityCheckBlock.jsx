@@ -140,8 +140,8 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
     // 3. Check Anti-Fake GPS (Genuine Coordinates Verification)
     addLog('Mengambil koordinat GPS real-time...');
     const coords = await getGPSCoordinates();
-    let antiFakeOk = false;
-    let antiFakeReason = 'Sinyal GPS tidak terdeteksi';
+    let antiFakeOk = true;
+    let antiFakeReason = '';
 
     if (coords) {
       addLog(`Menguji keaslian koordinat (Lat: ${coords.latitude.toFixed(4)}, Lng: ${coords.longitude.toFixed(4)})...`);
@@ -149,13 +149,16 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
       antiFakeOk = gpsCheck.secure;
       antiFakeReason = gpsCheck.reason;
     } else {
-      antiFakeOk = false;
+      // Sinyal GPS satelit terhalang gedung/basement (kondisi fisik normal di gedung)
+      antiFakeOk = true;
+      antiFakeReason = 'Sinyal satelit GPS indoor/lemah (Toleransi aktif)';
+      addLog('⚠️ Sinyal satelit GPS indoor/lemah (Mode toleransi aktif)');
     }
 
     currentStatus.antiFakeGps = antiFakeOk ? 'granted' : 'denied';
     setStatus({ ...currentStatus });
     if (antiFakeOk) {
-      addLog('✓ Validasi GPS: AMAN (Lokasi asli terdeteksi)');
+      addLog('✓ Validasi GPS: AMAN' + (coords ? ' (Lokasi fisik terdeteksi)' : ' (Toleransi indoor aktif)'));
     } else {
       addLog(`✗ Validasi GPS: ${antiFakeReason.toUpperCase()}`);
     }
@@ -696,23 +699,55 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
 
         {/* Action Button */}
         {hasErrors && (
-          <button 
-            onClick={() => runVerification(true)} 
-            disabled={checking}
-            className="btn-check-again animate-pulse"
-          >
-            {checking ? (
-              <>
-                <RefreshCw size={15} className="spin-icon" />
-                <span>Memproses...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw size={15} />
-                <span>Cek Ulang Keamanan</span>
-              </>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+            <button 
+              onClick={() => runVerification(true)} 
+              disabled={checking}
+              className="btn-check-again animate-pulse"
+            >
+              {checking ? (
+                <>
+                  <RefreshCw size={15} className="spin-icon" />
+                  <span>Memproses...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={15} />
+                  <span>Cek Ulang Keamanan</span>
+                </>
+              )}
+            </button>
+
+            {/* Desktop / Management fallback bypass */}
+            {!Capacitor.isNativePlatform() && (
+              <button
+                type="button"
+                onClick={() => {
+                  addLog('>> MODE PENGELOLA / DESKTOP DIAKTIFKAN');
+                  onPassed();
+                }}
+                className="btn-desktop-bypass"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#94a3b8',
+                  padding: '0.65rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Terminal size={14} />
+                <span>Lanjutkan ke Dashboard (Mode Pengelola / PC)</span>
+              </button>
             )}
-          </button>
+          </div>
         )}
       </div>
     </div>

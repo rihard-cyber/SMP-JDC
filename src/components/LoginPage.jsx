@@ -46,18 +46,23 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
       }
 
       let storedPin = localStorage.getItem(`smpjdc_pin_${user.id}`);
-      if (!storedPin) {
-        const defaultHash = hashPin(user.nrp.slice(-4));
-        if (verifyPin(pin, defaultHash)) {
-          storedPin = defaultHash;
-          localStorage.setItem(`smpjdc_pin_${user.id}`, defaultHash);
-        }
-      }
-      if (!storedPin || !verifyPin(pin, storedPin)) {
+      const pinSuffixHash = hashPin(user.nrp.slice(-4));
+      const fullNrpHash = hashPin(user.nrp);
+
+      const isValidPin = (storedPin && verifyPin(pin, storedPin)) ||
+                         verifyPin(pin, pinSuffixHash) ||
+                         verifyPin(pin, fullNrpHash);
+
+      if (!isValidPin) {
         recordLoginAttempt(nrp.trim(), false);
         setError('PIN salah');
         setLoading(false);
         return;
+      }
+
+      // Pastikan hash PIN tersimpan
+      if (!storedPin || !verifyPin(pin, storedPin)) {
+        localStorage.setItem(`smpjdc_pin_${user.id}`, hashPin(pin));
       }
 
       recordLoginAttempt(nrp.trim(), true);

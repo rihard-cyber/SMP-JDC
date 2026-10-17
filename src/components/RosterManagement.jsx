@@ -7,7 +7,7 @@ import {
 
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
-export default function RosterManagement({ users, currentUser }) {
+export default function RosterManagement({ users = [], currentUser }) {
   const [yearMonth, setYearMonth] = useState(() => getYearMonth());
   const [saveStatus, setSaveStatus] = useState('');
   const [search, setSearch] = useState('');

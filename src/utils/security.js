@@ -183,27 +183,48 @@ export function migratePins(users) {
   return changed;
 }
 
-// Fetch real GPS Coordinates via standard Geolocation API
-export function getGPSCoordinates() {
+// Fetch real GPS Coordinates via standard Geolocation API with indoor/network fallback
+export function getGPSCoordinates(timeoutMs = 8000) {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      console.warn('Geolocation not supported by this browser/webview');
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      console.warn('[GPS] Geolocation tidak didukung pada browser/webview ini');
       resolve(null);
       return;
     }
+
+    // Attempt 1: High-accuracy GPS sensor
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
+          accuracy: position.coords.accuracy,
+          altitude: position.coords.altitude,
+          timestamp: position.timestamp || Date.now()
         });
       },
       (error) => {
-        console.warn('GPS Coordinate Fetch Error:', error);
-        resolve(null);
+        console.warn('[GPS] High-accuracy timeout/error, mencoba fallback indoor/network...', error.message);
+        // Attempt 2: Fallback to network/Wi-Fi positioning (crucial for Basements and inside buildings)
+        navigator.geolocation.getCurrentPosition(
+          (fallbackPos) => {
+            resolve({
+              latitude: fallbackPos.coords.latitude,
+              longitude: fallbackPos.coords.longitude,
+              accuracy: fallbackPos.coords.accuracy,
+              altitude: fallbackPos.coords.altitude,
+              timestamp: fallbackPos.timestamp || Date.now(),
+              isIndoorFallback: true
+            });
+          },
+          (fallbackErr) => {
+            console.warn('[GPS] Semua upaya geolokasi gagal:', fallbackErr.message);
+            resolve(null);
+          },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 10000 }
     );
   });
 }
@@ -231,13 +252,13 @@ export async function checkDeviceSecurity() {
 
 // Geolocation Mock GPS / Fake GPS detection heuristics
 export function verifyGPSAntiFake(coords, previousCoords = null) {
-  if (!coords) return { secure: false, reason: 'Sinyal GPS tidak terdeteksi' };
+  if (!coords) return { secure: false, reason: 'Sinyal GPS belum terkunci' };
   
   const lat = coords.latitude;
   const lng = coords.longitude;
   const acc = coords.accuracy;
 
-  // 1. Emulator default coordinate check (Google Pixel / Standard Emulator)
+  // 1. Emulator default coordinate check (Google Pixel / Standard Android Emulator)
   if (Math.abs(lat - 37.422) < 0.001 && Math.abs(lng - (-122.084)) < 0.001) {
     return { secure: false, reason: 'Terdeteksi Emulator Android (Default Google GPS)' };
   }
@@ -247,21 +268,14 @@ export function verifyGPSAntiFake(coords, previousCoords = null) {
     return { secure: false, reason: 'Koordinat tidak valid (0,0)' };
   }
 
-  // 3. Integer accuracy check
-  // Real GPS hardware returns high-precision floats (e.g. 8.423m). Mock location apps
-  // typically inject exact integer values like 10.0, 15.0, 5.0, or 0.0.
-  if (acc > 0 && acc % 1 === 0 && (acc === 10 || acc === 15 || acc === 5 || acc === 20 || acc === 0)) {
-    return { secure: false, reason: 'Deteksi Fake GPS (Integer accuracy pattern)' };
+  // 3. Out of bounds check
+  if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { secure: false, reason: 'Koordinat berada di luar rentang valid' };
   }
 
-  // 4. Constant coordinates check (Zero drift check)
-  if (previousCoords) {
-    const isSameLat = lat === previousCoords.latitude;
-    const isSameLng = lng === previousCoords.longitude;
-    const isSameAcc = acc === previousCoords.accuracy;
-    if (isSameLat && isSameLng && isSameAcc) {
-      return { secure: false, reason: 'Deteksi Fake GPS (Zero-drift static coordinates)' };
-    }
+  // 4. Zero / negative accuracy check (Mock location artifacts)
+  if (acc !== undefined && acc !== null && acc <= 0) {
+    return { secure: false, reason: 'Akurasi GPS tidak wajar (Nilai akurasi <= 0)' };
   }
 
   return { secure: true };

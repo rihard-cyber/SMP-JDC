@@ -328,24 +328,54 @@ CREATE POLICY "Allow all for anon config" ON config
   FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- ============================================
--- PART 3: STORAGE BUCKET POLICIES
--- Run AFTER creating 'photos' bucket in Dashboard → Storage
+-- PART 3: STORAGE BUCKET & POLICIES
+-- Pastikan buat bucket 'photos' di Dashboard → Storage:
 -- ============================================
 
--- Enable RLS on storage.objects (run once)
--- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- 1. Buat bucket 'photos' (jika belum ada)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('photos', 'photos', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/*'])
+ON CONFLICT (id) DO UPDATE SET public = true;
 
--- INSERT policy - authenticated users can upload
--- CREATE POLICY "Authenticated users can upload photos" ON storage.objects
---   FOR INSERT TO authenticated WITH CHECK (bucket_id = 'photos');
+-- 2. Kebijakan Storage (Wrapped safely agar tidak memicu ERROR 42501: must be owner of table objects)
+-- CATATAN: Di Supabase Cloud, tabel storage.objects dimiliki oleh role 'supabase_storage_admin'.
+-- Jika menjalankan query ini via SQL Editor dengan role postgres, Supabase dapat mengembalikan error 42501.
+-- Blok di bawah ini aman dijalankan karena menangkap exception privilege secara otomatis.
+DO $$
+BEGIN
+  -- INSERT policy - Allow anon role to upload photos to 'photos' bucket
+  BEGIN
+    DROP POLICY IF EXISTS "Allow anon uploads to photos" ON storage.objects;
+    CREATE POLICY "Allow anon uploads to photos" ON storage.objects
+      FOR INSERT TO anon WITH CHECK (bucket_id = 'photos');
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipping direct policy on storage.objects (insufficient privilege). Silakan atur policy lewat menu Storage -> Policies di dashboard Supabase.';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Policy creation skipped: %', SQLERRM;
+  END;
 
--- SELECT policy - public read access for photos
--- CREATE POLICY "Public read access for photos" ON storage.objects
---   FOR SELECT USING (bucket_id = 'photos');
+  -- SELECT policy - public read access for photos
+  BEGIN
+    DROP POLICY IF EXISTS "Public read access for photos" ON storage.objects;
+    CREATE POLICY "Public read access for photos" ON storage.objects
+      FOR SELECT TO public USING (bucket_id = 'photos');
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipping direct SELECT policy on storage.objects.';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Policy creation skipped: %', SQLERRM;
+  END;
 
--- UPDATE/DELETE - only owners (requires custom metadata)
--- CREATE POLICY "Users can update own photos" ON storage.objects
---   FOR UPDATE TO authenticated USING (bucket_id = 'photos' AND auth.uid()::text = (metadata->>'owner')::text);
+  -- UPDATE/DELETE policy for anon
+  BEGIN
+    DROP POLICY IF EXISTS "Allow anon update and delete on photos" ON storage.objects;
+    CREATE POLICY "Allow anon update and delete on photos" ON storage.objects
+      FOR ALL TO anon USING (bucket_id = 'photos');
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipping direct UPDATE/DELETE policy on storage.objects.';
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Policy creation skipped: %', SQLERRM;
+  END;
+END $$;
 
 -- ============================================
 -- VERIFICATION QUERIES

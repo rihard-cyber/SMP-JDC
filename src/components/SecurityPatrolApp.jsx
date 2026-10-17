@@ -9,11 +9,11 @@
  * =======================================================
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Camera, Clock, Check, AlertTriangle, QrCode, Shield,
   Wifi, WifiOff, Database, ThumbsUp, MapPin,
-  FileText, History, Send, Info, Search, Wrench, Radio, X, Home, Fingerprint
+  FileText, History, Send, Info, Search, Wrench, Radio, X, Home, Fingerprint, Menu, ArrowLeft
 } from 'lucide-react';
 import KATEGORI_TEMUAN, { KATEGORI_STANDALONE } from '../data/kategoriTemuan';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -33,7 +33,7 @@ const KATEGORI_MUTASI = [
 
 export default function SecurityPatrolApp({
   currentUser, areas, posList = [], attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
-  onAddReport, onTriggerSOS, onAddLog, onAddAttendance
+  onAddReport, onTriggerSOS, onAddLog, onAddAttendance, onToggleSidebar, onBackToDashboard
 }) {
   const [online, setOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [queue, setQueue] = useState(() => {
@@ -87,8 +87,7 @@ export default function SecurityPatrolApp({
   const [tab, setTab] = useState('home');
   const [cameraStream, setCameraStream] = useState(null);
   const [selfiePhoto, setSelfiePhoto] = useState(null);
-  const [faceRecognized, setFaceRecognized] = useState(false);
-  const [gpsLocation, setGpsLocation] = useState({ lat: -6.2000, lng: 106.8166 });
+  const [gpsLocation, setGpsLocation] = useState({ lat: -6.2088, lng: 106.8021 });
   const [isInRadius, setIsInRadius] = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [clockedStatus, setClockedStatus] = useState(null); // null | 'in' | 'out'
@@ -129,6 +128,9 @@ export default function SecurityPatrolApp({
   const [scanError, setScanError] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
+  // ── Torch / Flashlight state untuk scanner patroli ──
+  const [torchOn, setTorchOn] = useState(false);
+  const scannerRef = useRef(null); // menyimpan instance html5QrCode aktif
 
   // Trigger early Geolocation permissions and warm up GPS coordinates
   useEffect(() => {
@@ -164,6 +166,43 @@ export default function SecurityPatrolApp({
     return unregister;
   }, [tab, step, mode]);
 
+  // ── Helper: nyalakan torch via MediaStreamTrack (fallback) ──
+  const enableTorchOnTrack = async (on) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const track = stream.getVideoTracks()[0];
+      if (track && typeof track.applyConstraints === 'function') {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (caps.torch) {
+          await track.applyConstraints({ advanced: [{ torch: on }] });
+        }
+      }
+      // Hentikan stream sementara — html5-qrcode punya stream sendiri
+      stream.getTracks().forEach(t => t.stop());
+    } catch {
+      // Device tidak support torch — diabaikan
+    }
+  };
+
+  // ── Toggle torch dari tombol UI ──
+  const handleToggleTorch = async () => {
+    const newState = !torchOn;
+    setTorchOn(newState);
+    const scanner = scannerRef.current;
+    if (scanner) {
+      try {
+        // html5-qrcode v2.3+ menyediakan applyVideoConstraints
+        if (typeof scanner.applyVideoConstraints === 'function') {
+          await scanner.applyVideoConstraints({ advanced: [{ torch: newState }] });
+          return;
+        }
+      } catch {
+        // fallback ke track langsung
+      }
+    }
+    await enableTorchOnTrack(newState);
+  };
+
   // Live Camera Scanner Lifecycle using html5-qrcode
   useEffect(() => {
     let html5QrCode;
@@ -172,10 +211,12 @@ export default function SecurityPatrolApp({
     if (scanning && step === 2) {
       setScanLoading(true);
       setScanError('');
+      setTorchOn(false); // reset state torch
       
       const timer = setTimeout(() => {
         try {
           html5QrCode = new Html5Qrcode(elementId);
+          scannerRef.current = html5QrCode; // simpan referensi
           html5QrCode.start(
             { facingMode: "environment" },
             {
@@ -191,12 +232,34 @@ export default function SecurityPatrolApp({
             () => {
               // scanning...
             }
-          ).then(() => {
+          ).then(async () => {
             setScanLoading(false);
+            // ── AUTO-TORCH: nyalakan flash otomatis setelah kamera aktif ──
+            try {
+              if (typeof html5QrCode.applyVideoConstraints === 'function') {
+                await html5QrCode.applyVideoConstraints({ advanced: [{ torch: true }] });
+                setTorchOn(true);
+              } else {
+                // Fallback: akses track via MediaStream internal
+                const stream = html5QrCode._localMediaStream || html5QrCode.stream;
+                if (stream) {
+                  const track = stream.getVideoTracks()[0];
+                  const caps = track?.getCapabilities?.() || {};
+                  if (caps.torch) {
+                    await track.applyConstraints({ advanced: [{ torch: true }] });
+                    setTorchOn(true);
+                  }
+                }
+              }
+            } catch {
+              // Torch tidak didukung device — tidak masalah
+              setTorchOn(false);
+            }
           }).catch(err => {
             console.warn("Kamera scanner gagal aktif:", err);
             setScanLoading(false);
             setScanning(false);
+            scannerRef.current = null;
             setScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan. Gunakan input manual di bawah.`);
           });
         } catch (e) {
@@ -211,6 +274,8 @@ export default function SecurityPatrolApp({
         if (html5QrCode && html5QrCode.isScanning) {
           html5QrCode.stop().catch(err => console.error(err));
         }
+        scannerRef.current = null;
+        setTorchOn(false);
       };
     }
   }, [scanning, step]);
@@ -259,6 +324,7 @@ export default function SecurityPatrolApp({
 
   // Liveness and device security states
   const [livenessStep, setLivenessStep] = useState('idle'); // 'idle' | 'blink' | 'turn' | 'success' | 'failed'
+  const [faceRecognized, setFaceRecognized] = useState(false);
   const [livenessProgress, setLivenessProgress] = useState(0);
   const [livenessMessage, setLivenessMessage] = useState('');
   const [livenessStatusText, setLivenessStatusText] = useState('');
@@ -366,7 +432,7 @@ export default function SecurityPatrolApp({
               setIsInRadius(true);
             }
           } else {
-            setGpsLocation({ lat: -6.2000, lng: 106.8166 });
+            setGpsLocation({ lat: -6.2088, lng: 106.8021 });
             setGpsCheckResult('secure');
             setIsInRadius(true);
           }
@@ -556,6 +622,28 @@ export default function SecurityPatrolApp({
     }
   }, [cameraStream]);
 
+  // ── Torch state untuk scanner presensi ──
+  const [presenciTorchOn, setPresensiTorchOn] = useState(false);
+  const presenciScannerRef = useRef(null);
+
+  // ── Toggle torch scanner presensi ──
+  const handleTogglePresensiTorch = async () => {
+    const newState = !presenciTorchOn;
+    setPresensiTorchOn(newState);
+    const scanner = presenciScannerRef.current;
+    if (scanner) {
+      try {
+        if (typeof scanner.applyVideoConstraints === 'function') {
+          await scanner.applyVideoConstraints({ advanced: [{ torch: newState }] });
+          return;
+        }
+      } catch {
+        // fallback
+      }
+    }
+    await enableTorchOnTrack(newState);
+  };
+
   // Live Camera Scanner Lifecycle for Presensi QR (Staff Room)
   useEffect(() => {
     let html5QrCodePresensi;
@@ -564,10 +652,12 @@ export default function SecurityPatrolApp({
     if (scanningPresensi) {
       setPresensiScanLoading(true);
       setPresensiScanError('');
+      setPresensiTorchOn(false);
       
       const timer = setTimeout(() => {
         try {
           html5QrCodePresensi = new Html5Qrcode(elementId);
+          presenciScannerRef.current = html5QrCodePresensi;
           html5QrCodePresensi.start(
             { facingMode: "environment" },
             {
@@ -583,12 +673,32 @@ export default function SecurityPatrolApp({
             () => {
               // scanning...
             }
-          ).then(() => {
+          ).then(async () => {
             setPresensiScanLoading(false);
+            // ── AUTO-TORCH: nyalakan flash otomatis setelah kamera presensi aktif ──
+            try {
+              if (typeof html5QrCodePresensi.applyVideoConstraints === 'function') {
+                await html5QrCodePresensi.applyVideoConstraints({ advanced: [{ torch: true }] });
+                setPresensiTorchOn(true);
+              } else {
+                const stream = html5QrCodePresensi._localMediaStream || html5QrCodePresensi.stream;
+                if (stream) {
+                  const track = stream.getVideoTracks()[0];
+                  const caps = track?.getCapabilities?.() || {};
+                  if (caps.torch) {
+                    await track.applyConstraints({ advanced: [{ torch: true }] });
+                    setPresensiTorchOn(true);
+                  }
+                }
+              }
+            } catch {
+              setPresensiTorchOn(false);
+            }
           }).catch(err => {
             console.warn("Kamera scanner presensi gagal aktif:", err);
             setPresensiScanLoading(false);
             setScanningPresensi(false);
+            presenciScannerRef.current = null;
             setPresensiScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan. Gunakan input manual di bawah.`);
           });
         } catch (e) {
@@ -603,6 +713,8 @@ export default function SecurityPatrolApp({
         if (html5QrCodePresensi && html5QrCodePresensi.isScanning) {
           html5QrCodePresensi.stop().catch(err => console.error(err));
         }
+        presenciScannerRef.current = null;
+        setPresensiTorchOn(false);
       };
     }
   }, [scanningPresensi]);
@@ -615,21 +727,18 @@ export default function SecurityPatrolApp({
     // Active Fake GPS validation for Presensi QR Scan
     try {
       const coords = await getGPSCoordinates();
-      if (!coords) {
-        setPresensiScanError('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik.');
-        setTimeout(() => setPresensiScanError(''), 4000);
-        return;
-      }
-      const gpsCheck = verifyGPSAntiFake(coords);
-      if (!gpsCheck.secure) {
-        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Presensi QR dibatalkan!`);
-        setScanningPresensi(false);
-        return;
+      if (coords) {
+        const gpsCheck = verifyGPSAntiFake(coords);
+        if (!gpsCheck.secure && !isTestAccount) {
+          alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Presensi QR dibatalkan!`);
+          setScanningPresensi(false);
+          return;
+        }
+      } else {
+        console.warn('[Presensi QR] Sinyal GPS lemah / indoor saat scan presensi');
       }
     } catch (err) {
-      setPresensiScanError('⚠️ Gagal memverifikasi GPS.');
-      setTimeout(() => setPresensiScanError(''), 4000);
-      return;
+      console.warn('[Presensi QR] Gagal membaca GPS:', err);
     }
 
     // Smart URL Parsing
@@ -741,9 +850,9 @@ export default function SecurityPatrolApp({
       }
     }
 
-    // 7. JDC Area Radius Check (250 meters from JDC Center)
-    const jdcLat = -6.2000;
-    const jdcLng = 106.8166;
+    // 7. JDC Area Radius Check (500 meters from JDC Center - Slipi Gatot Subroto Kav 53)
+    const jdcLat = -6.2088;
+    const jdcLng = 106.8021;
     const R = 6371e3; // Earth radius in meters
     const phi1 = (jdcLat * Math.PI) / 180;
     const phi2 = (lat * Math.PI) / 180;
@@ -756,14 +865,13 @@ export default function SecurityPatrolApp({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
 
-    if (distance > 250 && !isTestAccount) {
-      alert(`⚠️ DI LUAR RADIUS: Jarak Anda ${Math.round(distance)}m dari JDC. Jarak maksimal absensi adalah 250m!`);
+    if (distance > 500 && !isTestAccount) {
+      alert(`⚠️ DI LUAR RADIUS: Jarak Anda ${Math.round(distance)}m dari JDC. Jarak maksimal absensi adalah 500m dari gedung JDC!`);
       return;
     }
 
-    if (accuracy > 100 && !isTestAccount) {
-      alert(`⚠️ SINYAL GPS BURUK: Akurasi GPS saat ini tidak memadai (${Math.round(accuracy)}m). Cari lokasi terbuka.`);
-      return;
+    if (accuracy > 150 && !isTestAccount) {
+      console.warn(`[Presensi] Akurasi GPS sedang mengambang (${Math.round(accuracy)}m), dilanjutkan dengan toleransi indoor.`);
     }
 
     // 8. Take real-time snapshot of the webcam stream
@@ -967,21 +1075,18 @@ export default function SecurityPatrolApp({
     // Active Fake GPS validation for Checkpoint Barcode Scan
     try {
       const coords = await getGPSCoordinates();
-      if (!coords) {
-        setScanError('⚠️ GPS tidak terdeteksi. Silakan aktifkan GPS dan pastikan sinyal GPS baik.');
-        setTimeout(() => setScanError(''), 4000);
-        return;
-      }
-      const gpsCheck = verifyGPSAntiFake(coords);
-      if (!gpsCheck.secure) {
-        alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Scan checkpoint dibatalkan!`);
-        setScanning(false);
-        return;
+      if (coords) {
+        const gpsCheck = verifyGPSAntiFake(coords);
+        if (!gpsCheck.secure && !isTestAccount) {
+          alert(`⚠️ DETEKSI FAKE GPS: ${gpsCheck.reason}. Scan checkpoint dibatalkan!`);
+          setScanning(false);
+          return;
+        }
+      } else {
+        console.warn('[Patrol Checkpoint] Sinyal GPS lemah / indoor saat scan checkpoint, melanjutkan scan fisik');
       }
     } catch (err) {
-      setScanError('⚠️ Gagal memverifikasi GPS.');
-      setTimeout(() => setScanError(''), 4000);
-      return;
+      console.warn('[Patrol Checkpoint] Gagal memverifikasi GPS:', err);
     }
 
     // Smart URL Parsing: Ekstrak parameter query jika QR code berisi URL lengkap
@@ -1230,10 +1335,68 @@ export default function SecurityPatrolApp({
   const labelSeverity = (v) => ({ low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' })[v] || v;
   const colorSeverity = (v) => ({ low: '#3b82f6', medium: '#f59e0b', high: '#ef4444', critical: '#dc2626' })[v] || '#3b82f6';
 
-  const shouldHideNavbar = 
+  // ── Smart Auto-Hide Bottom Navigation on Scroll (Native App Behavior) ──
+  const [navVisibleOnScroll, setNavVisibleOnScroll] = useState(true);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = (e) => {
+      const target = e.target;
+      let currentScrollY = 0;
+      let isNearBottom = false;
+
+      if (target && target.scrollTop !== undefined && target !== document) {
+        currentScrollY = target.scrollTop;
+        if (target.scrollHeight && target.clientHeight) {
+          isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 35;
+        }
+      } else {
+        currentScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+        const clientHeight = window.innerHeight || 0;
+        isNearBottom = scrollHeight - currentScrollY - clientHeight < 35;
+      }
+
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const delta = currentScrollY - lastScrollYRef.current;
+
+          // Always visible at the top or near bottom
+          if (currentScrollY <= 15 || isNearBottom) {
+            setNavVisibleOnScroll(true);
+          } else if (Math.abs(delta) > 8) {
+            if (delta > 0 && currentScrollY > 40) {
+              // Scrolling down -> hide navbar to maximize view
+              setNavVisibleOnScroll(false);
+            } else if (delta < 0) {
+              // Scrolling up -> reveal navbar
+              setNavVisibleOnScroll(true);
+            }
+          }
+          lastScrollYRef.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', handleScroll, { capture: true });
+  }, []);
+
+  // Reset navbar visibility on tab/step change
+  useEffect(() => {
+    setNavVisibleOnScroll(true);
+    lastScrollYRef.current = 0;
+  }, [tab, step]);
+
+  const isCameraActive = 
     (tab === 'patroli' && step === 2 && scanning) ||
     scanningPresensi ||
     (tab === 'presensi' && cameraStream && clockedStatus !== 'in' && !selfiePhoto);
+
+  const shouldHideNavbar = isCameraActive || !navVisibleOnScroll;
 
   return (
     <div className="mobile-phone-frame">
@@ -1247,16 +1410,61 @@ export default function SecurityPatrolApp({
         </div>
         {queue.length > 0 && <div className="offline-badge"><Database size={12} /><span>{queue.length} offline</span></div>}
 
-        {/* Header with SOS */}
+        {/* Header with SOS and Sidebar Menu */}
         <div className="mobile-header">
-          <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center' }}>
+          <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            {onToggleSidebar && (
+              <button 
+                type="button" 
+                onClick={onToggleSidebar}
+                style={{
+                  background: 'rgba(0, 240, 255, 0.08)',
+                  border: '1px solid rgba(0, 240, 255, 0.25)',
+                  borderRadius: '8px',
+                  color: 'var(--color-primary, #00f0ff)',
+                  padding: '0.35rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  minWidth: '34px',
+                  minHeight: '34px'
+                }}
+                title="Buka Menu Navigasi"
+                aria-label="Buka Menu Navigasi"
+              >
+                <Menu size={18} />
+              </button>
+            )}
             <img src="logo.png" alt="" className="mobile-logo logo-3d" />
           </div>
           <div className="mobile-brand-title" style={{ justifySelf: 'center', textAlign: 'center' }}>
             <h4 className="mobile-app-title" style={{ margin: 0 }}>SMPJDC</h4>
             <p className="mobile-app-sub" style={{ margin: 0 }}>Aplikasi Patroli</p>
           </div>
-          <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center' }}>
+          <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {onBackToDashboard && !['Anggota', 'Danru', 'Wadanru'].includes(currentUser?.jabatan) && (
+              <button
+                type="button"
+                onClick={onBackToDashboard}
+                style={{
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  borderRadius: '6px',
+                  color: '#93c5fd',
+                  padding: '0.3rem 0.55rem',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.2rem'
+                }}
+                title="Kembali ke Dashboard Utama"
+              >
+                <ArrowLeft size={12} /> Dashboard
+              </button>
+            )}
             <button onClick={() => onTriggerSOS(currentUser.nama, area?.titik || 'Lobby')} className="sos-btn-small">SOS</button>
           </div>
         </div>
@@ -1607,6 +1815,28 @@ export default function SecurityPatrolApp({
                             <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid rgba(167,139,250,0.2)', borderTopColor: '#a78bfa', animation: 'spin 0.8s linear infinite' }}></div>
                             <span style={{ fontWeight: 600 }}>Menghidupkan Kamera Absensi...</span>
                           </div>
+                        )}
+                        {/* Tombol toggle torch presensi */}
+                        {!presensiScanLoading && (
+                          <button
+                            onClick={handleTogglePresensiTorch}
+                            style={{
+                              position: 'absolute', bottom: 12, right: 12,
+                              zIndex: 30, pointerEvents: 'all',
+                              background: presenciTorchOn ? 'rgba(255,220,50,0.92)' : 'rgba(20,30,60,0.85)',
+                              border: presenciTorchOn ? '2px solid #ffd700' : '2px solid rgba(167,139,250,0.4)',
+                              borderRadius: '50px',
+                              color: presenciTorchOn ? '#111' : '#fff',
+                              padding: '0.35rem 0.7rem',
+                              fontSize: '0.72rem', fontWeight: 800,
+                              display: 'flex', alignItems: 'center', gap: '0.3rem',
+                              cursor: 'pointer', boxShadow: presenciTorchOn ? '0 0 14px #ffd700' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                            title={presenciTorchOn ? 'Matikan Flash' : 'Nyalakan Flash'}
+                          >
+                            {presenciTorchOn ? '🔦 Nyala' : '🔦 Flash'}
+                          </button>
                         )}
                       </div>
 
@@ -2222,6 +2452,28 @@ export default function SecurityPatrolApp({
                       ⚠️ {scanError}
                     </div>
                   )}
+                      {/* Tombol toggle torch */}
+                      {scanning && !scanLoading && (
+                        <button
+                          onClick={handleToggleTorch}
+                          style={{
+                            position: 'absolute', bottom: 12, right: 12,
+                            zIndex: 30, pointerEvents: 'all',
+                            background: torchOn ? 'rgba(255,220,50,0.92)' : 'rgba(20,30,60,0.85)',
+                            border: torchOn ? '2px solid #ffd700' : '2px solid rgba(0,240,255,0.4)',
+                            borderRadius: '50px',
+                            color: torchOn ? '#111' : '#fff',
+                            padding: '0.35rem 0.7rem',
+                            fontSize: '0.72rem', fontWeight: 800,
+                            display: 'flex', alignItems: 'center', gap: '0.3rem',
+                            cursor: 'pointer', boxShadow: torchOn ? '0 0 14px #ffd700' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                          title={torchOn ? 'Matikan Flash' : 'Nyalakan Flash'}
+                        >
+                          {torchOn ? '🔦 Nyala' : '🔦 Flash'}
+                        </button>
+                      )}
                 </div>
 
                 {/* Fallback Manual Input */}
@@ -2897,25 +3149,26 @@ export default function SecurityPatrolApp({
         </div>
       </div>
 
-      {/* Bottom Tab Bar Navigation */}
+      {/* Bottom Tab Bar Navigation (Single Native-like Bar on Simulator) */}
       <div className="mobile-tab-bar" style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        height: '66px',
-        background: 'rgba(7, 10, 19, 0.94)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderTop: '1px solid rgba(0, 240, 255, 0.15)',
+        height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+        background: 'rgba(7, 10, 19, 0.95)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        borderTop: '1px solid rgba(0, 240, 255, 0.18)',
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'center',
-        padding: '0 0.25rem',
+        padding: '0 0.25rem env(safe-area-inset-bottom, 0px)',
         zIndex: 90,
-        transform: shouldHideNavbar ? 'translateY(100%)' : 'translateY(0)',
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.5)'
+        transform: shouldHideNavbar ? 'translateY(calc(100% + 20px))' : 'translateY(0)',
+        pointerEvents: shouldHideNavbar ? 'none' : 'auto',
+        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease',
+        boxShadow: shouldHideNavbar ? 'none' : '0 -4px 20px rgba(0, 0, 0, 0.6)'
       }}>
         {/* Menu 1: Home */}
         <button 

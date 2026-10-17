@@ -6,7 +6,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(DeviceSecurityPlugin.class);
         super.onCreate(savedInstanceState);
-        // DeviceSecurityPlugin is automatically registered by Capacitor
     }
 }

@@ -5,6 +5,7 @@
 //
 // Cloud sync: otomatis sync ke Firebase Firestore (collection 'rosters')
 // saat user menyimpan, dan fallback baca dari cloud saat init.
+import { saveRosterToFirestore, loadRosterFromFirestore } from '../utils/supabase';
 
 const LS_KEY_PREFIX = 'smpjdc_roster_';
 
@@ -103,20 +104,19 @@ export function getDatesInMonth(yearMonth) {
   });
 }
 
-// ── Cloud Sync dengan Firebase ──────────────────────────────────────────────
+// ── Cloud Sync dengan Supabase ──────────────────────────────────────────────
 export async function saveRosterWithCloud(yearMonth, data, userId) {
   saveRoster(yearMonth, data);
   try {
-    const { saveRosterToFirestore } = await import('../utils/supabase');
     await saveRosterToFirestore(yearMonth, data, userId);
   } catch (e) {
-    // Firebase tidak dikonfigurasi — tidak masalah
+    // Cloud sync gagal — data tetap aman di local
+    console.warn('[Roster] Gagal sync ke cloud:', e);
   }
 }
 
 export async function loadRosterWithCloud(yearMonth) {
   try {
-    const { loadRosterFromFirestore } = await import('../utils/supabase');
     const cloud = await loadRosterFromFirestore(yearMonth);
     if (cloud) {
       const local = getRoster(yearMonth);
@@ -129,7 +129,7 @@ export async function loadRosterWithCloud(yearMonth) {
       return merged;
     }
   } catch (e) {
-    // Firebase tidak dikonfigurasi
+    console.warn('[Roster] Gagal load dari cloud:', e);
   }
   return getRoster(yearMonth);
 }

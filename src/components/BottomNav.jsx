@@ -11,46 +11,62 @@ import {
   Fingerprint
 } from 'lucide-react';
 
-export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
+export default function BottomNav({ className = '', currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
+
+  // Reset navbar visibility on tab change
+  useEffect(() => {
+    setVisible(true);
+    lastScrollY.current = 0;
+  }, [currentTab]);
 
   useEffect(() => {
     let ticking = false;
     const handleScroll = (e) => {
       const target = e.target;
-      if (!target || (
-        target.id !== 'main-scroll-container' && 
-        !target.classList?.contains('main-content') &&
-        !target.classList?.contains('mobile-screen')
-      )) {
-        return;
+      let currentScrollY = 0;
+      let isNearBottom = false;
+
+      if (target && target.scrollTop !== undefined && target !== document) {
+        currentScrollY = target.scrollTop;
+        if (target.scrollHeight && target.clientHeight) {
+          isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 35;
+        }
+      } else {
+        currentScrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+        const clientHeight = window.innerHeight || 0;
+        isNearBottom = scrollHeight - currentScrollY - clientHeight < 35;
       }
 
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentScrollY = target.scrollTop;
           const delta = currentScrollY - lastScrollY.current;
 
-          if (currentScrollY <= 10) {
+          // 1. Always show when at the top (<= 15px) or near bottom
+          if (currentScrollY <= 15 || isNearBottom) {
             setVisible(true);
-            lastScrollY.current = currentScrollY;
-          } else if (Math.abs(delta) > 10) {
-            if (delta > 0 && currentScrollY > 60) {
+          } 
+          // 2. Sensitive directional detection (threshold 8px to filter out micro-jitters)
+          else if (Math.abs(delta) > 8) {
+            if (delta > 0 && currentScrollY > 40) {
+              // User scrolling down -> hide to maximize reading view
               setVisible(false);
             } else if (delta < 0) {
+              // User scrolling up -> immediately reveal navbar
               setVisible(true);
             }
-            lastScrollY.current = currentScrollY;
           }
+          lastScrollY.current = currentScrollY;
           ticking = false;
         });
         ticking = true;
       }
     };
 
-    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    return () => document.removeEventListener('scroll', handleScroll, { capture: true });
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', handleScroll, { capture: true });
   }, []);
 
   const isGuard = ['Danru', 'Wadanru', 'Anggota'].includes(user?.jabatan);
@@ -85,7 +101,7 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
   const isNavVisible = visible && !isSidebarOpen;
 
   return (
-    <nav className={`bottom-nav ${isNavVisible ? '' : 'bottom-nav-hidden'}`}>
+    <nav className={`bottom-nav ${className} ${isNavVisible ? '' : 'bottom-nav-hidden'}`.trim()}>
       {items.map((item) => {
         if (item.isMenu) {
           return (

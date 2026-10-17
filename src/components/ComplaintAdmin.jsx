@@ -6,7 +6,7 @@ const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
 const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
 
-export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDeleteComplaint }) {
+export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onDeleteComplaint }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState(null);

@@ -450,8 +450,10 @@ export default function App() {
           }
         },
         (error) => {
-          console.warn('[Security] Real-time location tracking failed or disabled:', error);
-          setIsSecurityPassed(false);
+          console.warn('[Security] Real-time location tracking notification:', error.message || error);
+          if (error && error.code === 1) { // PERMISSION_DENIED
+            setIsSecurityPassed(false);
+          }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
@@ -2438,6 +2440,7 @@ export default function App() {
       <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)', position: 'relative' }}>
         <DeveloperWatermarkBackground theme="dark" />
         <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} firebaseUsersLoaded={firebaseUsersLoaded} />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -2808,6 +2811,8 @@ export default function App() {
                 onAddReport={handleAddReport} 
                 onAddLog={handleAddMutasi} 
                 onTriggerSOS={triggerSOS}
+                onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
+                onBackToDashboard={() => handleNavClick('dashboard')}
                 onAddAttendance={(newAttendance) => {
                   const id = `att-${Date.now()}`;
                   setAttendanceLogs(prev => {
@@ -2876,6 +2881,7 @@ export default function App() {
       </main>
 
       <BottomNav
+        className={currentTab === 'guard-simulator' ? 'hide-on-simulator-mobile' : ''}
         currentTab={currentTab}
         onNavClick={handleNavClick}
         onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
