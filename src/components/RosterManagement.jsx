@@ -4,6 +4,7 @@ import {
   SHIFT_CODES, getRoster, saveRoster, saveRosterWithCloud, loadRosterWithCloud, setUserShift,
   getYearMonth, getDatesInMonth, parseExcelToRoster, downloadExcelTemplate
 } from '../data/rosterData';
+import { hapticLight, hapticSuccess } from '../utils/haptics';
 
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -36,6 +37,44 @@ export default function RosterManagement({ users = [], currentUser }) {
   const [rosterLocal, setRosterLocal] = useState(() => getRoster(yearMonth));
   const [cloudSynced, setCloudSynced] = useState(false);
 
+  // Mobile-First Android View Mode
+  const todayIso = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = getDatesInMonth(yearMonth);
+    return d.includes(todayIso) ? todayIso : (d[0] || '');
+  });
+  const [viewMode, setViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'daily' : 'matrix'));
+  const [selectedUserId, setSelectedUserId] = useState(() => fieldUsers[0]?.id || '');
+
+  // Keep selectedDate in sync with month
+  useEffect(() => {
+    if (dates.length > 0 && !dates.includes(selectedDate)) {
+      setSelectedDate(dates.includes(todayIso) ? todayIso : dates[0]);
+    }
+  }, [dates, yearMonth]);
+
+  const currentDayIndex = dates.indexOf(selectedDate);
+  const prevDay = () => {
+    if (currentDayIndex > 0) setSelectedDate(dates[currentDayIndex - 1]);
+  };
+  const nextDay = () => {
+    if (currentDayIndex < dates.length - 1) setSelectedDate(dates[currentDayIndex + 1]);
+  };
+
+  // Day shift breakdown
+  const dayStats = useMemo(() => {
+    let pagi = 0, siang = 0, malam = 0, libur = 0, unassigned = 0;
+    fieldUsers.forEach(u => {
+      const code = rosterLocal[String(u.id)]?.[selectedDate] || '';
+      if (code === 'P') pagi++;
+      else if (code === 'S') siang++;
+      else if (code === 'M') malam++;
+      else if (code === 'X') libur++;
+      else unassigned++;
+    });
+    return { pagi, siang, malam, libur, unassigned, total: fieldUsers.length };
+  }, [fieldUsers, rosterLocal, selectedDate]);
+
   // Try to load from cloud on mount / month change
   useEffect(() => {
     loadRosterWithCloud(yearMonth).then(cloudData => {
@@ -67,6 +106,7 @@ export default function RosterManagement({ users = [], currentUser }) {
   };
 
   const handleShiftChange = (userId, dateStr, code) => {
+    hapticLight();
     setRosterLocal(prev => {
       const uid = String(userId);
       const updated = {
@@ -80,6 +120,7 @@ export default function RosterManagement({ users = [], currentUser }) {
   const handleSave = async () => {
     const userId = currentUser?.id || null;
     await saveRosterWithCloud(yearMonth, rosterLocal, userId);
+    hapticSuccess();
     setSaveStatus('✓ Roster berhasil disimpan' + (cloudSynced ? ' & tersync ke Cloud!' : ''));
     setCloudSynced(true);
     setTimeout(() => setSaveStatus(''), 3000);
@@ -245,69 +286,370 @@ export default function RosterManagement({ users = [], currentUser }) {
         ))}
       </div>
 
-      {/* Table */}
-      <div className="glass-panel" style={{ padding: '0.75rem', overflowX: 'auto' }}>
-        <table className="roster-table" style={{ minWidth: `${120 + dates.length * 44}px` }}>
-          <thead>
-            <tr>
-              <th className="name-col">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Users size={12} /> Nama Personil
-                </div>
-              </th>
-              {dates.map(dateStr => {
-                const dayIdx = new Date(dateStr).getDay();
-                const isWeekend = dayIdx === 0 || dayIdx === 6;
-                const isToday = dateStr === new Date().toISOString().split('T')[0];
-                const dayNum = dateStr.split('-')[2];
-                return (
-                  <th key={dateStr} className={`${isWeekend ? 'weekend-col' : ''} ${isToday ? 'today-col' : ''}`}>
-                    <div style={{ lineHeight: '1.2' }}>
-                      <div style={{ color: isWeekend ? '#ef4444' : 'inherit' }}>{HARI[dayIdx]}</div>
-                      <div style={{ fontWeight: 800 }}>{parseInt(dayNum, 10)}</div>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
+      {/* View Mode Switcher (Android First vs Matrix - Zero Horizontal Scroll) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gap: '0.4rem',
+        background: 'rgba(13, 19, 36, 0.65)',
+        padding: '0.4rem',
+        borderRadius: '12px',
+        border: '1px solid var(--border-glass)',
+        width: '100%'
+      }}>
+        <button
+          type="button"
+          onClick={() => setViewMode('daily')}
+          style={{
+            padding: '0.6rem 0.65rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 800,
+            border: viewMode === 'daily' ? '1.5px solid var(--color-primary)' : '1px solid transparent',
+            background: viewMode === 'daily' ? 'rgba(0, 240, 255, 0.16)' : 'transparent',
+            color: viewMode === 'daily' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+            transition: 'all 0.15s ease', minHeight: '44px', width: '100%', touchAction: 'manipulation'
+          }}
+        >
+          📱 Mode Android (Harian)
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('personil')}
+          style={{
+            flex: 1, padding: '0.55rem 0.65rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 800,
+            border: viewMode === 'personil' ? '1.5px solid var(--color-primary)' : '1px solid transparent',
+            background: viewMode === 'personil' ? 'rgba(0, 240, 255, 0.16)' : 'transparent',
+            color: viewMode === 'personil' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          👤 Per Anggota
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('matrix')}
+          style={{
+            flex: 1, padding: '0.55rem 0.65rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 800,
+            border: viewMode === 'matrix' ? '1.5px solid var(--color-primary)' : '1px solid transparent',
+            background: viewMode === 'matrix' ? 'rgba(0, 240, 255, 0.16)' : 'transparent',
+            color: viewMode === 'matrix' ? 'var(--color-primary)' : 'var(--text-secondary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          🖥️ Tabel Matrix
+        </button>
+      </div>
+
+      {/* ── MODE 1: ANDROID NATIVE HARIAN (ZERO HORIZONTAL SCROLL) ── */}
+      {viewMode === 'daily' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Day Stepper & Stats */}
+          <div className="glass-panel" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button 
+                type="button"
+                onClick={prevDay} 
+                disabled={currentDayIndex <= 0} 
+                style={{ padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-primary)', cursor: currentDayIndex <= 0 ? 'not-allowed' : 'pointer', opacity: currentDayIndex <= 0 ? 0.3 : 1 }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700 }}>TANGGAL ROSTER:</span>
+                <select 
+                  value={selectedDate} 
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="modern-select"
+                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)' }}
+                >
+                  {dates.map(d => {
+                    const dayIdx = new Date(d).getDay();
+                    const dayName = HARI[dayIdx];
+                    const isT = d === todayIso;
+                    return (
+                      <option key={d} value={d}>
+                        {dayName}, {d} {isT ? '★ Hari Ini' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <button 
+                type="button"
+                onClick={nextDay} 
+                disabled={currentDayIndex >= dates.length - 1} 
+                style={{ padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-primary)', cursor: currentDayIndex >= dates.length - 1 ? 'not-allowed' : 'pointer', opacity: currentDayIndex >= dates.length - 1 ? 0.3 : 1 }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Daily Stats Summary Chips */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderRadius: '6px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', fontWeight: 800 }}>
+                Pagi: {dayStats.pagi}
+              </span>
+              <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', fontWeight: 800 }}>
+                Siang: {dayStats.siang}
+              </span>
+              <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderRadius: '6px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', fontWeight: 800 }}>
+                Malam: {dayStats.malam}
+              </span>
+              <span style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderRadius: '6px', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 800 }}>
+                Libur: {dayStats.libur}
+              </span>
+            </div>
+          </div>
+
+          {/* List of Android Member Cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {fieldUsers.length === 0 ? (
-              <tr><td colSpan={dates.length + 1} style={{ padding: '2rem', color: 'var(--text-muted)' }}>Tidak ada personil lapangan ditemukan.</td></tr>
-            ) : fieldUsers.map(user => (
-              <tr key={user.id}>
-                <td className="name-col">
-                  <div style={{ fontWeight: 700, fontSize: '0.72rem' }}>{user.nama}</div>
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{user.jabatan} · {user.regu || '-'}</div>
-                </td>
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Tidak ada personil yang sesuai dengan pencarian.
+              </div>
+            ) : (
+              fieldUsers.map(user => {
+                const currentShift = rosterLocal[String(user.id)]?.[selectedDate] || '';
+                const sInfo = SHIFT_CODES[currentShift] || {};
+                return (
+                  <div key={user.id} className="android-member-card">
+                    <div className="android-member-card-header">
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {user.nama}
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                          {user.jabatan} · <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{user.regu || 'Non-Regu'}</span>
+                        </div>
+                      </div>
+                      {currentShift ? (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '0.25rem 0.6rem', borderRadius: '6px', background: (sInfo.bg || 'rgba(59,130,246,0.2)'), color: (sInfo.color || '#fff'), border: `1px solid ${sInfo.color}50` }}>
+                          Shift {currentShift} ({sInfo.label || currentShift})
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Belum diset</span>
+                      )}
+                    </div>
+
+                    {/* Big Touch-friendly Shift Selector Buttons */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', marginTop: '0.15rem' }}>
+                      {['P', 'S', 'M', 'X'].map(shiftCode => {
+                        const isSelected = currentShift === shiftCode;
+                        const conf = SHIFT_CODES[shiftCode] || {};
+                        return (
+                          <button
+                            key={shiftCode}
+                            type="button"
+                            onClick={() => handleShiftChange(user.id, selectedDate, isSelected ? '' : shiftCode)}
+                            style={{
+                              padding: '0.6rem 0.25rem',
+                              borderRadius: '8px',
+                              border: isSelected ? `2px solid ${conf.color || 'var(--color-primary)'}` : '1px solid var(--border-glass)',
+                              background: isSelected ? (conf.bg || 'rgba(59,130,246,0.25)') : 'rgba(255,255,255,0.03)',
+                              color: isSelected ? (conf.color || '#fff') : 'var(--text-secondary)',
+                              fontWeight: isSelected ? 900 : 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '0.15rem',
+                              boxShadow: isSelected ? `0 0 12px ${conf.color}40` : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.95rem', fontWeight: 900 }}>{shiftCode}</span>
+                            <span style={{ fontSize: '0.62rem', opacity: 0.85 }}>{conf.label || shiftCode}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODE 2: PER ANGGOTA (7-COL MONTHLY CALENDAR GRID) ── */}
+      {viewMode === 'personil' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Member Picker */}
+          <div className="glass-panel" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700 }}>PILIH PERSONIL:</span>
+              <select 
+                value={selectedUserId || (fieldUsers[0]?.id || '')} 
+                onChange={e => setSelectedUserId(e.target.value)}
+                className="modern-select"
+                style={{ width: '100%', padding: '0.45rem 0.75rem', fontSize: '0.85rem', fontWeight: 700 }}
+              >
+                {fieldUsers.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.jabatan} - {u.regu || 'Non-Regu'})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              💡 Sentuh tanggal untuk mengubah shift (P ➔ S ➔ M ➔ X ➔ Bersih)
+            </div>
+          </div>
+
+          {/* 7-Day Monthly Calendar Grid (100% Mobile Responsive) */}
+          {(() => {
+            const activeUser = fieldUsers.find(u => String(u.id) === String(selectedUserId)) || fieldUsers[0];
+            if (!activeUser) return null;
+
+            return (
+              <div className="glass-panel" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {activeUser.nama} — <span style={{ color: 'var(--color-primary)' }}>{monthLabel}</span>
+                  </h4>
+                  <span className="badge badge-info" style={{ fontSize: '0.68rem' }}>
+                    {activeUser.regu || 'Non-Regu'}
+                  </span>
+                </div>
+
+                {/* Day Header Sen - Min */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.35rem', textAlign: 'center', marginBottom: '0.4rem' }}>
+                  {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => (
+                    <div key={d} style={{ fontSize: '0.68rem', fontWeight: 800, color: i === 0 || i === 6 ? '#ef4444' : 'var(--text-secondary)' }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.35rem' }}>
+                  {/* Empty offset days for month start */}
+                  {(() => {
+                    const firstDate = dates[0];
+                    const startDayOfWeek = firstDate ? new Date(firstDate).getDay() : 0;
+                    return Array.from({ length: startDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} style={{ minHeight: '52px', opacity: 0.2 }} />
+                    ));
+                  })()}
+
+                  {dates.map(dateStr => {
+                    const code = rosterLocal[String(activeUser.id)]?.[dateStr] || '';
+                    const conf = SHIFT_CODES[code] || {};
+                    const isToday = dateStr === todayIso;
+                    const dayNum = dateStr.split('-')[2];
+
+                    // Cycle shift on tap: '' -> 'P' -> 'S' -> 'M' -> 'X' -> ''
+                    const nextShiftMap = { '': 'P', 'P': 'S', 'S': 'M', 'M': 'X', 'X': '' };
+
+                    return (
+                      <button
+                        key={dateStr}
+                        type="button"
+                        onClick={() => handleShiftChange(activeUser.id, dateStr, nextShiftMap[code] || 'P')}
+                        style={{
+                          minHeight: '52px',
+                          borderRadius: '8px',
+                          border: isToday ? '2px solid var(--color-primary)' : code ? `1.5px solid ${conf.color}70` : '1px solid var(--border-glass)',
+                          background: code ? (conf.bg || 'rgba(59,130,246,0.2)') : 'rgba(255,255,255,0.02)',
+                          color: code ? (conf.color || '#fff') : 'var(--text-secondary)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.2rem',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.7rem', fontWeight: isToday ? 900 : 700, color: isToday ? 'var(--color-primary)' : 'inherit' }}>
+                          {parseInt(dayNum, 10)}
+                        </span>
+                        {code ? (
+                          <span style={{ fontSize: '0.85rem', fontWeight: 900, marginTop: '0.1rem' }}>
+                            {code}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>-</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── MODE 3: FULL DESKTOP SPREADSHEET MATRIX TABLE ── */}
+      {viewMode === 'matrix' && (
+        <div className="glass-panel" style={{ padding: '0.75rem', overflowX: 'auto' }}>
+          <table className="roster-table" style={{ minWidth: `${120 + dates.length * 44}px` }}>
+            <thead>
+              <tr>
+                <th className="name-col">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Users size={12} /> Nama Personil
+                  </div>
+                </th>
                 {dates.map(dateStr => {
-                  const code = rosterLocal[String(user.id)]?.[dateStr] || '';
-                  const style = getShiftColor(code);
                   const dayIdx = new Date(dateStr).getDay();
                   const isWeekend = dayIdx === 0 || dayIdx === 6;
                   const isToday = dateStr === new Date().toISOString().split('T')[0];
+                  const dayNum = dateStr.split('-')[2];
                   return (
-                    <td key={dateStr} className={`${isWeekend ? 'weekend-col' : ''} ${isToday ? 'today-col' : ''}`} style={style}>
-                      <select
-                        value={code}
-                        onChange={e => handleShiftChange(user.id, dateStr, e.target.value)}
-                        className="shift-select"
-                        style={{ ...style, width: '38px' }}
-                        title={SHIFT_CODES[code]?.label || 'Pilih shift'}
-                      >
-                        <option value="">-</option>
-                        {Object.keys(SHIFT_CODES).map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </td>
+                    <th key={dateStr} className={`${isWeekend ? 'weekend-col' : ''} ${isToday ? 'today-col' : ''}`}>
+                      <div style={{ lineHeight: '1.2' }}>
+                        <div style={{ color: isWeekend ? '#ef4444' : 'inherit' }}>{HARI[dayIdx]}</div>
+                        <div style={{ fontWeight: 800 }}>{parseInt(dayNum, 10)}</div>
+                      </div>
+                    </th>
                   );
                 })}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {fieldUsers.length === 0 ? (
+                <tr><td colSpan={dates.length + 1} style={{ padding: '2rem', color: 'var(--text-muted)' }}>Tidak ada personil lapangan ditemukan.</td></tr>
+              ) : fieldUsers.map(user => (
+                <tr key={user.id}>
+                  <td className="name-col">
+                    <div style={{ fontWeight: 700, fontSize: '0.72rem' }}>{user.nama}</div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{user.jabatan} · {user.regu || '-'}</div>
+                  </td>
+                  {dates.map(dateStr => {
+                    const code = rosterLocal[String(user.id)]?.[dateStr] || '';
+                    const style = getShiftColor(code);
+                    const dayIdx = new Date(dateStr).getDay();
+                    const isWeekend = dayIdx === 0 || dayIdx === 6;
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    return (
+                      <td key={dateStr} className={`${isWeekend ? 'weekend-col' : ''} ${isToday ? 'today-col' : ''}`} style={style}>
+                        <select
+                          value={code}
+                          onChange={e => handleShiftChange(user.id, dateStr, e.target.value)}
+                          className="shift-select"
+                          style={{ ...style, width: '38px' }}
+                          title={SHIFT_CODES[code]?.label || 'Pilih shift'}
+                        >
+                          <option value="">-</option>
+                          {Object.keys(SHIFT_CODES).map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', padding: '0 0.5rem' }}>
         💡 Isi jadwal menggunakan kode shift di atas. Setelah selesai, klik <strong>Simpan Roster</strong>. Data akan otomatis terbaca oleh modul Absensi Harian.

@@ -338,7 +338,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+          <div className="desktop-only-table" style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
             <table className="mutasi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
@@ -426,6 +426,70 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Android Mobile Mutasi Cards (Zero Horizontal Scroll!) */}
+          <div className="mobile-only-cards">
+            {filtered.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Belum ada catatan mutasi terdaftar.
+              </div>
+            ) : (
+              filtered.map((log, idx) => {
+                const kat = KATEGORI_MUTASI.find(k => k.id === log.kategori);
+                const actionText = autoDeduceAction(log);
+                let badgeClass = 'info';
+                if (actionText.startsWith('SELESAI')) badgeClass = 'success';
+                else if (actionText.startsWith('DIPROSES')) badgeClass = 'warning';
+                return (
+                  <div key={log.id || idx} className="android-member-card">
+                    <div className="android-member-card-header">
+                      <div className="android-member-info">
+                        <span className="badge" style={{ background: `${kat?.color || '#3b82f6'}1A`, color: kat?.color || '#3b82f6', fontSize: '0.65rem', padding: '0.15rem 0.4rem', fontWeight: 800 }}>
+                          {kat?.label || log.kategori}
+                        </span>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{log.lokasi}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{log.petugas} (NRP: {log.nrp || '-'})</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--color-primary)' }}>{log.jamKejadian || log.waktu}</span>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{log.tanggalKejadian ? formatDateOnlyId(log.tanggalKejadian) : log.tanggal}</div>
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4', margin: '0.35rem 0' }}>{log.uraian}</p>
+
+                    {log.foto && (
+                      <div style={{ marginTop: '0.35rem' }}>
+                        <img 
+                          src={log.foto} 
+                          alt="Bukti" 
+                          onClick={() => setSelectedPhoto(log.foto)}
+                          style={{ width: '80px', height: '55px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid var(--border-glass)' }} 
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.4rem', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span className={`badge badge-${badgeClass}`} style={{ fontSize: '0.65rem', padding: '0.2rem 0.45rem' }}>
+                        {actionText}
+                      </span>
+                      {onDeleteLog && (
+                        <button 
+                          onClick={() => onDeleteLog(log.id)} 
+                          style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '4px' }}
+                          title="Hapus Catatan"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
         )}

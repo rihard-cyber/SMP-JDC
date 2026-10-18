@@ -37,7 +37,9 @@ body, input, select, textarea, button, a {
 }
 
 /* 3. KUNCI INTERAKSI ELEMEN & NAVIGASI */
-a, button, input, select, textarea, .nav-link, .menu-item, [role="button"] {
+a, button, input, select, textarea, .nav-link, .menu-item, [role="button"],
+label, summary, [tabindex], .android-subtab-card, .android-chip-btn,
+.btn-primary, .btn-secondary, .menu-card, .glass-panel {
     outline: none !important;
     -webkit-tap-highlight-color: transparent !important;
     touch-action: manipulation !important;
@@ -47,6 +49,16 @@ a:focus-visible, button:focus-visible {
     outline: 2px solid rgba(59, 130, 246, 0.5) !important; 
     outline-offset: -2px !important;
 }
+
+/* GPU Compositing – smooths rendering of all cards & panels on mobile GPU */
+.glass-panel, .android-member-card, .android-subtab-card,
+.android-subtab-grid, .menu-card, .modal-content {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
 
 /* 4. KUNCI DROPDOWN (Agar melayang secara absolut) */
 .dropdown, .relative, .dropdown-container, [data-te-dropdown-ref] {
@@ -5534,3 +5546,228 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
   }
 }
 
+/* ── 31. ANDROID NATIVE SUBTAB GRID & MOBILE CARD ARCHITECTURE ── */
+.android-subtab-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.65rem;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .android-subtab-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .android-subtab-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  .android-subtab-grid > button:nth-child(5) {
+    grid-column: span 2;
+  }
+}
+
+.android-subtab-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(13, 19, 36, 0.65);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 58px;
+}
+
+.android-subtab-card:active {
+  transform: scale(0.97);
+}
+
+.android-subtab-card.active {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.16) 0%, rgba(13, 19, 36, 0.85) 100%);
+  border: 1.5px solid var(--color-primary);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2), inset 0 0 10px rgba(0, 240, 255, 0.08);
+}
+
+.android-subtab-card .subtab-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.android-subtab-card.active .subtab-icon-wrap {
+  background: var(--color-primary);
+  color: #070a13;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.android-subtab-card .subtab-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.android-subtab-card .subtab-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.android-subtab-card.active .subtab-sub {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Responsive Table vs Mobile Cards */
+.desktop-only-table {
+  display: block;
+}
+
+.mobile-only-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only-table {
+    display: none !important;
+  }
+  .mobile-only-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+}
+
+/* Mobile Personil Card (GPU-Accelerated & Virtualized-Like Performance) */
+.android-member-card {
+  background: rgba(13, 19, 36, 0.75);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: 140px;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.android-member-card:hover {
+  border-color: rgba(0, 240, 255, 0.35);
+}
+
+.android-member-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.android-member-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.android-member-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(0, 240, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.android-member-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.android-member-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.android-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.android-chip-btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0);
+}
+
+.android-chip-btn:active {
+  transform: scale(0.94) translateZ(0);
+}
+
+/* Silky-Smooth Tab Transition */
+.android-tab-content {
+  animation: androidTabFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform: translateZ(0);
+  width: 100%;
+}
+
+@keyframes androidTabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+/* Responsive Mobile-First Appbar and Tab Hub */
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+  .mobile-only-header {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only-header {
+    display: none !important;
+  }
+}

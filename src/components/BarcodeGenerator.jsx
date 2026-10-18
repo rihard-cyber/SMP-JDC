@@ -8,6 +8,7 @@ import {
 
 import QRCode from 'qrcode';
 import { exportTableToPdf, formatDateForFile } from '../utils/exportPdf';
+import { hapticLight } from '../utils/haptics';
 
 const FLOOR_OPTIONS = [
   { value: 'Basement', label: 'Basement' },
@@ -520,39 +521,46 @@ export default function BarcodeGenerator({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-      {/* ── TAB NAVIGATION ── */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.75rem' }}>
-        <button onClick={() => setTab('checkpoint')} style={{
-          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+      {/* ── TAB NAVIGATION (Android Native Grid - Zero Horizontal Scroll) ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gap: '0.5rem',
+        borderBottom: '1px solid var(--border-glass)',
+        paddingBottom: '0.75rem',
+        width: '100%'
+      }}>
+        <button onClick={() => { hapticLight(); setTab('checkpoint'); }} style={{
+          padding: '0.55rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
           border: `1.5px solid ${tab === 'checkpoint' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-          background: tab === 'checkpoint' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          background: tab === 'checkpoint' ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.02)',
           color: tab === 'checkpoint' ? 'var(--color-primary)' : 'var(--text-secondary)',
-          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
-          minHeight: '44px', touchAction: 'manipulation'
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+          minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><QrCode size={16} /> Checkpoint Barcode</button>
-        <button onClick={() => setTab('posjaga')} style={{
-          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+        <button onClick={() => { hapticLight(); setTab('posjaga'); }} style={{
+          padding: '0.55rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
           border: `1.5px solid ${tab === 'posjaga' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-          background: tab === 'posjaga' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          background: tab === 'posjaga' ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.02)',
           color: tab === 'posjaga' ? 'var(--color-primary)' : 'var(--text-secondary)',
-          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
-          minHeight: '44px', touchAction: 'manipulation'
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+          minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><Shield size={16} /> Pos Jaga</button>
-        <button onClick={() => setTab('users')} style={{
-          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+        <button onClick={() => { hapticLight(); setTab('users'); }} style={{
+          padding: '0.55rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
           border: `1.5px solid ${tab === 'users' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-          background: tab === 'users' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          background: tab === 'users' ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.02)',
           color: tab === 'users' ? 'var(--color-primary)' : 'var(--text-secondary)',
-          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
-          minHeight: '44px', touchAction: 'manipulation'
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+          minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><User size={16} /> Registrasi Anggota</button>
-        <button onClick={() => setTab('presensi_qr')} style={{
-          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+        <button onClick={() => { hapticLight(); setTab('presensi_qr'); }} style={{
+          padding: '0.55rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
           border: `1.5px solid ${tab === 'presensi_qr' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-          background: tab === 'presensi_qr' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          background: tab === 'presensi_qr' ? 'rgba(0,240,255,0.14)' : 'rgba(255,255,255,0.02)',
           color: tab === 'presensi_qr' ? 'var(--color-primary)' : 'var(--text-secondary)',
-          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
-          minHeight: '44px', touchAction: 'manipulation'
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+          minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><QrCode size={16} /> QR Presensi Staff</button>
       </div>
 

@@ -3,10 +3,11 @@ import {
   Calendar, Users, MapPin, Clock, CheckCircle2, UserCheck, RefreshCw, 
   ClipboardList, HelpCircle, MessageSquare, Phone, AlertTriangle, Check, 
   User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen, Search,
-  FileText
+  FileText, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import { SHIFT_CODES, getRoster, getYearMonth } from '../data/rosterData';
 import { exportTableToPdf, formatDateForFile, formatDateOnlyId } from '../utils/exportPdf';
+import { hapticLight, hapticSuccess } from '../utils/haptics';
 
 export default function AbsensiRegu({ 
   users, 
@@ -31,10 +32,64 @@ export default function AbsensiRegu({
   });
   
   const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Md' etc
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'form' | 'history'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'form' | 'history' | 'roster-daily' | 'lemburan'
+  const [mobileView, setMobileView] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'menu' : 'content'));
   const [selectedLemburMonth, setSelectedLemburMonth] = useState(() => getYearMonth());
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedAddMemberId, setSelectedAddMemberId] = useState('');
+
+  const SUBTABS = [
+    { 
+      id: 'roster-daily', 
+      icon: <BookOpen size={18} />, 
+      title: 'Absensi Roster', 
+      sub: 'Jadwal Otomatis',
+      color: '#00f0ff'
+    },
+    { 
+      id: 'dashboard',    
+      icon: <Activity size={18} />,     
+      title: 'Dashboard Regu', 
+      sub: 'Live Monitoring',
+      color: '#39ff14'
+    },
+    { 
+      id: 'form',         
+      icon: <ClipboardList size={18} />, 
+      title: 'Form Manual', 
+      sub: 'Plotting & Jaga',
+      color: '#ffb700'
+    },
+    { 
+      id: 'history',      
+      icon: <UserCheck size={18} />,     
+      title: 'Histori Absensi', 
+      sub: 'Arsip Log',
+      color: '#3b82f6'
+    },
+    { 
+      id: 'lemburan',     
+      icon: <Clock size={18} />,         
+      title: 'Rekap Lemburan', 
+      sub: 'Overtime & Backup',
+      color: '#a855f7'
+    }
+  ];
+  const activeTabMeta = SUBTABS.find(t => t.id === activeTab) || SUBTABS[1];
+
+  const handleSelectTab = (tabId) => {
+    hapticLight();
+    setActiveTab(tabId);
+    setMobileView('content');
+    setTimeout(() => {
+      const el = document.getElementById('absensi-active-tab-container');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 60);
+  };
   
   // For phone number editing
   const [phoneInputs, setPhoneInputs] = useState({});
@@ -522,49 +577,122 @@ _Sistem Manajemen Keamanan JDC_`;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
-      {/* Tab Switcher */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '0.5rem', 
-        borderBottom: '1px solid var(--border-glass)', 
-        paddingBottom: '0.75rem',
-        overflowX: 'auto',
-        whiteSpace: 'nowrap'
-      }}>
-        {[{ id: 'roster-daily', icon: <BookOpen size={16}/>, label: '📅 Absensi Harian (Roster)' },
-          { id: 'dashboard',    icon: <Activity size={16}/>,     label: 'Dashboard Regu' },
-          { id: 'form',         icon: <ClipboardList size={16}/>, label: 'Form Absensi Manual' },
-          { id: 'history',      icon: <UserCheck size={16}/>,     label: 'Histori Absensi' },
-          { id: 'lemburan',     icon: <Clock size={16}/>,         label: '⏱️ Rekap Lemburan' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '0.6rem 1.2rem', borderRadius: '8px',
-              border: activeTab === tab.id ? '1px solid var(--color-primary)' : '1px solid transparent',
-              background: activeTab === tab.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--text-secondary)',
-              fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem',
-              cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s', fontFamily: 'var(--font-sans)'
-            }}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
+      {/* ── 1. ANDROID MENU GRID (Hub on Mobile, Persistent Tab Bar on Desktop) ── */}
+      <div className={`android-subtab-container ${mobileView === 'content' ? 'hide-on-mobile' : ''}`}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <ClipboardList size={18} className="text-primary" /> Modul Absensi & Plotting Regu
+            </h3>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+              Pilih menu di bawah ini untuk membuka data operasional (100% Android Native):
+            </p>
+          </div>
+          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px', borderRadius: '12px', background: 'rgba(0,240,255,0.1)', color: 'var(--color-primary)', border: '1px solid rgba(0,240,255,0.25)' }}>
+            5 Menu
+          </span>
+        </div>
+
+        <div className="android-subtab-grid" role="tablist">
+          {SUBTABS.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleSelectTab(tab.id)}
+                className={`android-subtab-card ${isActive ? 'active' : ''}`}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.35rem' }}>
+                  <div 
+                    className="subtab-icon-wrap" 
+                    style={{ 
+                      color: isActive ? '#070a13' : tab.color,
+                      background: isActive ? tab.color : `${tab.color}18`,
+                      border: `1px solid ${tab.color}35`
+                    }}
+                  >
+                    {tab.icon}
+                  </div>
+                  {isActive && (
+                    <span style={{
+                      fontSize: '0.58rem',
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      background: 'rgba(0, 240, 255, 0.2)',
+                      color: 'var(--color-primary)',
+                      border: '1px solid var(--color-primary)'
+                    }}>
+                      ● Aktif
+                    </span>
+                  )}
+                </div>
+                <span className="subtab-title">{tab.title}</span>
+                <span className="subtab-sub">{tab.sub}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* REGU & METADATA BAR */}
-      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* ── 2. ANDROID ACTIVE VIEW HEADER (Mobile Direct Screen Appbar) ── */}
+      {mobileView === 'content' && (
+        <div className="mobile-only-header glass-panel" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.65rem 0.85rem', borderRadius: '12px',
+          borderLeft: `4px solid ${activeTabMeta.color}`,
+          background: 'rgba(13, 19, 36, 0.75)',
+          gap: '0.65rem', flexWrap: 'wrap'
+        }}>
+          <button
+            type="button"
+            onClick={() => { hapticLight(); setMobileView('menu'); }}
+            className="android-back-btn"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
+              padding: '0.45rem 0.75rem', borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid var(--border-glass)',
+              color: 'var(--text-primary)', fontSize: '0.78rem',
+              fontWeight: 700, cursor: 'pointer', touchAction: 'manipulation'
+            }}
+          >
+            <ArrowLeft size={16} /> Menu Absensi
+          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span style={{
+              width: '26px', height: '26px', borderRadius: '6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: `${activeTabMeta.color}22`, color: activeTabMeta.color,
+              border: `1px solid ${activeTabMeta.color}44`
+            }}>
+              {activeTabMeta.icon}
+            </span>
+            <div style={{ lineHeight: '1.2' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>{activeTabMeta.title}</div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{activeTabMeta.sub}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANCHOR FOR DIRECT SCROLL */}
+      <div id="absensi-active-tab-container" style={{ scrollMarginTop: '80px' }} />
+
+      {/* REGU & METADATA BAR (Mobile-First Ergonomic) */}
+      <div className="glass-panel" style={{ padding: '0.85rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.85rem', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', flex: 1, minWidth: '240px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)' }}>MEMANTAU REGU</span>
             <select 
               value={selectedRegu} 
               onChange={e => setSelectedRegu(e.target.value)} 
               className="modern-select"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', minWidth: '150px' }}
+              style={{ padding: '0.45rem 0.75rem', fontSize: '0.82rem', width: '100%' }}
             >
               <option value="Semua Regu">Semua Regu</option>
               {['Regu A', 'Regu B', 'Regu C', 'Regu D', 'Non-Regu'].map(r => (
@@ -579,7 +707,7 @@ _Sistem Manajemen Keamanan JDC_`;
               value={selectedShift} 
               onChange={e => setSelectedShift(e.target.value)} 
               className="modern-select"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', minWidth: '200px' }}
+              style={{ padding: '0.45rem 0.75rem', fontSize: '0.82rem', width: '100%' }}
             >
               {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
                 <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
@@ -588,13 +716,13 @@ _Sistem Manajemen Keamanan JDC_`;
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-          <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: '320px' }}>
+          <div style={{ fontSize: '0.78rem' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Hari Ini:</span>{' '}
             <strong style={{ color: 'var(--color-primary)' }}>{hari}, {todayStr}</strong>
           </div>
           <button type="button" onClick={handleExportAttendancePDF} className="btn-secondary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <FileText size={14} /> Export PDF Absensi
+            <FileText size={14} /> Export PDF
           </button>
         </div>
       </div>
@@ -603,23 +731,25 @@ _Sistem Manajemen Keamanan JDC_`;
       {/* TAB 0: ABSENSI HARIAN BERDASARKAN ROSTER */}
       {/* ========================================== */}
       {activeTab === 'roster-daily' && (
-        <AbsensiRosterHarian
-          users={users}
-          posList={posList}
-          attendanceLogs={attendanceLogs}
-          onAddAttendance={onAddAttendance}
-          reports={reports}
-          todayStr={todayStr}
-          getJamDinas={getJamDinas}
-          onShowAudit={handleShowAudit}
-        />
+        <div className="android-tab-content">
+          <AbsensiRosterHarian
+            users={users}
+            posList={posList}
+            attendanceLogs={attendanceLogs}
+            onAddAttendance={onAddAttendance}
+            reports={reports}
+            todayStr={todayStr}
+            getJamDinas={getJamDinas}
+            onShowAudit={handleShowAudit}
+          />
+        </div>
       )}
 
       {/* ========================================== */}
       {/* TAB 1: DASHBOARD REGU */}
       {/* ========================================== */}
       {activeTab === 'dashboard' && (
-        <>
+        <div className="android-tab-content">
           {!todayAttendance ? (
             <div className="glass-panel" style={{ padding: '3rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', background: 'rgba(239, 68, 68, 0.03)', border: '1px dashed rgba(239, 68, 68, 0.25)' }}>
               <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -633,7 +763,7 @@ _Sistem Manajemen Keamanan JDC_`;
               </div>
               <button 
                 type="button"
-                onClick={() => setActiveTab('form')} 
+                onClick={() => handleSelectTab('form')} 
                 className="btn-primary" 
                 style={{ padding: '0.75rem 2rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
               >
@@ -721,7 +851,8 @@ _Sistem Manajemen Keamanan JDC_`;
                   </span>
                 </div>
 
-                <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+                {/* Desktop View Table */}
+                <div className="desktop-only-table" style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
                   <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '850px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.01)' }}>
@@ -822,7 +953,7 @@ _Sistem Manajemen Keamanan JDC_`;
                                     <input 
                                       type="text" 
                                       value={phoneInputs[member.id] !== undefined ? phoneInputs[member.id] : (member.nomorHp || '')} 
-                                      onChange={e => handlePhoneInputChange(member.id, e.target.value)}
+                                      onChange={e => handlePhoneInputChange(member.id, e.target.value)} 
                                       placeholder="Cth: 0812..." 
                                       className="modern-input" 
                                       style={{ padding: '0.2rem 0.4rem', fontSize: '0.72rem', width: '110px' }}
@@ -887,17 +1018,146 @@ _Sistem Manajemen Keamanan JDC_`;
                     </tbody>
                   </table>
                 </div>
+
+                {/* Android Mobile Cards (Zero Horizontal Scroll!) */}
+                <div className="mobile-only-cards">
+                  {reguMembers.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Tidak ada personil terdaftar di regu ini.
+                    </div>
+                  ) : (
+                    reguMembers.map((member, idx) => {
+                      const statusInfo = getMemberStatus(member);
+                      const isEditingPhone = editingPhoneId === member.id;
+                      return (
+                        <div key={member.id} className="android-member-card">
+                          <div className="android-member-card-header">
+                            <div className="android-member-info">
+                              <img 
+                                src={member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'} 
+                                alt="" 
+                                className="android-member-avatar"
+                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'; }}
+                              />
+                              <div>
+                                <div 
+                                  className="android-member-name"
+                                  onClick={() => handleShowAudit(member.id)}
+                                  title="Klik untuk detail audit presensi"
+                                  style={{ cursor: 'pointer', color: 'var(--color-primary)', textDecoration: 'underline' }}
+                                >
+                                  {member.nama}
+                                </div>
+                                <div className="android-member-meta">
+                                  NRP: {member.nrp || '-'} · <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{member.jabatan}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '6px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
+                              #{idx + 1}
+                            </span>
+                          </div>
+
+                          {/* Grid info: Pos & Status */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', background: 'rgba(255,255,255,0.02)', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+                            <div>
+                              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block' }}>PLOTTING POS</span>
+                              <strong style={{ fontSize: '0.78rem', color: '#06b6d4', display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.15rem' }}>
+                                📍 {statusInfo.plottingPos}
+                              </strong>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block' }}>KEAKTIFAN</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem', fontSize: '0.75rem', fontWeight: 700, color: statusInfo.statusColor }}>
+                                <span>{statusInfo.statusIndicator}</span>
+                                <span>{statusInfo.statusLabel}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Patrol status */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            <span>Progress Patroli:</span>
+                            {statusInfo.patrolCount > 0 ? (
+                              <strong style={{ color: 'var(--color-success)' }}>
+                                {statusInfo.patrolCount} Area Terscan
+                              </strong>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>Belum patroli</span>
+                            )}
+                          </div>
+
+                          {/* Action Row: WhatsApp & Phone */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', borderTop: '1px solid var(--border-glass)', paddingTop: '0.6rem', flexWrap: 'wrap' }}>
+                            {isEditingPhone ? (
+                              <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flex: 1, minWidth: '150px' }}>
+                                <input 
+                                  type="text" 
+                                  value={phoneInputs[member.id] !== undefined ? phoneInputs[member.id] : (member.nomorHp || '')} 
+                                  onChange={e => handlePhoneInputChange(member.id, e.target.value)} 
+                                  placeholder="0812..." 
+                                  className="modern-input" 
+                                  style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', flex: 1 }}
+                                />
+                                <button type="button" onClick={() => handlePhoneSave(member.id)} className="btn-primary" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem' }}>
+                                  <Check size={12} />
+                                </button>
+                                <button type="button" onClick={() => setEditingPhoneId(null)} className="btn-secondary" style={{ padding: '0.3rem 0.5rem', fontSize: '0.7rem' }}>
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                <Phone size={12} className="text-primary" />
+                                <span>{member.nomorHp || 'Belum ada no HP'}</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setEditingPhoneId(member.id); handlePhoneInputChange(member.id, member.nomorHp || ''); }}
+                                  style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                                  title="Ubah nomor HP"
+                                >
+                                  <Edit2 size={11} />
+                                </button>
+                              </div>
+                            )}
+
+                            <a 
+                              href={generateWALink(member, statusInfo)}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '8px',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                color: '#10b981',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                textDecoration: 'none'
+                              }}
+                            >
+                              <MessageSquare size={13} /> Kirim Plotting WA
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       {/* ========================================== */}
       {/* TAB 2: FORM ABSENSI & PLOTTING */}
       {/* ========================================== */}
       {activeTab === 'form' && (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <div className="android-tab-content"><div className="glass-panel" style={{ padding: '1.5rem' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <ClipboardList size={20} className="text-primary" />
             <span>Form Isian Absensi Regu & Plotting Penjagaan</span>
@@ -979,8 +1239,8 @@ _Sistem Manajemen Keamanan JDC_`;
                 </div>
               </div>
 
-              {/* Members Table */}
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+              {/* Desktop View Table */}
+              <div className="desktop-only-table" style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
                 <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
@@ -1100,6 +1360,123 @@ _Sistem Manajemen Keamanan JDC_`;
                   </tbody>
                 </table>
               </div>
+
+              {/* Android Mobile Form Cards (Zero Horizontal Scroll!) */}
+              <div className="mobile-only-cards">
+                {displayedRows.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Tidak ada personil yang cocok dengan filter pencarian atau regu ini.
+                  </div>
+                ) : (
+                  displayedRows.map((row, idx) => (
+                    <div key={row.personilId} className="android-member-card">
+                      <div className="android-member-card-header">
+                        <div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {row.nama}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                            NRP: {row.nrp || '-'} · <span style={{ color: 'var(--color-primary)' }}>{row.jabatan}</span> · Regu: {row.regu || '-'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRowById(row.personilId)}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: 'var(--color-danger)',
+                            cursor: 'pointer',
+                            padding: '0.4rem',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Hapus dari daftar"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+
+                      {/* Controls Grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.65rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>STATUS HADIR</label>
+                          <select 
+                            value={row.status} 
+                            onChange={e => handleRowChangeById(row.personilId, 'status', e.target.value)} 
+                            className="modern-select"
+                            style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.8rem' }}
+                          >
+                            <option value="Hadir">Hadir</option>
+                            <option value="Tidak Hadir">Tidak Hadir</option>
+                            <option value="Tukar Shift">Tukar Shift</option>
+                            <option value="Sakit">Sakit</option>
+                            <option value="Cuti">Cuti</option>
+                            <option value="Mangkir">Mangkir</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>PLOTTING POS</label>
+                          <select 
+                            value={row.posPlotting} 
+                            onChange={e => handleRowChangeById(row.personilId, 'posPlotting', e.target.value)} 
+                            disabled={['Sakit', 'Cuti', 'Mangkir'].includes(row.status)}
+                            className="modern-select"
+                            style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.8rem' }}
+                          >
+                            <option value="-">-</option>
+                            {posList.map(p => (
+                              <option key={p.id} value={p.titik}>{p.titik}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Alasan & Pengganti */}
+                      {row.status !== 'Hadir' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(255,255,255,0.02)', padding: '0.65rem', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+                          <div>
+                            <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>ALASAN / KETERANGAN</label>
+                            <input 
+                              type="text" 
+                              value={row.alasan} 
+                              onChange={e => handleRowChangeById(row.personilId, 'alasan', e.target.value)} 
+                              placeholder="Alasan tidak hadir..." 
+                              className="modern-input" 
+                              style={{ width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.78rem' }}
+                            />
+                          </div>
+                          
+                          {(row.status === 'Tukar Shift' || row.status === 'Tidak Hadir') && (
+                            <div>
+                              <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>PERSONIL PENGGANTI (BACKUP)</label>
+                              <select 
+                                value={row.penggantiId} 
+                                onChange={e => handleRowChangeById(row.personilId, 'penggantiId', e.target.value)} 
+                                className="modern-select"
+                                style={{ width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.78rem' }}
+                              >
+                                <option value="">-- Pilih Pengganti --</option>
+                                {substituteOptions.map(opt => (
+                                  <option key={opt.id} value={opt.id}>{opt.nama} ({opt.jabatan} - {opt.regu})</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-glass)', paddingTop: '0.5rem' }}>
+                        <span>Jam Dinas: <strong style={{ color: 'var(--text-primary)' }}>{row.jamDinas}</strong></span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)' }}>#{idx + 1}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
               
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem' }}>
@@ -1109,14 +1486,14 @@ _Sistem Manajemen Keamanan JDC_`;
               </div>
             </form>
           )}
-        </div>
+        </div></div>
       )}
 
       {/* ========================================== */}
       {/* TAB 3: HISTORI ABSENSI */}
       {/* ========================================== */}
       {activeTab === 'history' && (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <div className="android-tab-content"><div className="glass-panel" style={{ padding: '1.5rem' }}>
           <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <UserCheck size={20} className="text-primary" />
             <span>Histori Absensi & Plotting Terdaftar</span>
@@ -1154,14 +1531,14 @@ _Sistem Manajemen Keamanan JDC_`;
               })
             )}
           </div>
-        </div>
+        </div></div>
       )}
 
       {/* ========================================== */}
       {/* TAB 4: REKAP & LAPORAN LEMBURAN */}
       {/* ========================================== */}
       {activeTab === 'lemburan' && (
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="android-tab-content"><div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <h3 style={{ fontSize: '1.1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Clock size={20} className="text-primary" />
@@ -1209,8 +1586,8 @@ _Sistem Manajemen Keamanan JDC_`;
             </div>
           </div>
 
-          {/* Data Table */}
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+          {/* Desktop View Table */}
+          <div className="desktop-only-table" style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
             <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.01)' }}>
@@ -1304,7 +1681,64 @@ _Sistem Manajemen Keamanan JDC_`;
               </tbody>
             </table>
           </div>
-        </div>
+
+          {/* Android Mobile Lembur Cards (Zero Horizontal Scroll!) */}
+          <div className="mobile-only-cards">
+            {lemburanRows.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Tidak ditemukan riwayat lemburan untuk filter regu/bulan yang dipilih.
+              </div>
+            ) : (
+              lemburanRows.map((row, idx) => {
+                const d = row.detail;
+                return (
+                  <div key={`${row.logId}-${idx}`} className="android-member-card">
+                    <div className="android-member-card-header">
+                      <div className="android-member-info">
+                        <img 
+                          src={d.fotoSelfie || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'} 
+                          alt="" 
+                          className="android-member-avatar"
+                          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'; }}
+                        />
+                        <div>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>{d.nama}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>NRP: {d.nrp} · {d.regu}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>Shift {row.shift}</span>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.15rem' }}>
+                          {parseInt(d.jamLembur, 10) || 8} Jam
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', background: 'rgba(255,255,255,0.02)', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--border-glass)', fontSize: '0.72rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block' }}>TANGGAL</span>
+                        <strong>{row.hari}, {row.tanggal}</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block' }}>PRESENSI MASUK/PULANG</span>
+                        <div>🟢 {d.checkInTime || '-'} {d.checkOutTime ? `· 🔴 ${d.checkOutTime}` : ''}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Keperluan: <strong>{d.alasan || 'Lembur / Backup'}</strong></span>
+                      {d.lat && d.lng ? (
+                        <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>
+                          📍 GPS Valid
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div></div>
       )}
 
       {/* ======================================================== */}
@@ -1675,7 +2109,8 @@ function AbsensiRosterHarian({ users, posList, attendanceLogs, onAddAttendance, 
           </div>
         )}
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop View Table */}
+        <div className="desktop-only-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '750px', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.01)' }}>
@@ -1719,6 +2154,88 @@ function AbsensiRosterHarian({ users, posList, attendanceLogs, onAddAttendance, 
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Android Mobile Personil Cards (Zero Horizontal Scroll!) */}
+        <div className="mobile-only-cards">
+          {rows.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              Tidak ada personil dijadwalkan untuk shift ini.
+            </div>
+          ) : (
+            rows.map((row, idx) => (
+              <div key={`${row.personilId}-${idx}`} className="android-member-card">
+                <div className="android-member-card-header">
+                  <div>
+                    <div 
+                      style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => onShowAudit && onShowAudit(row.personilId)}
+                      title="Klik untuk detail audit presensi"
+                    >
+                      {row.nama}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      {row.jabatan} · <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{row.regu}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '6px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+                    #{idx + 1}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.65rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>STATUS HADIR</label>
+                    <select 
+                      value={row.status} 
+                      onChange={e => handleRowChange(idx, 'status', e.target.value)} 
+                      className="modern-select" 
+                      style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.8rem' }}
+                    >
+                      {['Hadir', 'Tukar Shift', 'Sakit', 'Cuti', 'Mangkir', 'Tidak Hadir'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>PLOTTING POS</label>
+                    <select 
+                      value={row.posPlotting} 
+                      onChange={e => handleRowChange(idx, 'posPlotting', e.target.value)} 
+                      className="modern-select" 
+                      style={{ width: '100%', padding: '0.45rem 0.6rem', fontSize: '0.8rem' }} 
+                      disabled={['Sakit','Cuti','Mangkir'].includes(row.status)}
+                    >
+                      <option value="-">-</option>
+                      {posList.map(p => (
+                        <option key={p.id} value={p.titik}>{p.titik}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {row.status !== 'Hadir' && (
+                  <div>
+                    <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>KETERANGAN / ALASAN</label>
+                    <input 
+                      type="text" 
+                      value={row.alasan} 
+                      onChange={e => handleRowChange(idx, 'alasan', e.target.value)} 
+                      className="modern-input" 
+                      style={{ width: '100%', fontSize: '0.78rem', padding: '0.4rem 0.6rem' }} 
+                      placeholder="Masukkan alasan atau keterangan..." 
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-glass)', paddingTop: '0.45rem' }}>
+                  <span>Jam Dinas: <strong style={{ color: 'var(--text-primary)' }}>{row.jamDinas}</strong></span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--color-primary)' }}>Shift {selectedShift}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '1rem', alignItems: 'center' }}>

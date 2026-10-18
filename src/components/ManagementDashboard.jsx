@@ -23,7 +23,7 @@ import {
   FileText
 } from 'lucide-react';
 import { getWAContacts, buildWAMessage, buildWALink } from '../data/waContacts';
-import { hapticMedium, hapticSuccess, hapticError, hapticWarning } from '../utils/haptics';
+import { hapticMedium, hapticSuccess, hapticError, hapticWarning, hapticLight } from '../utils/haptics';
 import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 
 const SEVERITY_COLOR = {
@@ -69,6 +69,17 @@ export default function ManagementDashboard({
   const [complaintFilter, setComplaintFilter] = useState('all');
   const [expandedComplaint, setExpandedComplaint] = useState(null);
   const [activeCommandTab, setActiveCommandTab] = useState('temuan');
+
+  const handleCommandTabClick = (tabId) => {
+    hapticLight();
+    setActiveCommandTab(tabId);
+    setTimeout(() => {
+      const panel = document.getElementById('command-tab-content-panel');
+      if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  };
 
   const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
 
@@ -825,46 +836,64 @@ export default function ManagementDashboard({
           stroke: #ffffff !important;
         }
         
-        /* Command Tab Panels styling */
+        /* Command Tab Panels styling - 100% Android Native Grid (Zero Horizontal Scroll) */
         .command-tab-bar {
-          display: flex;
-          gap: 0.4rem;
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 0.5rem;
           background: rgba(19, 27, 46, 0.6);
-          padding: 0.25rem;
+          padding: 0.4rem;
           border-radius: 12px;
           border: 1px solid var(--border-glass);
           margin-bottom: 1rem;
-          overflow-x: auto;
-          scrollbar-width: none;
+          width: 100%;
         }
-        .command-tab-bar::-webkit-scrollbar {
-          display: none;
+        @media (max-width: 900px) {
+          .command-tab-bar {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (max-width: 640px) {
+          .command-tab-bar {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.45rem;
+          }
+          .command-tab-bar > button:nth-child(5) {
+            grid-column: span 2;
+          }
         }
         .command-tab-btn {
-          flex: 1;
-          padding: 0.65rem 1rem;
-          border: none;
-          background: transparent;
+          width: 100%;
+          min-height: 48px;
+          padding: 0.55rem 0.65rem;
+          border: 1px solid transparent;
+          background: rgba(255, 255, 255, 0.02);
           color: var(--text-secondary);
           font-family: var(--font-sans);
           font-weight: 700;
-          font-size: 0.8rem;
-          border-radius: 8px;
+          font-size: 0.76rem;
+          border-radius: 10px;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.4rem;
-          transition: all 0.25s ease;
-          white-space: nowrap;
+          gap: 0.35rem;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          text-align: center;
+          touch-action: manipulation;
+          white-space: normal;
+        }
+        .command-tab-btn:active {
+          transform: scale(0.97);
         }
         .command-tab-btn.active {
-          background: var(--color-primary);
-          color: white;
+          background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(13, 19, 36, 0.95) 100%);
+          border-color: var(--color-primary);
+          color: #ffffff;
           box-shadow: 0 0 12px var(--color-primary-glow);
         }
         .command-tab-btn:hover:not(.active) {
-          background: rgba(255, 255, 255, 0.03);
+          background: rgba(255, 255, 255, 0.05);
           color: var(--text-primary);
         }
 
@@ -1230,23 +1259,26 @@ export default function ManagementDashboard({
 
       {/* ── COMMAND HUB & REAL-TIME OPERASIONAL TABS (Bottom Section) ── */}
       <div>
-        <div className="command-tab-bar">
-          <button className={`command-tab-btn ${activeCommandTab === 'temuan' ? 'active' : ''}`} onClick={() => setActiveCommandTab('temuan')}>
-            📋 Tiket Temuan & Disposisi ({combinedFindings.length})
+        <div className="command-tab-bar" role="tablist">
+          <button className={`command-tab-btn ${activeCommandTab === 'temuan' ? 'active' : ''}`} onClick={() => handleCommandTabClick('temuan')}>
+            📋 Tiket Temuan ({combinedFindings.length})
           </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'komplain' ? 'active' : ''}`} onClick={() => setActiveCommandTab('komplain')}>
+          <button className={`command-tab-btn ${activeCommandTab === 'komplain' ? 'active' : ''}`} onClick={() => handleCommandTabClick('komplain')}>
             📩 Komplain Tenant ({complaints.length})
           </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'patroli' ? 'active' : ''}`} onClick={() => setActiveCommandTab('patroli')}>
+          <button className={`command-tab-btn ${activeCommandTab === 'patroli' ? 'active' : ''}`} onClick={() => handleCommandTabClick('patroli')}>
             🗺️ Heatmap & Live Feed
           </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'mutasi' ? 'active' : ''}`} onClick={() => setActiveCommandTab('mutasi')}>
-            📝 Log Buku Mutasi ({mutasiLogs.length})
+          <button className={`command-tab-btn ${activeCommandTab === 'mutasi' ? 'active' : ''}`} onClick={() => handleCommandTabClick('mutasi')}>
+            📝 Log Mutasi ({mutasiLogs.length})
           </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'arsip' ? 'active' : ''}`} onClick={() => setActiveCommandTab('arsip')}>
-            ⚙️ Pengaturan & Arsip
+          <button className={`command-tab-btn ${activeCommandTab === 'arsip' ? 'active' : ''}`} onClick={() => handleCommandTabClick('arsip')}>
+            ⚙️ Arsip & Set
           </button>
         </div>
+
+        {/* Anchor for direct smooth scroll */}
+        <div id="command-tab-content-panel" style={{ scrollMarginTop: '80px' }} />
 
         {/* Tab 1: Tiket Temuan & Disposisi */}
         {activeCommandTab === 'temuan' && (
@@ -1301,9 +1333,9 @@ export default function ManagementDashboard({
                 )}
               </div>
               
-              <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '0.3rem', background: 'var(--bg-primary)', padding: '0.3rem', borderRadius: '10px', width: '100%', maxWidth: '440px' }}>
                 {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
-                  <button key={tab} style={tabStyle(tab)} onClick={() => setActiveTab(tab)}>
+                  <button key={tab} style={{ ...tabStyle(tab), minHeight: '38px', touchAction: 'manipulation' }} onClick={() => { hapticLight(); setActiveTab(tab); }}>
                     {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}
                   </button>
                 ))}
@@ -1720,13 +1752,13 @@ export default function ManagementDashboard({
                 <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
                   <MapPin size={16} className="text-primary"/> Denah & Heatmap Kunjungan Patroli Gedung
                 </h4>
-                <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px', overflowX: 'auto', maxWidth: '100%', gap: '2px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', background: 'var(--bg-primary)', padding: '0.35rem', borderRadius: '8px', maxWidth: '100%', gap: '4px' }}>
                   {['Basement','1','2','3','4','5','6','Halaman Depan','Halaman Samping Kanan','Halaman Belakang','Halaman Samping Kiri'].map(floor => (
-                    <button key={floor} onClick={() => setSelectedFloor(floor)} style={{
+                    <button key={floor} onClick={() => { hapticLight(); setSelectedFloor(floor); }} style={{
                       border: 'none', background: selectedFloor === floor ? 'var(--bg-tertiary)' : 'transparent',
                       color: selectedFloor === floor ? 'var(--color-primary)' : 'var(--text-secondary)',
-                      padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '6px', cursor: 'pointer',
-                      fontWeight: 700, flexShrink: 0
+                      padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px', cursor: 'pointer',
+                      fontWeight: 700, minHeight: '34px', touchAction: 'manipulation'
                     }}>
                       {['1','2','3','4','5','6'].includes(floor) ? `Lt. ${floor}` : floor}
                     </button>
