@@ -51,12 +51,33 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Register Service Worker for PWA support
+// Register Service Worker for PWA support with auto-update
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .then((reg) => console.log('PWA ServiceWorker registered with scope:', reg.scope))
+      .then((reg) => {
+        console.log('PWA ServiceWorker registered with scope:', reg.scope);
+        reg.update().catch(() => {});
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          }
+        });
+      })
       .catch((err) => console.warn('PWA ServiceWorker registration failed:', err));
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   });
 }
 

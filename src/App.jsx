@@ -263,20 +263,24 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
         @media (max-width: 768px) {
           .ukiran-watermark {
-            width: 260px;
-            padding: 0.5rem;
+            width: 220px;
+            padding: 0.35rem 0.5rem;
+            opacity: 0.18 !important;
+            background: transparent !important;
+            border: 1px dashed rgba(0, 240, 255, 0.25) !important;
+            box-shadow: none !important;
           }
           .theme-dark .ukiran-logo-text, .theme-light .ukiran-logo-text {
-            font-size: 1.15rem;
-            letter-spacing: 0.12em;
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
           }
           .theme-dark .ukiran-sub-text, .theme-light .ukiran-sub-text {
-            font-size: 0.65rem;
-            letter-spacing: 0.12em;
+            font-size: 0.55rem;
+            letter-spacing: 0.1em;
           }
           .theme-dark .ukiran-ornament-top, .theme-dark .ukiran-ornament-bottom,
           .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
-            font-size: 0.85rem;
+            font-size: 0.7rem;
           }
           @keyframes watermark-drift {
             0% { transform: translate3d(5vw, 5vh, 0); }

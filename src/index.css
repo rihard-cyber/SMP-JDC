@@ -5761,12 +5761,64 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
   .hide-on-mobile {
     display: none !important;
   }
+  .show-on-mobile {
+    display: block !important;
+  }
+  .show-on-mobile-flex {
+    display: flex !important;
+  }
   .mobile-only-header {
     display: flex !important;
+  }
+
+  /* ── ZERO HORIZONTAL SCROLL LOCK FOR ANDROID ── */
+  html, body, #root, .dashboard-layout, .main-content {
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+  }
+
+  /* Form controls: full width stack, minimum touch target */
+  .form-field, .form-input-wrap, .form-input, .form-select {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6 {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  /* Filter chip wraps: auto wrap instead of horizontal scroll */
+  .filter-tabs-wrap {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    white-space: normal !important;
+    gap: 0.45rem !important;
+  }
+
+  /* Mobile cards for tables */
+  .mobile-data-card {
+    background: rgba(13, 19, 36, 0.75);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   }
 }
 
 @media (min-width: 769px) {
+  .show-on-mobile {
+    display: none !important;
+  }
+  .show-on-mobile-flex {
+    display: none !important;
+  }
   .mobile-only-header {
     display: none !important;
   }

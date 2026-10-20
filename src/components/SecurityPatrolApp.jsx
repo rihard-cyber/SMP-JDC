@@ -166,41 +166,45 @@ export default function SecurityPatrolApp({
     return unregister;
   }, [tab, step, mode]);
 
-  // ── Helper: nyalakan torch via MediaStreamTrack (fallback) ──
-  const enableTorchOnTrack = async (on) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const track = stream.getVideoTracks()[0];
-      if (track && typeof track.applyConstraints === 'function') {
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-        if (caps.torch) {
-          await track.applyConstraints({ advanced: [{ torch: on }] });
-        }
+  // ── Helper: nyalakan/matikan torch langsung dari track video kamera scanner ──
+  const setTorchForElement = async (scannerInstance, containerId, on) => {
+    let success = false;
+    // Cara 1: via Html5Qrcode applyVideoConstraints jika didukung
+    if (scannerInstance && typeof scannerInstance.applyVideoConstraints === 'function') {
+      try {
+        await scannerInstance.applyVideoConstraints({ advanced: [{ torch: on }] });
+        success = true;
+      } catch (e) {
+        // Fallback ke Cara 2
       }
-      // Hentikan stream sementara — html5-qrcode punya stream sendiri
-      stream.getTracks().forEach(t => t.stop());
-    } catch {
-      // Device tidak support torch — diabaikan
     }
+    // Cara 2: cari video element di dalam container dan ambil track-nya
+    if (!success) {
+      try {
+        const videoEl = document.querySelector(`#${containerId} video`);
+        const mediaStream = videoEl?.srcObject;
+        if (mediaStream) {
+          const track = mediaStream.getVideoTracks()[0];
+          if (track && typeof track.applyConstraints === 'function') {
+            const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+            if (caps.torch || 'torch' in caps) {
+              await track.applyConstraints({ advanced: [{ torch: on }] });
+              success = true;
+            }
+          }
+        }
+      } catch (e) {
+        // Abaikan
+      }
+    }
+    return success;
   };
 
   // ── Toggle torch dari tombol UI ──
   const handleToggleTorch = async () => {
     const newState = !torchOn;
+    await setTorchForElement(scannerRef.current, "reader", newState);
     setTorchOn(newState);
-    const scanner = scannerRef.current;
-    if (scanner) {
-      try {
-        // html5-qrcode v2.3+ menyediakan applyVideoConstraints
-        if (typeof scanner.applyVideoConstraints === 'function') {
-          await scanner.applyVideoConstraints({ advanced: [{ torch: newState }] });
-          return;
-        }
-      } catch {
-        // fallback ke track langsung
-      }
-    }
-    await enableTorchOnTrack(newState);
   };
 
   // Live Camera Scanner Lifecycle using html5-qrcode
@@ -234,26 +238,14 @@ export default function SecurityPatrolApp({
             }
           ).then(async () => {
             setScanLoading(false);
-            // ── AUTO-TORCH: nyalakan flash otomatis setelah kamera aktif ──
-            try {
-              if (typeof html5QrCode.applyVideoConstraints === 'function') {
-                await html5QrCode.applyVideoConstraints({ advanced: [{ torch: true }] });
+            // ── AUTO-TORCH: nyalakan lampu senter / blitz hp otomatis untuk area gelap ──
+            for (let i = 0; i < 3; i++) {
+              await new Promise(r => setTimeout(r, 180 * (i + 1))); // delay warmup kamera
+              const ok = await setTorchForElement(html5QrCode, elementId, true);
+              if (ok) {
                 setTorchOn(true);
-              } else {
-                // Fallback: akses track via MediaStream internal
-                const stream = html5QrCode._localMediaStream || html5QrCode.stream;
-                if (stream) {
-                  const track = stream.getVideoTracks()[0];
-                  const caps = track?.getCapabilities?.() || {};
-                  if (caps.torch) {
-                    await track.applyConstraints({ advanced: [{ torch: true }] });
-                    setTorchOn(true);
-                  }
-                }
+                break;
               }
-            } catch {
-              // Torch tidak didukung device — tidak masalah
-              setTorchOn(false);
             }
           }).catch(err => {
             console.warn("Kamera scanner gagal aktif:", err);
@@ -629,19 +621,8 @@ export default function SecurityPatrolApp({
   // ── Toggle torch scanner presensi ──
   const handleTogglePresensiTorch = async () => {
     const newState = !presenciTorchOn;
+    await setTorchForElement(presenciScannerRef.current, "reader-presensi", newState);
     setPresensiTorchOn(newState);
-    const scanner = presenciScannerRef.current;
-    if (scanner) {
-      try {
-        if (typeof scanner.applyVideoConstraints === 'function') {
-          await scanner.applyVideoConstraints({ advanced: [{ torch: newState }] });
-          return;
-        }
-      } catch {
-        // fallback
-      }
-    }
-    await enableTorchOnTrack(newState);
   };
 
   // Live Camera Scanner Lifecycle for Presensi QR (Staff Room)
@@ -675,24 +656,14 @@ export default function SecurityPatrolApp({
             }
           ).then(async () => {
             setPresensiScanLoading(false);
-            // ── AUTO-TORCH: nyalakan flash otomatis setelah kamera presensi aktif ──
-            try {
-              if (typeof html5QrCodePresensi.applyVideoConstraints === 'function') {
-                await html5QrCodePresensi.applyVideoConstraints({ advanced: [{ torch: true }] });
+            // ── AUTO-TORCH: nyalakan flash otomatis segera setelah kamera aktif ──
+            for (let i = 0; i < 3; i++) {
+              await new Promise(r => setTimeout(r, 180 * (i + 1)));
+              const ok = await setTorchForElement(html5QrCodePresensi, elementId, true);
+              if (ok) {
                 setPresensiTorchOn(true);
-              } else {
-                const stream = html5QrCodePresensi._localMediaStream || html5QrCodePresensi.stream;
-                if (stream) {
-                  const track = stream.getVideoTracks()[0];
-                  const caps = track?.getCapabilities?.() || {};
-                  if (caps.torch) {
-                    await track.applyConstraints({ advanced: [{ torch: true }] });
-                    setPresensiTorchOn(true);
-                  }
-                }
+                break;
               }
-            } catch {
-              setPresensiTorchOn(false);
             }
           }).catch(err => {
             console.warn("Kamera scanner presensi gagal aktif:", err);

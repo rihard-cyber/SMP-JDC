@@ -667,7 +667,57 @@ export default function BarcodeGenerator({
               </div>
             </div>
 
-            <div className="table-wrap" style={{ overflowX: 'auto' }}>
+            {/* ── MOBILE CARD VIEW (< 768px): Zero Horizontal Scroll ── */}
+            <div className="show-on-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {filteredAreas.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  {searchArea ? 'Tidak ditemukan' : 'Belum ada area terdaftar'}
+                </div>
+              ) : (
+                getSortedAreas(filteredAreas).map(area => (
+                  <div key={`m-area-${area.id}`} className="mobile-data-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,240,255,0.12)', color: 'var(--color-primary)', border: '1px solid rgba(0,240,255,0.25)' }}>
+                            {['1','2','3','4','5','6'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>
+                            No. {area.nomorTitik || '-'}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                            Zona {area.zona}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {area.titik}
+                        </h4>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.2rem' }}>
+                          QR: {area.qrCode}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                        <button onClick={() => openEditArea(area)} title="Edit area" className="btn-icon-primary" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          <Edit3 size={15} />
+                        </button>
+                        <button onClick={() => handleDownloadQR(area)} title="Download QR" className="btn-icon-primary" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          {downloadingId === area.id ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
+                        </button>
+                        <button onClick={() => handlePrintQR(area)} title="Cetak QR" className="btn-icon" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          {printLoadingId === area.id ? <RefreshCw size={15} className="spin" /> : <Printer size={15} />}
+                        </button>
+                        <button onClick={() => onDeleteArea(area.id)} title="Hapus area" className="btn-icon-danger" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* ── DESKTOP TABLE (>= 769px) ── */}
+            <div className="hide-on-mobile table-wrap" style={{ overflowX: 'auto' }}>
               <table className="table-data" style={{ minWidth: '650px' }}>
                 <thead>
                   <tr>
@@ -843,7 +893,50 @@ export default function BarcodeGenerator({
               </div>
             </div>
 
-            <div className="table-wrap" style={{ overflowX: 'auto' }}>
+            {/* ── MOBILE CARD VIEW (< 768px): Pos Jaga Zero Horizontal Scroll ── */}
+            <div className="show-on-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {filteredPosList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  {searchPos ? 'Tidak ditemukan' : 'Belum ada pos jaga'}
+                </div>
+              ) : (
+                filteredPosList.map(pos => (
+                  <div key={`m-pos-${pos.id}`} className="mobile-data-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,240,255,0.12)', color: 'var(--color-primary)' }}>
+                            {pos.lantai}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                            Kode: {pos.kode || '-'}
+                          </span>
+                        </div>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {pos.titik}
+                        </h4>
+                        {pos.keterangan && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                            {pos.keterangan}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                        <button onClick={() => openEditPos(pos)} title="Edit pos" className="btn-icon-primary" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          <Edit3 size={15} />
+                        </button>
+                        <button onClick={() => onDeletePos(pos.id)} title="Hapus pos" className="btn-icon-danger" data-no-ripple style={{ minWidth: '38px', minHeight: '38px' }}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* ── DESKTOP TABLE (>= 769px) ── */}
+            <div className="hide-on-mobile table-wrap" style={{ overflowX: 'auto' }}>
               <table className="table-data" style={{ minWidth: '500px' }}>
                 <thead>
                   <tr>
