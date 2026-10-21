@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MessageSquare, CheckCircle, AlertTriangle, Clock, Filter, Search, Send, Phone, Building, MapPin, User, FileText, X, ChevronRight, QrCode, Copy, Download, Printer } from 'lucide-react';
 import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
+import ComplaintPosterModal from './ComplaintPosterModal';
 
 const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
@@ -11,6 +12,7 @@ export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onD
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState(null);
   const [showQR, setShowQR] = useState(false);
+  const [showPosterModal, setShowPosterModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const [customBaseUrl, setCustomBaseUrl] = useState(() => {
@@ -120,13 +122,18 @@ export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onD
         ))}
       </div>
 
-      {/* QR Code Button */}
-      <div style={{ marginBottom: '1rem' }}>
+      {/* QR Code & Poster Buttons */}
+      <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         <button onClick={() => setShowQR(!showQR)} className="btn-secondary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <QrCode size={14} /> {showQR ? 'Tutup' : 'QR Code Form Komplain'}
+          <QrCode size={14} /> {showQR ? 'Tutup Master QR' : 'QR Code Form Komplain'}
         </button>
+        <button onClick={() => setShowPosterModal(true)} className="btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+          <Printer size={14} /> Desain Poster / Standee Akrilik
+        </button>
+      </div>
+      <div>
         {showQR && (
-          <div className="glass-panel" style={{ marginTop: '0.75rem', padding: '1.25rem', textAlign: 'center' }}>
+          <div className="glass-panel" style={{ marginBottom: '1rem', padding: '1.25rem', textAlign: 'center' }}>
             {isUrlLocalhost && (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.1)',
@@ -371,6 +378,14 @@ export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onD
           ))}
         </div>
       )}
+
+      {/* Poster Standee Modal */}
+      <ComplaintPosterModal
+        isOpen={showPosterModal}
+        onClose={() => setShowPosterModal(false)}
+        complaintUrl={complaintUrl}
+        qrApiUrl={qrApiUrl}
+      />
     </div>
   );
 }
