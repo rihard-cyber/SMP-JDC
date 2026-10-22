@@ -8,14 +8,14 @@
  * =======================================================
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Package, Search, Printer, Plus, Edit, Trash2, X, Camera, Image,
   MapPin, Calendar, Clock, User, Phone, Tag, Shield, CheckCircle,
-  AlertTriangle, ArrowRight, Archive, FileText, ChevronDown, ChevronUp,
+  Archive, FileText, ChevronDown, ChevronUp,
   RefreshCw, Info
 } from 'lucide-react';
-import { exportTableToPdf, formatDateOnlyId, formatDateForFile, getFirstPhoto } from '../utils/exportPdf';
+import { exportTableToPdf, formatDateOnlyId, formatDateTimeId, formatDateForFile, getFirstPhoto } from '../utils/exportPdf';
 import { compressImage } from '../utils/image';
 import { hapticLight } from '../utils/haptics';
 
@@ -301,7 +301,7 @@ export default function FoundItems({
     addToast(`Status ${item.nama_barang} → ${status}`, 'info');
   };
 
-  // ── Export PDF (gaya laporan) ──────────────────────────────────────────
+  // ── Export PDF (kolom sesuai permintaan) ───────────────────────────────
   const handleExportPDF = () => {
     const ok = exportTableToPdf({
       title: 'Laporan Penemuan Barang (Lost & Found)',
@@ -309,44 +309,72 @@ export default function FoundItems({
       fileName: `laporan-penemuan-barang-smpjdc-${formatDateForFile()}`,
       orientation: 'landscape',
       meta: [
-        { label: 'Filter Status', value: filter === 'all' ? 'Semua' : filter },
-        { label: 'Pencarian', value: search || '-' },
         { label: 'Total Data', value: filtered.length },
-        { label: 'Sumber', value: 'Penemuan Barang / Lost & Found' }
+        { label: 'Sudah Diambil', value: filtered.filter(f => f.status === 'Diambil').length },
+        { label: 'Diserahkan', value: filtered.filter(f => f.status === 'Diserahkan').length },
+        { label: 'Belum Diambil', value: filtered.filter(f => !['Diambil', 'Diserahkan'].includes(f.status)).length }
       ],
       columns: [
         { header: 'NO', width: '3%' },
-        { header: 'KODE BARANG', width: '8%' },
-        { header: 'JAM / TGL DITEMUKAN', width: '9%' },
-        { header: 'NAMA BARANG', width: '11%' },
-        { header: 'JENIS / NILAI', width: '10%' },
-        { header: 'LOKASI PENEMUAN', width: '11%' },
-        { header: 'PENEMU', width: '9%' },
+        { header: 'JAM LAPORAN', width: '10%' },
+        { header: 'JAM / TGL DITEMUKAN', width: '10%' },
+        { header: 'NAMA / JENIS BARANG', width: '13%' },
+        { header: 'NILAI', width: '8%' },
+        { header: 'LOKASI PENEMUAN', width: '12%' },
+        { header: 'NAMA PENEMU', width: '9%' },
         { header: 'KONTAK PENEMU', width: '8%' },
-        { header: 'FOTO', width: '7%' },
-        { header: 'STATUS', width: '7%' },
-        { header: 'PENGAMBIL / TGL', width: '9%' },
-        { header: 'KETERANGAN', width: '8%' }
+        { header: 'FOTO BARANG', width: '8%' },
+        { header: 'STATUS', width: '12%' },
+        { header: 'KETERANGAN', width: '7%' }
       ],
       rows: filtered.map((f, idx) => {
-        const tanggal = formatDateOnlyId(f.tanggal_penemuan || f.created_at);
-        const jam = f.jam_penemuan || '-';
-        const pengambil = f.nama_pengambil
-          ? `${f.nama_pengambil}${f.tanggal_pengambilan ? ` (${formatDateOnlyId(f.tanggal_pengambilan)})` : ''}`
-          : '-';
+        const jamLaporan = formatDateTimeId(
+          f.created_at || f.createdAt || f.tanggal_laporan || f.tanggal_penemuan
+        );
+        const jamTglDitemukan = `${f.jam_penemuan || '-'} / ${formatDateOnlyId(f.tanggal_penemuan)}`;
+
+        const tanggalAmbil = f.tanggal_pengambilan ? formatDateOnlyId(f.tanggal_pengambilan) : '-';
+        let statusText = 'BELUM DIAMBIL';
+        if (f.status === 'Diambil') {
+          statusText = [
+            'SUDAH DIAMBIL',
+            `Nama: ${f.nama_pengambil || '-'}`,
+            `ID: ${f.no_identitas_pengambil || '-'}`,
+            `Diserahkan: ${f.diserahkan_oleh || '-'}`,
+            `Tgl: ${tanggalAmbil}`
+          ].join('\n');
+        } else if (f.status === 'Diserahkan') {
+          statusText = [
+            'DISERAHKAN KE MANAJEMEN',
+            `Oleh: ${f.diserahkan_oleh || '-'}`,
+            `Tgl: ${tanggalAmbil}`
+          ].join('\n');
+        } else if (f.status === 'Diklaim') {
+          statusText = 'DIKLAIM\nBELUM DIAMBIL';
+        }
+
+        const identitasPhoto = f.foto_identitas || '';
+        const statusCell = identitasPhoto
+          ? { text: statusText, images: [identitasPhoto], className: 'text-left' }
+          : { text: statusText, className: 'text-left' };
+
+        const done = ['Diambil', 'Diserahkan'].includes(f.status);
+
         return [
           idx + 1,
-          f.item_code || '-',
-          `${jam} / ${tanggal}`,
-          { text: f.nama_barang || '-', className: 'text-left' },
-          `${f.jenis_barang || '-'}${f.kategori_barang ? ` / ${f.kategori_barang}` : ''}`,
+          jamLaporan,
+          jamTglDitemukan,
+          { text: `${f.nama_barang || '-'}\n${f.jenis_barang || '-'}`, className: 'text-left' },
+          f.kategori_barang || '-',
           { text: f.lokasi_penemuan || '-', className: 'text-left' },
           f.nama_penemu || '-',
           f.kontak_penemu || '-',
-          { image: getFirstPhoto(f.foto_barang || f.photos), text: f.foto_barang ? 'Foto barang' : (f.photos?.length ? `${f.photos.length} foto` : '-') },
-          (f.status || 'Ditemukan').toUpperCase(),
-          pengambil,
-          { text: f.catatan_serah_terima || f.keterangan_penemu || f.keterangan || '-', className: 'text-left' }
+          {
+            image: getFirstPhoto(f.foto_barang || f.photos),
+            text: f.foto_barang ? 'Foto barang' : (f.photos?.length ? `${f.photos.length} foto` : '-')
+          },
+          statusCell,
+          { text: done ? 'DONE' : 'BELUM', className: done ? 'status-done' : '' }
         ];
       })
     });

@@ -54,9 +54,12 @@ const renderCell = (cell) => {
     const text = cell.text ?? '';
     const isPhoto = isPhotoCell(cell);
     if (isPhoto) {
-      const image = cell.image || getFirstPhoto(cell.images);
-      const imageHtml = image
-        ? `<div class="photo-box photo-box-has"><img src="${escapeHtml(image)}" alt="Foto" /></div>`
+      const rawImages = Array.isArray(cell.images) ? cell.images.filter(Boolean) : [];
+      const singleImage = cell.image || getFirstPhoto(cell.images);
+      const images = rawImages.length > 1 ? rawImages : (singleImage ? [singleImage] : []);
+      const isMulti = images.length > 1;
+      const imageHtml = images.length
+        ? `<div class="photo-stack${isMulti ? ' photo-stack-multi' : ''}">${images.map(src => `<div class="photo-box photo-box-has${isMulti ? ' photo-box-sm' : ''}"><img src="${escapeHtml(src)}" alt="Foto" /></div>`).join('')}</div>`
         : '<div class="photo-box photo-box-empty"><span class="photo-na">-</span></div>';
       const textHtml = text !== '' && text !== null && text !== undefined
         ? `<div class="photo-caption">${escapeHtml(text)}</div>`
@@ -244,6 +247,20 @@ export function exportTableToPdf({
             object-fit: contain;
             border: 1px solid #555;
             display: block;
+          }
+          .photo-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+          }
+          .photo-stack-multi { gap: 3px; }
+          .photo-box-sm {
+            height: 46px;
+          }
+          .photo-box-sm.photo-box-has img {
+            max-height: 44px;
+            max-width: 100%;
           }
           .photo-box-empty {
             color: #999;
