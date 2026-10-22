@@ -8,7 +8,8 @@ import {
   FileText,
   Menu,
   Smartphone,
-  Fingerprint
+  Fingerprint,
+  Package
 } from 'lucide-react';
 
 export default function BottomNav({ className = '', currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
@@ -93,6 +94,7 @@ export default function BottomNav({ className = '', currentTab, onNavClick, onTo
       { id: 'absensi', label: 'Absensi', icon: ClipboardList },
       { id: 'target-compliance', label: 'Target', icon: Target },
       { id: 'reports', label: 'Laporan', icon: FileSpreadsheet },
+      { id: 'found-items', label: 'Temuan', icon: Package },
       { id: null, label: 'Menu', icon: Menu, isMenu: true },
     ];
   };

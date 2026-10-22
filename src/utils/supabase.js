@@ -51,6 +51,7 @@ const KNOWN_TABLE_COLUMNS = {
   complaints: new Set(['id', 'ticket_id', 'name', 'phone', 'tenant', 'floor', 'location', 'category', 'description', 'department', 'status', 'remarks', 'wa_status', 'wa_sent_at', 'photos', 'history', 'created_at', 'firebase_saved_at', 'updated_at']),
   areas: new Set(['id', 'gedung', 'lantai', 'nomor_titik', 'zona', 'titik', 'qr_code', 'created_at', 'firebase_saved_at', 'updated_at']),
   pos_list: new Set(['id', 'lantai', 'titik', 'keterangan', 'kode', 'created_at', 'firebase_saved_at', 'updated_at']),
+  found_items: new Set(['id', 'item_code', 'tanggal_penemuan', 'jam_penemuan', 'tanggal_laporan', 'nama_barang', 'jenis_barang', 'kategori_barang', 'lokasi_penemuan', 'nama_penemu', 'kategori_penemu', 'kontak_penemu', 'keterangan_penemu', 'foto_barang', 'photos', 'status', 'nama_pengambil', 'kontak_pengambil', 'no_identitas_pengambil', 'foto_identitas', 'diserahkan_oleh', 'tanggal_pengambilan', 'catatan_serah_terima', 'keterangan', 'created_at', 'firebase_saved_at', 'updated_at']),
   rosters: new Set(['year_month', 'roster_data', 'updated_by', 'created_at', 'updated_at']),
   config: new Set(['key', 'data', 'updated_at']),
 };
@@ -212,6 +213,14 @@ export const addComplaintToFirestore = createAdder('complaints');
 export const updateComplaintInFirestore = createUpdater('complaints');
 export const deleteComplaintFromFirestore = createDeleter('complaints');
 export const loadAllComplaintsFromFirestore = createLoader('complaints');
+
+// ─── Found Items (Penemuan Barang / Lost & Found) ───
+export const subscribeFoundItems = (callback, opts = {}) =>
+  createSubscriber('found_items', callback, 'created_at', opts);
+export const addFoundItemToFirestore = createAdder('found_items');
+export const updateFoundItemInFirestore = createUpdater('found_items');
+export const deleteFoundItemFromFirestore = createDeleter('found_items');
+export const loadAllFoundItemsFromFirestore = createLoader('found_items');
 
 // ─── Patrol Reports ───
 export const subscribeReports = (callback, opts = {}) =>

@@ -32,6 +32,7 @@ import { initSupabase,
   subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
   subscribePosList, addPosToFirestore, updatePosInFirestore, deletePosFromFirestore,
   subscribeWAContacts, saveWAContactsToFirestore,
+  subscribeFoundItems, addFoundItemToFirestore, updateFoundItemInFirestore, deleteFoundItemFromFirestore,
   clearAllPatrolDataInFirestore, deleteOldDataInFirestore, uploadPhoto } from './utils/supabase';
 import { 
   LayoutDashboard, 
@@ -60,7 +61,9 @@ import {
   Calendar,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Package,
+  Archive
 } from 'lucide-react';
 import ReportsExport from './components/ReportsExport';
 import TargetDashboard from './components/TargetDashboard';
@@ -81,6 +84,7 @@ const ManagementDashboard = lazy(() => import('./components/ManagementDashboard'
 const SecurityPatrolApp = lazy(() => import('./components/SecurityPatrolApp'));
 const BarcodeGenerator = lazy(() => import('./components/BarcodeGenerator'));
 const ComplaintAdmin = lazy(() => import('./components/ComplaintAdmin'));
+const FoundItems = lazy(() => import('./components/FoundItems'));
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
 const CURRENT_DB_VERSION = '5.2-stable';
@@ -173,6 +177,7 @@ const cleanAndDeduplicateAreas = (rawList) => {
 
 const INITIAL_REPORTS = [];
 const INITIAL_FINDINGS = [];
+const INITIAL_FOUND_ITEMS = [];
 
 // ── SUPERADMIN FALLBACK ────────────────────────────────────────────────────────
 // Hanya digunakan jika localStorage DAN Firebase sama-sama kosong (instalasi baru)
@@ -970,6 +975,16 @@ export default function App() {
     }
   });
 
+  const [foundItems, setFoundItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sapujagat_found_items');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_FOUND_ITEMS;
+    } catch (e) {
+      return INITIAL_FOUND_ITEMS;
+    }
+  });
+
   const [mutasiLogs, setMutasiLogs] = useState(() => {
     try {
       const saved = localStorage.getItem('smpjdc_mutasi_logs');
@@ -997,7 +1012,7 @@ export default function App() {
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
 
   const checkOfflineQueue = () => {
-    const keys = ['smpjdc_complaints', 'sapujagat_reports', 'sapujagat_findings', 'smpjdc_attendance_logs', 'smpjdc_mutasi_logs'];
+    const keys = ['smpjdc_complaints', 'sapujagat_reports', 'sapujagat_findings', 'sapujagat_found_items', 'smpjdc_attendance_logs', 'smpjdc_mutasi_logs'];
     let total = 0;
     for (const key of keys) {
       try {
@@ -1062,6 +1077,7 @@ export default function App() {
 
   useEffect(() => { persistState('sapujagat_reports', reports); }, [reports]);
   useEffect(() => { persistState('sapujagat_findings', findings); }, [findings]);
+  useEffect(() => { persistState('sapujagat_found_items', foundItems); }, [foundItems]);
   useEffect(() => { persistState('smpjdc_mutasi_logs', mutasiLogs); }, [mutasiLogs]);
   useEffect(() => { persistState('smpjdc_attendance_logs', attendanceLogs); }, [attendanceLogs]);
 
@@ -1125,6 +1141,25 @@ export default function App() {
           if (!exists && merged.length < 500) merged.push(local);
         });
         persistState('sapujagat_findings', merged);
+        return merged;
+      });
+    }, { limit: 500 });
+    return () => unsub();
+  }, []);
+
+  // Firebase real-time subscription untuk found items (Lost & Found)
+  useEffect(() => {
+    const db = initSupabase();
+    if (!db) return;
+    const unsub = subscribeFoundItems((firebaseData) => {
+      if (!firebaseData) return;
+      setFoundItems(prev => {
+        const merged = [...firebaseData];
+        prev.forEach(local => {
+          const exists = merged.find(m => m.id === local.id || (m.firebaseId && m.firebaseId === local.firebaseId));
+          if (!exists && merged.length < 500) merged.push(local);
+        });
+        persistState('sapujagat_found_items', merged);
         return merged;
       });
     }, { limit: 500 });
@@ -1391,6 +1426,7 @@ export default function App() {
       { key: 'smpjdc_complaints', adder: addComplaintToFirestore },
       { key: 'sapujagat_reports', adder: addReportToFirestore },
       { key: 'sapujagat_findings', adder: addFindingToFirestore },
+      { key: 'sapujagat_found_items', adder: addFoundItemToFirestore },
       { key: 'smpjdc_attendance_logs', adder: addAttendanceLogToFirestore },
       { key: 'smpjdc_mutasi_logs', adder: addMutasiLogToFirestore },
     ];
@@ -1413,7 +1449,7 @@ export default function App() {
           try {
             // Intercept foto Base64 dan unggah ke Storage sebelum disync ke database Cloud
             if (item.foto && item.foto.startsWith('data:image')) {
-              const folder = key.includes('reports') ? 'reports' : key.includes('findings') ? 'findings' : 'mutasi';
+              const folder = key.includes('reports') ? 'reports' : key.includes('findings') ? 'findings' : key.includes('found_items') ? 'found_items' : 'mutasi';
               item.foto = await uploadPhoto(item.foto, `${folder}/${item.id}.jpg`);
             }
             if (item.photos && Array.isArray(item.photos)) {
@@ -1440,6 +1476,7 @@ export default function App() {
               if (key === 'smpjdc_complaints') updater(setComplaints, 'supabaseId');
               else if (key === 'sapujagat_reports') updater(setReports, 'supabaseId');
               else if (key === 'sapujagat_findings') updater(setFindings, 'supabaseId');
+              else if (key === 'sapujagat_found_items') updater(setFoundItems, 'supabaseId');
               else if (key === 'smpjdc_attendance_logs') updater(setAttendanceLogs, 'supabaseId');
               else if (key === 'smpjdc_mutasi_logs') updater(setMutasiLogs, 'supabaseId');
 
@@ -1815,6 +1852,123 @@ export default function App() {
       },
       onCancel: () => setConfirmDelete(null),
     });
+  };
+
+  // ===== FOUND ITEMS (LOST & FOUND) CRUD =====
+  const handleAddFoundItem = async (itemData) => {
+    const id = `fnd-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const today = new Date();
+    const tanggal = today.toISOString().split('T')[0];
+    const jam = today.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const itemCode = `FND-${tanggal.replace(/-/g, '')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+
+    let newItem = {
+      id,
+      item_code: itemCode,
+      tanggal_penemuan: tanggal,
+      jam_penemuan: jam,
+      tanggal_laporan: tanggal,
+      status: 'Ditemukan',
+      created_at: today.toISOString(),
+      firebase_saved_at: today.toISOString(),
+      updated_at: today.toISOString(),
+      ...itemData
+    };
+
+    // Handle photo upload
+    if (itemData.foto_barang && itemData.foto_barang.startsWith('data:image')) {
+      const photoUrl = await uploadPhoto(itemData.foto_barang, `found_items/${id}.jpg`);
+      newItem.foto_barang = photoUrl;
+    }
+    if (itemData.photos && Array.isArray(itemData.photos)) {
+      const uploadedPhotos = [];
+      for (let p = 0; p < itemData.photos.length; p++) {
+        if (itemData.photos[p].startsWith('data:image')) {
+          uploadedPhotos.push(await uploadPhoto(itemData.photos[p], `found_items/${id}_${p}.jpg`));
+        } else {
+          uploadedPhotos.push(itemData.photos[p]);
+        }
+      }
+      newItem.photos = uploadedPhotos;
+    }
+
+    setFoundItems(prev => [newItem, ...prev]);
+    addToast('Barang temuan berhasil dicatat!', 'success');
+
+    try {
+      const fid = await addFoundItemToFirestore(newItem);
+      if (fid) {
+        setFoundItems(prev => prev.map(x => x.id === id ? { ...x, supabaseId: fid, firebaseId: fid, foto_barang: newItem.foto_barang, photos: newItem.photos } : x));
+      }
+    } catch (e) {
+      addToast(`Gagal sync ke cloud: ${e.message}`, 'warning');
+    }
+  };
+
+  const handleUpdateFoundItem = (id, updates) => {
+    const target = foundItems.find(f => f.id === id);
+    if (!target) return;
+    setFoundItems(prev => {
+      const updated = prev.map(f => f.id === id ? { ...f, ...updates, updated_at: new Date().toISOString() } : f);
+      try { localStorage.setItem('sapujagat_found_items', JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+    const fid = target.supabaseId || target.firebaseId;
+    if (fid) {
+      updateFoundItemInFirestore(fid, updates).catch(e => addToast(`Gagal update barang: ${e.message}`, 'warning'));
+    } else {
+      addFoundItemToFirestore({ ...target, ...updates }).then(fid2 => {
+        if (fid2) {
+          setFoundItems(prev => prev.map(f =>
+            f.id === id ? { ...f, supabaseId: fid2, firebaseId: fid2 } : f
+          ));
+        }
+      }).catch(e => addToast(`Gagal sync barang: ${e.message}`, 'warning'));
+    }
+    addToast('Data barang temuan berhasil diperbarui!', 'success');
+  };
+
+  const handleDeleteFoundItem = (id) => {
+    const target = foundItems.find(f => f.id === id);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Barang Temuan',
+      message: <>Yakin ingin menghapus data barang <strong>{target.nama_barang}</strong> (Kode: {target.item_code})?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteFoundItemFromFirestore(fid);
+          setFoundItems(prev => {
+            const filtered = prev.filter(f => f.id !== id);
+            try { localStorage.setItem('sapujagat_found_items', JSON.stringify(filtered)); } catch (e) {}
+            return filtered;
+          });
+          addToast('Barang temuan berhasil dihapus!', 'success');
+        } catch (e) {
+          addToast(`Gagal hapus barang: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
+  };
+
+  const updateFoundItemStatus = (itemId, newStatus, extraData = {}) => {
+    let updatedItem = null;
+    setFoundItems(prev => prev.map(f => {
+      if (f.id === itemId) {
+        addToast(`Status barang ${f.nama_barang} diubah ke ${newStatus}`, 'info');
+        updatedItem = { ...f, status: newStatus, ...extraData, updated_at: new Date().toISOString() };
+        const fid = updatedItem.supabaseId || updatedItem.firebaseId;
+        if (fid) {
+          updateFoundItemInFirestore(fid, { status: newStatus, ...extraData }).catch(e => addToast(`Gagal update status: ${e.message}`, 'warning'));
+        }
+        return updatedItem;
+      }
+      return f;
+    }));
   };
 
   const handleAddMutasi = async (log) => {
@@ -2594,6 +2748,9 @@ export default function App() {
               <button onClick={() => handleNavClick('complaint')} className={`nav-tab-btn ${currentTab === 'complaint' ? 'active' : ''}`}>
                 <MessageSquare size={18} /> <span>Komplain Masuk</span>
               </button>
+              <button onClick={() => handleNavClick('found-items')} className={`nav-tab-btn ${currentTab === 'found-items' ? 'active' : ''}`}>
+                <Package size={18} /> <span>Penemuan Barang</span>
+              </button>
               <button onClick={() => handleNavClick('guard-simulator')} className={`nav-tab-btn ${currentTab === 'guard-simulator' ? 'active' : ''}`}
                 style={{ marginTop: '1.5rem', border: '1px dashed var(--color-primary-glow)', background: currentTab === 'guard-simulator' ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.03)' }}>
                 <Smartphone size={18} /> <span style={{ fontWeight: 600 }}>Simulasi HP Petugas</span>
@@ -2625,6 +2782,9 @@ export default function App() {
               <button onClick={() => handleNavClick('complaint')} className={`nav-tab-btn ${currentTab === 'complaint' ? 'active' : ''}`}>
                 <MessageSquare size={18} /> <span>Komplain Masuk</span>
               </button>
+              <button onClick={() => handleNavClick('found-items')} className={`nav-tab-btn ${currentTab === 'found-items' ? 'active' : ''}`}>
+                <Package size={18} /> <span>Penemuan Barang</span>
+              </button>
               <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
                 <Users size={18} /> <span>Management User</span>
               </button>
@@ -2654,6 +2814,9 @@ export default function App() {
                   </button>
                   <button onClick={() => handleNavClick('reports')} className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}>
                     <FileSpreadsheet size={18} /> <span>Laporan & Log Temuan</span>
+                  </button>
+                  <button onClick={() => handleNavClick('found-items')} className={`nav-tab-btn ${currentTab === 'found-items' ? 'active' : ''}`}>
+                    <Package size={18} /> <span>Penemuan Barang</span>
                   </button>
                 </>
               )}
@@ -2707,6 +2870,7 @@ export default function App() {
                   {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
                   {currentTab === 'mutasi' && 'Mutasi Penjagaan'}
                   {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
+                  {currentTab === 'found-items' && 'Penemuan Barang (Lost & Found)'}
                   {currentTab === 'guard-simulator' && (isGodMode ? 'Simulasi HP Petugas' : 'Aplikasi Patroli')}
                   {currentTab === 'user-management' && 'Management User'}
                   {currentTab === 'roster' && 'Roster Jadwal Kerja Bulanan'}
@@ -2902,6 +3066,21 @@ export default function App() {
           {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (
             <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat...</div>}>
             <ComplaintAdmin complaints={complaints} onUpdateComplaint={handleUpdateComplaint} onDeleteComplaint={handleDeleteComplaint} />
+            </Suspense>
+          )}
+
+          {currentTab === 'found-items' && (isGodMode || isAdmin || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser?.jabatan)) && (
+            <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Penemuan Barang...</div>}>
+            <FoundItems 
+              foundItems={foundItems}
+              users={users}
+              currentUser={currentUser}
+              onAddFoundItem={handleAddFoundItem}
+              onUpdateFoundItem={handleUpdateFoundItem}
+              onDeleteFoundItem={handleDeleteFoundItem}
+              onUpdateFoundItemStatus={updateFoundItemStatus}
+              isClient={isClient}
+            />
             </Suspense>
           )}
 
