@@ -121,34 +121,51 @@ export function exportTableToPdf({
     <html>
       <head>
         <meta charset="utf-8" />
+        <meta name="color-scheme" content="only light" />
+        <meta name="supported-color-schemes" content="light" />
         <title>${escapeHtml(fileName)}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet" />
         <style>
+          :root { color-scheme: only light; supported-color-schemes: light; }
+          html { background: #ffffff !important; color-scheme: only light; }
           @page { size: A4 ${orientation}; margin: 8mm; }
           * { box-sizing: border-box; }
           body {
             margin: 0;
-            color: #000;
-            background: #fff;
+            color: #000 !important;
+            background: #ffffff !important;
             font-family: Arial, Helvetica, sans-serif;
+            color-scheme: only light;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            forced-color-adjust: none;
           }
-          .report-page { width: 100%; }
+          .report-page { width: 100%; background: #fff !important; position: relative; z-index: 1; }
+          .paper-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+          }
           .report-title {
             text-align: center;
             font-size: 22px;
             font-weight: 700;
             margin: 0 0 3px;
             line-height: 1.2;
+            color: #000 !important;
           }
           .report-subtitle {
             text-align: center;
             font-size: 10px;
             font-weight: 700;
-            color: #555;
+            color: #555 !important;
             margin-bottom: 8px;
             letter-spacing: 0.04em;
             text-transform: uppercase;
@@ -194,8 +211,8 @@ export function exportTableToPdf({
             text-transform: uppercase;
           }
           td {
-            background: #fff;
-            color: #000;
+            background: #fff !important;
+            color: #000 !important;
             border: 1px solid #000;
             padding: 5px 4px;
             font-size: 8px;
@@ -205,7 +222,7 @@ export function exportTableToPdf({
             word-break: break-word;
             white-space: pre-wrap;
           }
-          tbody tr:nth-child(even) td { background: #f7f7f7; }
+          tbody tr:nth-child(even) td { background: #f7f7f7 !important; }
           .text-left { text-align: left; }
           .text-right { text-align: right; }
           .mono { font-family: Consolas, 'Courier New', monospace; }
@@ -270,13 +287,21 @@ export function exportTableToPdf({
             white-space: nowrap;
           }
           @media print {
-            body { margin: 0; }
+            html, body {
+              margin: 0;
+              background: #ffffff !important;
+              color: #000 !important;
+            }
+            .report-page { background: #ffffff !important; }
+            td, .empty, .meta-item { background-color: #ffffff !important; }
+            tbody tr:nth-child(even) td { background-color: #f7f7f7 !important; }
             thead { display: table-header-group; }
             tr { break-inside: avoid; page-break-inside: avoid; }
           }
         </style>
       </head>
       <body>
+        <img class="paper-bg" alt="" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1'%20height='1'%3E%3Crect%20width='1'%20height='1'%20fill='white'/%3E%3C/svg%3E" />
         <main class="report-page">
           <h1 class="report-title">${escapeHtml(title)}</h1>
           <div class="report-subtitle">${escapeHtml(subtitle)}</div>
