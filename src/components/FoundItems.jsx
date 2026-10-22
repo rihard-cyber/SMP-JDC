@@ -43,6 +43,15 @@ const KATEGORI_BARANG = [
 
 const KATEGORI_PENEMU = ['Security', 'Cleaning', 'Tenant', 'Pengunjung', 'Staff Teknik', 'Lainnya'];
 
+const HARI_ID = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+
+const formatHariTanggalId = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${HARI_ID[date.getDay()]}, ${formatDateOnlyId(date)}`;
+};
+
 const emptyForm = (user) => ({
   nama_barang: '',
   jenis_barang: '',
@@ -333,7 +342,7 @@ export default function FoundItems({
         );
         const jamTglDitemukan = `${f.jam_penemuan || '-'} / ${formatDateOnlyId(f.tanggal_penemuan)}`;
 
-        const tanggalAmbil = f.tanggal_pengambilan ? formatDateOnlyId(f.tanggal_pengambilan) : '-';
+        const tanggalAmbil = f.tanggal_pengambilan ? formatHariTanggalId(f.tanggal_pengambilan) : '-';
         let statusText = 'BELUM DIAMBIL';
         if (f.status === 'Diambil') {
           statusText = [
@@ -533,6 +542,7 @@ export default function FoundItems({
                     <div className="form-grid-2" style={{ gap: '0.5rem', marginBottom: '0.75rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                         <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DATA PENEMUAN</p>
+                        {fieldRow(Clock, 'Jam Laporan', formatDateTimeId(item.created_at || item.createdAt || item.tanggal_laporan))}
                         {fieldRow(Calendar, 'Tanggal', formatDate(item.tanggal_penemuan))}
                         {fieldRow(Clock, 'Jam', item.jam_penemuan)}
                         {fieldRow(MapPin, 'Lokasi', item.lokasi_penemuan)}
