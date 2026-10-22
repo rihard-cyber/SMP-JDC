@@ -61,10 +61,24 @@ END $$;
 -- ============================================
 ALTER TABLE found_items ENABLE ROW LEVEL SECURITY;
 
+-- Grant table privileges to anon/authenticated (WAJIB di Supabase Cloud)
+GRANT ALL ON TABLE public.found_items TO anon, authenticated;
+
 -- Allow all for anon (current app architecture uses anon key + local auth)
 DROP POLICY IF EXISTS "Allow all for anon found_items" ON found_items;
 CREATE POLICY "Allow all for anon found_items" ON found_items
   FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- ============================================
+-- JIKA TABEL found_items SUDAH ADA (migrasi)
+-- Error: "permission denied for table found_items"
+-- Jalankan blok ini saja:
+-- ============================================
+-- GRANT ALL ON TABLE public.found_items TO anon, authenticated;
+-- ALTER TABLE public.found_items ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "Allow all for anon found_items" ON public.found_items;
+-- CREATE POLICY "Allow all for anon found_items" ON public.found_items
+--   FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- ============================================
 -- Verification
