@@ -86,37 +86,90 @@ const DB_VERSION_KEY = 'smpjdc_db_version';
 const CURRENT_DB_VERSION = '5.2-stable';
 
 const INITIAL_AREAS = [
-  { id: 'bsmt-b-1',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement',          nomorTitik: '1',  zona: 'B',              titik: 'Depan R. Elektrik',                 qrCode: 'JDC-BSMT-B-1' },
-  { id: 'bsmt-a-2',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement',          nomorTitik: '2',  zona: 'A',              titik: 'R. Ganti Pakaian Security',          qrCode: 'JDC-BSMT-A-2' },
-  { id: 'l1-a-3',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '1',                 nomorTitik: '3',  zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT01-A-3' },
-  { id: 'l1-b-4',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '1',                 nomorTitik: '4',  zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT01-B-4' },
-  { id: 'l2-b-5',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '2',                 nomorTitik: '5',  zona: 'B',              titik: 'Tangga Sudut Pantry',               qrCode: 'JDC-LT02-B-5' },
-  { id: 'l2-a-6',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '2',                 nomorTitik: '6',  zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT02-A-6' },
-  { id: 'l3-a-7',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '3',                 nomorTitik: '7',  zona: 'A',              titik: 'Tangga Sudut Staff Security',       qrCode: 'JDC-LT03-A-7' },
-  { id: 'l3-b-8',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '3',                 nomorTitik: '8',  zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT03-B-8' },
-  { id: 'l4-b-9',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '9',  zona: 'B',              titik: 'Tangga Sudut Pantry',               qrCode: 'JDC-LT04-B-9' },
-  { id: 'l4-a-10',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '10', zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT04-A-10' },
-  { id: 'l5-b-11',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '11', zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT05-B-11' },
-  { id: 'l5-a-12',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '12', zona: 'A',              titik: 'Tangga Sudut R. Rapat JDC Office', qrCode: 'JDC-LT05-A-12' },
-  { id: 'l6-a-13',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '13', zona: 'A',              titik: 'Tangga Sudut Mushola',              qrCode: 'JDC-LT06-A-13' },
-  { id: 'l6-b-14',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '14', zona: 'B',              titik: 'Depan Gudang Banquet / R.Carnition', qrCode: 'JDC-LT06-B-14' },
-  { id: 'hd-c-15',   gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '15', zona: 'C',              titik: 'Coridor IAI DKI',                   qrCode: 'JDC-HD-C-15' },
-  { id: 'hd-a-16',   gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '16', zona: 'A',              titik: 'Ruang Chiller',                     qrCode: 'JDC-HD-A-16' },
-  { id: 'hd-lobby-17', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',   nomorTitik: '17', zona: 'Lobby',           titik: 'Luar ATM Bank Mandiri',              qrCode: 'JDC-HD-LOBBY-17' },
-  { id: 'hd-hd-18',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '18', zona: 'Halaman Depan',    titik: 'Pos Keluar',                        qrCode: 'JDC-HD-HD-18' },
-  { id: 'hd-hd-19',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '19', zona: 'Halaman Depan',    titik: 'Pos Masuk',                         qrCode: 'JDC-HD-HD-19' },
-  { id: 'hskn-a-20', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '20', zona: 'A',              titik: 'Tiang Canopy Basement',             qrCode: 'JDC-HSKN-A-20' },
-  { id: 'hskn-ps-21', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '21', zona: 'Posco Security',   titik: 'Posco OO',                          qrCode: 'JDC-HSKN-PS-21' },
-  { id: 'hskn-pt-22', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '22', zona: 'Petugas Teknik',   titik: 'R. Teknik',                         qrCode: 'JDC-HSKN-PT-22' },
-  { id: 'hb-hb-23',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '23', zona: 'Halaman Belakang',  titik: 'Tembok Belakang Gardu Genset',       qrCode: 'JDC-HB-HB-23' },
-  { id: 'hb-hb-24',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '24', zona: 'Halaman Belakang',  titik: 'Tembok Ujung Parkir Motor',          qrCode: 'JDC-HB-HB-24' },
-  { id: 'hb-hb-25',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '25', zona: 'Halaman Belakang',  titik: 'Tembok Depan Gardu PLN',            qrCode: 'JDC-HB-HB-25' },
-  { id: 'hb-hb-26',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '26', zona: 'Halaman Belakang',  titik: 'Kantin Belakang',                    qrCode: 'JDC-HB-HB-26' },
-  { id: 'hb-lp-27',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '27', zona: 'Lapangan Padel',     titik: 'Lap Padel I',                       qrCode: 'JDC-HB-LP-27' },
-  { id: 'hb-lp-28',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '28', zona: 'Lapangan Padel',     titik: 'Lap Padel II',                      qrCode: 'JDC-HB-LP-28' },
-  { id: 'hb-ap-29',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '29', zona: 'Area Padel',         titik: 'Pintu Padel',                       qrCode: 'JDC-HB-AP-29' },
-  { id: 'hskr-b-30', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kiri', nomorTitik: '30', zona: 'B',              titik: 'Kopi Tuku',                         qrCode: 'JDC-HSKR-B-30' },
+  { id: 'jdc-bsmt-b-1',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement',          nomorTitik: '1',  zona: 'B',              titik: 'Depan R. Elektrik',                 qrCode: 'JDC-BSMT-B-1' },
+  { id: 'jdc-bsmt-a-2',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement',          nomorTitik: '2',  zona: 'A',              titik: 'R. Ganti Pakaian Security',          qrCode: 'JDC-BSMT-A-2' },
+  { id: 'jdc-lt01-a-3',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '1',                 nomorTitik: '3',  zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT01-A-3' },
+  { id: 'jdc-lt01-b-4',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '1',                 nomorTitik: '4',  zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT01-B-4' },
+  { id: 'jdc-lt02-b-5',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '2',                 nomorTitik: '5',  zona: 'B',              titik: 'Tangga Sudut Pantry',               qrCode: 'JDC-LT02-B-5' },
+  { id: 'jdc-lt02-a-6',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '2',                 nomorTitik: '6',  zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT02-A-6' },
+  { id: 'jdc-lt03-a-7',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '3',                 nomorTitik: '7',  zona: 'A',              titik: 'Tangga Sudut Staff Security',       qrCode: 'JDC-LT03-A-7' },
+  { id: 'jdc-lt03-b-8',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '3',                 nomorTitik: '8',  zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT03-B-8' },
+  { id: 'jdc-lt04-b-9',  gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '9',  zona: 'B',              titik: 'Tangga Sudut Pantry',               qrCode: 'JDC-LT04-B-9' },
+  { id: 'jdc-lt04-a-10', gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '10', zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT04-A-10' },
+  { id: 'jdc-lt05-b-11', gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '11', zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT05-B-11' },
+  { id: 'jdc-lt05-a-12', gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '12', zona: 'A',              titik: 'Tangga Sudut R. Rapat JDC Office', qrCode: 'JDC-LT05-A-12' },
+  { id: 'jdc-lt06-a-13', gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '13', zona: 'A',              titik: 'Tangga Sudut Mushola',              qrCode: 'JDC-LT06-A-13' },
+  { id: 'jdc-lt06-b-14', gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '14', zona: 'B',              titik: 'Depan Gudang Banquet / R.Carnition', qrCode: 'JDC-LT06-B-14' },
+  { id: 'jdc-hd-c-15',   gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '15', zona: 'C',              titik: 'Coridor IAI DKI',                   qrCode: 'JDC-HD-C-15' },
+  { id: 'jdc-hd-a-16',   gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '16', zona: 'A',              titik: 'Ruang Chiller',                     qrCode: 'JDC-HD-A-16' },
+  { id: 'jdc-hd-lobby-17', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',   nomorTitik: '17', zona: 'Lobby',           titik: 'Luar ATM Bank Mandiri',              qrCode: 'JDC-HD-LOBBY-17' },
+  { id: 'jdc-hd-hd-18',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '18', zona: 'Halaman Depan',    titik: 'Pos Keluar',                        qrCode: 'JDC-HD-HD-18' },
+  { id: 'jdc-hd-hd-19',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '19', zona: 'Halaman Depan',    titik: 'Pos Masuk',                         qrCode: 'JDC-HD-HD-19' },
+  { id: 'jdc-hskn-a-20', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '20', zona: 'A',              titik: 'Tiang Canopy Basement',             qrCode: 'JDC-HSKN-A-20' },
+  { id: 'jdc-hskn-ps-21', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '21', zona: 'Posco Security',   titik: 'Posco OO',                          qrCode: 'JDC-HSKN-PS-21' },
+  { id: 'jdc-hskn-pt-22', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kanan', nomorTitik: '22', zona: 'Petugas Teknik',   titik: 'R. Teknik',                         qrCode: 'JDC-HSKN-PT-22' },
+  { id: 'jdc-hb-hb-23',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '23', zona: 'Halaman Belakang',  titik: 'Tembok Belakang Gardu Genset',       qrCode: 'JDC-HB-HB-23' },
+  { id: 'jdc-hb-hb-24',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '24', zona: 'Halaman Belakang',  titik: 'Tembok Ujung Parkir Motor',          qrCode: 'JDC-HB-HB-24' },
+  { id: 'jdc-hb-hb-25',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '25', zona: 'Halaman Belakang',  titik: 'Tembok Depan Gardu PLN',            qrCode: 'JDC-HB-HB-25' },
+  { id: 'jdc-hb-hb-26',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '26', zona: 'Halaman Belakang',  titik: 'Kantin Belakang',                    qrCode: 'JDC-HB-HB-26' },
+  { id: 'jdc-hb-lp-27',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '27', zona: 'Lapangan Padel',     titik: 'Lap Padel I',                       qrCode: 'JDC-HB-LP-27' },
+  { id: 'jdc-hb-lp-28',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '28', zona: 'Lapangan Padel',     titik: 'Lap Padel II',                      qrCode: 'JDC-HB-LP-28' },
+  { id: 'jdc-hb-ap-29',  gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Belakang',  nomorTitik: '29', zona: 'Area Padel',         titik: 'Pintu Padel',                       qrCode: 'JDC-HB-AP-29' },
+  { id: 'jdc-hskr-b-30', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Samping Kiri', nomorTitik: '30', zona: 'B',              titik: 'Kopi Tuku',                         qrCode: 'JDC-HSKR-B-30' },
 ];
+
+const cleanAndDeduplicateAreas = (rawList) => {
+  if (!Array.isArray(rawList)) return [...INITIAL_AREAS];
+
+  const seenQr = new Set();
+  const seenNum = new Set();
+  const seenLoc = new Set();
+  const result = [];
+
+  const tryAdd = (area) => {
+    if (!area) return;
+    const qr = (area.qrCode || '').toUpperCase().trim();
+    const num = String(area.nomorTitik || '').trim();
+    const locKey = `${(area.lantai || '').toLowerCase()}|${(area.titik || '').toLowerCase()}`;
+
+    // Prevent duplicate by QR code, by numeric nomorTitik, or by exact same location on same floor
+    if (qr && seenQr.has(qr)) return;
+    if (num && seenNum.has(num)) return;
+    if (locKey && seenLoc.has(locKey)) return;
+
+    if (qr) seenQr.add(qr);
+    if (num) seenNum.add(num);
+    if (locKey) seenLoc.add(locKey);
+    result.push(area);
+  };
+
+  // 1. First add INITIAL_AREAS (updating firebaseId if present in rawList)
+  INITIAL_AREAS.forEach(initArea => {
+    const qr = (initArea.qrCode || '').toUpperCase().trim();
+    const num = String(initArea.nomorTitik).trim();
+    const rawMatch = rawList.find(r =>
+      (r.qrCode && r.qrCode.toUpperCase().trim() === qr) ||
+      (r.id === initArea.id || r.id === initArea.id.replace(/^jdc-/, '')) ||
+      (String(r.nomorTitik).trim() === num && r.lantai === initArea.lantai)
+    );
+    if (rawMatch) {
+      tryAdd({
+        ...initArea,
+        firebaseId: rawMatch.firebaseId || rawMatch.supabaseId || initArea.firebaseId
+      });
+    } else {
+      tryAdd(initArea);
+    }
+  });
+
+  // 2. Add any additional custom areas that are not duplicates
+  rawList.forEach(raw => {
+    if (!raw) return;
+    tryAdd(raw);
+  });
+
+  return result;
+};
 
 const INITIAL_REPORTS = [];
 const INITIAL_FINDINGS = [];
@@ -867,20 +920,12 @@ export default function App() {
     try {
       const saved = localStorage.getItem('sapujagat_areas');
       const parsed = saved ? JSON.parse(saved) : null;
-      const initialIds = new Set(INITIAL_AREAS.map(a => a.id));
-      const merged = [...INITIAL_AREAS];
-      if (Array.isArray(parsed)) {
-        parsed.forEach(area => {
-          if (!initialIds.has(area.id)) {
-            merged.push(area);
-          }
-        });
-      }
-      localStorage.setItem('sapujagat_areas', JSON.stringify(merged));
+      const cleaned = cleanAndDeduplicateAreas(parsed);
+      localStorage.setItem('sapujagat_areas', JSON.stringify(cleaned));
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-      return merged;
+      return cleaned;
     } catch (e) {
-      return INITIAL_AREAS;
+      return [...INITIAL_AREAS];
     }
   });
 
@@ -1230,27 +1275,12 @@ export default function App() {
     const unsub = subscribeAreas((firebaseData) => {
       if (!firebaseData) return;
       setAreas(prev => {
-        const fbMap = new Map(firebaseData.map(fb => [fb.id, fb]));
-        const initialIds = new Set(INITIAL_AREAS.map(a => a.id));
-        const merged = INITIAL_AREAS.map(a => {
-          const fbMatch = fbMap.get(a.id);
-          return fbMatch ? { ...a, firebaseId: fbMatch.firebaseId } : a;
-        });
-        firebaseData.forEach(fb => {
-          if (!initialIds.has(fb.id)) {
-            merged.push(fb);
-          }
-        });
-        const fbIds = new Set(firebaseData.map(fb => fb.id));
-        prev.forEach(local => {
-          if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
-            if (merged.length < 500) merged.push(local);
-          }
-        });
+        const combined = [...(firebaseData || []), ...(prev || [])];
+        const cleaned = cleanAndDeduplicateAreas(combined);
         try {
-          localStorage.setItem('sapujagat_areas', JSON.stringify(merged));
+          localStorage.setItem('sapujagat_areas', JSON.stringify(cleaned));
         } catch (e) {}
-        return merged;
+        return cleaned;
       });
     }, { limit: 500 });
     return () => unsub();

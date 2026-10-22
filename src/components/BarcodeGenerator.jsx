@@ -159,7 +159,7 @@ export default function BarcodeGenerator({
   useEffect(() => {
     const nums = areas.map(a => parseInt(a.nomorTitik, 10)).filter(n => !isNaN(n));
     const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
-    if (!nomorTitik) setNomorTitik(next);
+    setNomorTitik(next);
   }, [areas]);
 
   useEffect(() => {
@@ -215,7 +215,30 @@ export default function BarcodeGenerator({
 
   const getSortedAreas = useCallback((items) => {
     if (!items || !Array.isArray(items)) return [];
-    return [...items].sort((a, b) => {
+
+    // Filter duplicates by QR Code, (lantai + titik), and nomorTitik
+    const seenQr = new Set();
+    const seenLoc = new Set();
+    const seenNum = new Set();
+    const unique = [];
+
+    for (const a of items) {
+      if (!a) continue;
+      const qr = (a.qrCode || '').toUpperCase().trim();
+      const num = String(a.nomorTitik || '').trim();
+      const locKey = `${(a.lantai || '').toLowerCase()}|${(a.titik || '').toLowerCase()}`;
+
+      if (qr && seenQr.has(qr)) continue;
+      if (seenLoc.has(locKey)) continue;
+      if (num && seenNum.has(num)) continue;
+
+      if (qr) seenQr.add(qr);
+      seenLoc.add(locKey);
+      if (num) seenNum.add(num);
+      unique.push(a);
+    }
+
+    return unique.sort((a, b) => {
       const na = parseInt(a.nomorTitik, 10);
       const nb = parseInt(b.nomorTitik, 10);
       const hasNa = !isNaN(na);
@@ -235,14 +258,22 @@ export default function BarcodeGenerator({
   const handleAdd = (e) => {
     e.preventDefault();
     if (!titik.trim()) { alert('Lokasi tidak boleh kosong!'); return; }
-    const qrCode = nomorTitik.trim()
-      ? buildBarcodeCode(floorFinal, zoneFinal, nomorTitik.trim())
+    const inputNomor = nomorTitik.trim();
+    if (inputNomor) {
+      const existing = areas.find(a => String(a.nomorTitik).trim() === inputNomor);
+      if (existing) {
+        alert(`Nomor titik ${inputNomor} sudah digunakan untuk lokasi "${existing.titik}"! Masukkan nomor lain agar tidak dobel.`);
+        return;
+      }
+    }
+    const qrCode = inputNomor
+      ? buildBarcodeCode(floorFinal, zoneFinal, inputNomor)
       : getQRPattern();
     onAddArea({
       gedung: 'SMPJDC - Jakarta Design Center',
       lantai: floorFinal,
       zona: zoneFinal,
-      nomorTitik: nomorTitik.trim(),
+      nomorTitik: inputNomor,
       titik: titik.trim(),
       qrCode
     });
@@ -649,11 +680,35 @@ export default function BarcodeGenerator({
       return;
     }
     const confirmed = window.confirm(
-      'Apakah Anda ingin merapikan dan mengurutkan nomor titik (1..N) serta memperbarui kode barcode agar seragam sesuai standar lantai & zona?'
+      'Apakah Anda ingin merapikan seluruh checkpoint, menghapus pendobelan nomor/barcode, mengurutkan nomor 1..N, dan menyamakan format barcode?'
     );
     if (!confirmed) return;
 
-    const sorted = [...areas].sort((a, b) => {
+    // Filter duplicates by normalized qrCode, location, and nomorTitik
+    const seenQr = new Set();
+    const seenLoc = new Set();
+    const uniqueAreas = [];
+    const duplicateIds = [];
+
+    for (const a of areas) {
+      const qr = (a.qrCode || '').toUpperCase().trim();
+      const locKey = `${(a.lantai || '').toLowerCase()}|${(a.titik || '').toLowerCase()}`;
+      if ((qr && seenQr.has(qr)) || seenLoc.has(locKey)) {
+        duplicateIds.push(a.id);
+      } else {
+        if (qr) seenQr.add(qr);
+        seenLoc.add(locKey);
+        uniqueAreas.push(a);
+      }
+    }
+
+    // Delete any duplicates
+    duplicateIds.forEach(id => {
+      onDeleteArea(id);
+    });
+
+    // Sort unique areas by logical building floor progression
+    const sorted = [...uniqueAreas].sort((a, b) => {
       const fa = FLOOR_ORDER[a.lantai] !== undefined ? FLOOR_ORDER[a.lantai] : 99;
       const fb = FLOOR_ORDER[b.lantai] !== undefined ? FLOOR_ORDER[b.lantai] : 99;
       if (fa !== fb) return fa - fb;
@@ -680,9 +735,9 @@ export default function BarcodeGenerator({
 
     if (addToast) {
       addToast(
-        updatedCount > 0
-          ? `Berhasil merapikan & menstandarkan ${updatedCount} barcode!`
-          : 'Semua checkpoint sudah rapi dan berurutan sesuai standar.',
+        duplicateIds.length > 0
+          ? `Berhasil menghapus ${duplicateIds.length} data duplikat & merapikan nomor 1..${sorted.length}!`
+          : `Berhasil mengurutkan dan menstandarkan nomor 1..${sorted.length}!`,
         'success'
       );
     }
@@ -711,15 +766,23 @@ export default function BarcodeGenerator({
   const handleEditAreaSubmit = (e) => {
     e.preventDefault();
     if (!eTitik.trim()) { alert('Lokasi tidak boleh kosong!'); return; }
+    const inputNomor = eNomorTitik.trim();
+    if (inputNomor) {
+      const existing = areas.find(a => a.id !== editArea.id && String(a.nomorTitik).trim() === inputNomor);
+      if (existing) {
+        alert(`Nomor titik ${inputNomor} sudah digunakan untuk lokasi "${existing.titik}"! Masukkan nomor lain agar tidak dobel.`);
+        return;
+      }
+    }
     const eFloorFinal = eFloor === '__LAINNYA__' ? (eFloorCustom.trim() || 'Custom') : eFloor;
     const eZoneFinal = eZone === '__LAINNYA__' ? (eZoneCustom.trim() || 'Custom') : eZone;
-    const newQrCode = eNomorTitik.trim()
-      ? buildBarcodeCode(eFloorFinal, eZoneFinal, eNomorTitik.trim())
+    const newQrCode = inputNomor
+      ? buildBarcodeCode(eFloorFinal, eZoneFinal, inputNomor)
       : (eQrCode.trim() || buildBarcodeCode(eFloorFinal, eZoneFinal, '0'));
     onUpdateArea(editArea.id, {
       lantai: eFloorFinal,
       zona: eZoneFinal,
-      nomorTitik: eNomorTitik.trim(),
+      nomorTitik: inputNomor,
       titik: eTitik.trim(),
       qrCode: newQrCode
     });
