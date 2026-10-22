@@ -36,6 +36,12 @@ service cloud.firestore {
       allow create: if isAuthenticated();
     }
     
+    match /found_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (isOwner(resource.data.nama_penemu) || isAdmin());
+      allow create: if isAuthenticated();
+    }
+    
     match /attendance_logs/{logId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && isAdmin();
