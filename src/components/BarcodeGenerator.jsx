@@ -3,7 +3,7 @@ import {
   Plus, Download, Printer, Layers, Check,
   Building, User, UserCheck, Phone, Hash,
   RefreshCw, AlertTriangle, Edit3, Trash2, X,
-  MapPin, QrCode, Shield
+  MapPin, QrCode, Shield, ArrowUpDown
 } from 'lucide-react';
 
 import QRCode from 'qrcode';
@@ -46,6 +46,53 @@ const QR_LOCATION_CODES = {
   'Halaman Belakang': 'HB',
 };
 
+const QR_ZONE_CODES = {
+  'A': 'A',
+  'B': 'B',
+  'C': 'C',
+  'D': 'D',
+  'Lobby': 'LOBBY',
+  'Halaman Depan': 'HD',
+  'Halaman Belakang': 'HB',
+  'Posco Security': 'PS',
+  'Petugas Teknik': 'PT',
+  'Lapangan Padel': 'LP',
+  'Area Padel': 'AP',
+};
+
+const FLOOR_ORDER = {
+  'Basement': 0,
+  '1': 1, 'Lantai 1': 1,
+  '2': 2, 'Lantai 2': 2,
+  '3': 3, 'Lantai 3': 3,
+  '4': 4, 'Lantai 4': 4,
+  '5': 5, 'Lantai 5': 5,
+  '6': 6, 'Lantai 6': 6,
+  'Halaman Depan': 7,
+  'Halaman Samping Kanan': 8,
+  'Halaman Belakang': 9,
+  'Halaman Samping Kiri': 10,
+};
+
+export const getFloorCode = (floorVal) => {
+  if (QR_LOCATION_CODES[floorVal]) return QR_LOCATION_CODES[floorVal];
+  const clean = (floorVal || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return clean || 'LT';
+};
+
+export const getZoneCode = (zoneVal) => {
+  if (QR_ZONE_CODES[zoneVal]) return QR_ZONE_CODES[zoneVal];
+  const clean = (zoneVal || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return clean || 'A';
+};
+
+export const buildBarcodeCode = (floorVal, zoneVal, numVal) => {
+  const fCode = getFloorCode(floorVal);
+  const zCode = getZoneCode(zoneVal);
+  const nCode = String(numVal || '').trim();
+  return `JDC-${fCode}-${zCode}-${nCode}`;
+};
+
 const REGU_OPTIONS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
 const SHIFT_OPTIONS = [
   { value: 'Pagi', label: 'Pagi (06:00 - 14:00)' },
@@ -69,7 +116,7 @@ export default function BarcodeGenerator({
   // ── Single Area Creator state ──
   const [floor, setFloor] = useState('1');
   const [floorCustom, setFloorCustom] = useState('');
-  const [zone, setZone] = useState('Zone A');
+  const [zone, setZone] = useState('A');
   const [zoneCustom, setZoneCustom] = useState('');
   const [titik, setTitik] = useState('');
   const [nomorTitik, setNomorTitik] = useState('');
@@ -166,11 +213,39 @@ export default function BarcodeGenerator({
     return `QR-${qrLocCode}-${num}`;
   };
 
+  const getSortedAreas = useCallback((items) => {
+    if (!items || !Array.isArray(items)) return [];
+    return [...items].sort((a, b) => {
+      const na = parseInt(a.nomorTitik, 10);
+      const nb = parseInt(b.nomorTitik, 10);
+      const hasNa = !isNaN(na);
+      const hasNb = !isNaN(nb);
+      if (hasNa && hasNb && na !== nb) return na - nb;
+      if (hasNa && !hasNb) return -1;
+      if (!hasNa && hasNb) return 1;
+      const fa = FLOOR_ORDER[a.lantai] !== undefined ? FLOOR_ORDER[a.lantai] : 99;
+      const fb = FLOOR_ORDER[b.lantai] !== undefined ? FLOOR_ORDER[b.lantai] : 99;
+      if (fa !== fb) return fa - fb;
+      const za = (a.zona || '').localeCompare(b.zona || '');
+      if (za !== 0) return za;
+      return (a.titik || '').localeCompare(b.titik || '');
+    });
+  }, []);
+
   const handleAdd = (e) => {
     e.preventDefault();
     if (!titik.trim()) { alert('Lokasi tidak boleh kosong!'); return; }
-    const qrCode = nomorTitik.trim() ? `JDC-${qrLocCode}-${nomorTitik.trim()}` : getQRPattern();
-    onAddArea({ gedung: 'SMPJDC - Jakarta Design Center', lantai: floorFinal, zona: zoneFinal, nomorTitik: nomorTitik.trim(), titik: titik.trim(), qrCode });
+    const qrCode = nomorTitik.trim()
+      ? buildBarcodeCode(floorFinal, zoneFinal, nomorTitik.trim())
+      : getQRPattern();
+    onAddArea({
+      gedung: 'SMPJDC - Jakarta Design Center',
+      lantai: floorFinal,
+      zona: zoneFinal,
+      nomorTitik: nomorTitik.trim(),
+      titik: titik.trim(),
+      qrCode
+    });
     const newCount = qrCounter + 1;
     setQrCounter(newCount);
     localStorage.setItem('smpjdc_qr_counter', String(newCount));
@@ -178,8 +253,8 @@ export default function BarcodeGenerator({
   };
 
   const handleDownloadQR = async (area) => {
-    if (downloadingId) return
-    setDownloadingId(area.id)
+    if (downloadingId) return;
+    setDownloadingId(area.id);
     if (addToast) addToast(`Menyiapkan QR ${area.qrCode}...`, 'info');
     try {
       const dataUrl = await generateQRDataURL(area.qrCode);
@@ -194,30 +269,32 @@ export default function BarcodeGenerator({
       console.error('Download QR failed:', err);
       if (addToast) addToast('Gagal download QR, coba lagi', 'danger');
     } finally {
-      setDownloadingId(null)
+      setDownloadingId(null);
     }
   };
 
   const handlePrintQR = async (area) => {
-    if (printLoadingId) return
-    setPrintLoadingId(area.id)
-    const printWin = window.open('', '_blank', 'width=400,height=600');
+    if (printLoadingId) return;
+    setPrintLoadingId(area.id);
+    const printWin = window.open('', '_blank', 'width=450,height=600');
     if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
       if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
       else alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
-      setPrintLoadingId(null)
+      setPrintLoadingId(null);
       return;
     }
-    if (addToast) addToast('Menyiapkan cetak QR...', 'info');
+    if (addToast) addToast(`Menyiapkan cetak QR ${area.qrCode}...`, 'info');
     try {
       const dataUrl = await generateQRDataURL(area.qrCode);
       printWin.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
-            <title>Cetak QR Checkpoint - ${area.qrCode}</title>
+            <meta charset="utf-8" />
+            <title>Cetak Barcode - ${area.qrCode}</title>
             <style>
               body {
-                font-family: 'Inter', sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -226,31 +303,78 @@ export default function BarcodeGenerator({
                 margin: 0;
                 padding: 20px;
                 box-sizing: border-box;
-                text-align: center;
                 color: #0b0f19;
+                background: #f8fafc;
               }
-              .qr-card {
-                border: 3px double #0b0f19;
-                padding: 25px;
-                border-radius: 12px;
-                display: inline-block;
+              .barcode-card {
+                border: 2px dashed #475569;
+                padding: 16px;
+                border-radius: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
                 background: #fff;
+                width: 250px;
+                box-sizing: border-box;
+                text-align: center;
+                position: relative;
               }
-              img { width: 280px; height: 280px; margin-bottom: 15px; }
-              h2 { margin: 0 0 5px 0; font-size: 22px; letter-spacing: 1px; }
-              p { margin: 0; font-size: 14px; color: #555; }
-              @media print { body { -webkit-print-color-adjust: exact; } }
+              .cut-guide {
+                position: absolute;
+                top: 4px;
+                right: 8px;
+                font-size: 11px;
+                color: #94a3b8;
+              }
+              img {
+                width: 190px;
+                height: 190px;
+                object-fit: contain;
+                display: block;
+                margin: 0 auto;
+              }
+              .barcode-code {
+                margin: 10px 0 2px 0;
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+                color: #0b0f19;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+              }
+              .barcode-loc {
+                margin: 0;
+                font-size: 12.5px;
+                font-weight: 600;
+                color: #334155;
+                line-height: 1.3;
+              }
+              .no-print {
+                margin-top: 15px;
+                font-size: 12px;
+                color: #94a3b8;
+              }
+              @media print {
+                body {
+                  background: #fff !important;
+                  -webkit-print-color-adjust: exact;
+                  padding: 0;
+                }
+                .no-print {
+                  display: none !important;
+                }
+              }
             </style>
           </head>
           <body>
-            <div class="qr-card">
-              <img src="${dataUrl}" alt="QR Checkpoint" />
-              <h2>${area.qrCode}</h2>
-              <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
-              <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+            <div class="barcode-card">
+              <span class="cut-guide">✂</span>
+              <img src="${dataUrl}" alt="${area.qrCode}" />
+              <div class="barcode-code">${area.qrCode}</div>
+              <div class="barcode-loc">${area.titik}</div>
             </div>
-            <p style="margin-top: 20px; font-size: 12px; color: #999;">Tutup jendela ini setelah mencetak.</p>
-            <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
+            <p class="no-print">Format Standar Barcode Checkpoint SMPJDC</p>
+            <script>window.onload=function(){setTimeout(function(){window.print();},400)};<\/script>
           </body>
         </html>
       `);
@@ -260,52 +384,255 @@ export default function BarcodeGenerator({
       if (addToast) addToast('Gagal menyiapkan QR untuk cetak', 'danger');
       printWin.close();
     } finally {
-      setPrintLoadingId(null)
+      setPrintLoadingId(null);
     }
   };
 
   const handlePrintAllQRs = async () => {
-    if (areas.length === 0) {
+    const sorted = getSortedAreas(areas);
+    if (sorted.length === 0) {
       if (addToast) addToast('Tidak ada checkpoint untuk dicetak', 'warning');
       return;
     }
-    if (addToast) addToast(`Menyiapkan cetak ${areas.length} QR...`, 'info');
+    if (addToast) addToast(`Menyiapkan cetak ${sorted.length} QR (Format 6 per HVS)...`, 'info');
     try {
-      const allHtml = await Promise.all(areas.map(async (area) => {
-        const dataUrl = await generateQRDataURL(area.qrCode);
-        return `
-          <div class="qr-card">
-            <img src="${dataUrl}" alt="QR Checkpoint" />
-            <h2>${area.qrCode}</h2>
-            <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
-            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
-          </div>
-          <div class="page-break"></div>
-        `;
+      const qrPairs = await Promise.all(sorted.map(async (area) => {
+        const url = await generateQRDataURL(area.qrCode);
+        return [area.id, url];
       }));
-      const printWin = window.open('', '_blank', 'width=500,height=700');
+      const qrMap = Object.fromEntries(qrPairs);
+
+      const chunkSize = 6;
+      const pages = [];
+      for (let i = 0; i < sorted.length; i += chunkSize) {
+        pages.push(sorted.slice(i, i + chunkSize));
+      }
+
+      const pagesHtml = pages.map((pageItems, pageIdx) => {
+        const cardsHtml = pageItems.map(area => `
+          <div class="barcode-card">
+            <span class="cut-guide">✂</span>
+            <div class="qr-box">
+              <img src="${qrMap[area.id]}" alt="${area.qrCode}" />
+            </div>
+            <div class="barcode-code">${area.qrCode}</div>
+            <div class="barcode-loc" title="${area.titik}">${area.titik}</div>
+          </div>
+        `).join('');
+
+        const emptySlots = 6 - pageItems.length;
+        const emptyHtml = Array.from({ length: emptySlots }).map(() => `
+          <div class="barcode-card empty-card">
+            <div class="empty-placeholder">Area Potong Kosong</div>
+          </div>
+        `).join('');
+
+        return `
+          <div class="hvs-sheet">
+            ${cardsHtml}
+            ${emptyHtml}
+          </div>
+        `;
+      }).join('');
+
+      const printWin = window.open('', '_blank', 'width=800,height=900');
       if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
         if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
         return;
       }
+
       printWin.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
-            <title>Cetak Semua QR Checkpoint</title>
+            <meta charset="utf-8" />
+            <title>Cetak Barcode Checkpoint SMPJDC (6 Barcode / HVS)</title>
             <style>
-              body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; color: #0b0f19; }
-              .qr-card { border: 2px solid #ccc; padding: 15px; border-radius: 8px; display: inline-block; background: #fff; text-align: center; page-break-inside: avoid; margin: 0 auto; }
-              .page-break { page-break-after: always; height: 20px; }
-              img { width: 200px; height: 200px; margin-bottom: 10px; }
-              h2 { margin: 0 0 3px 0; font-size: 16px; letter-spacing: 1px; }
-              p { margin: 0; font-size: 11px; color: #555; }
-              @media print { body { -webkit-print-color-adjust: exact; } .page-break { page-break-after: always; height: 0; } }
+              @page {
+                size: A4 portrait;
+                margin: 8mm;
+              }
+              * {
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                background: #f1f5f9;
+                color: #0b0f19;
+              }
+              .toolbar-noprint {
+                position: sticky;
+                top: 0;
+                background: #0f172a;
+                color: #ffffff;
+                padding: 10px 16px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                z-index: 100;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+              }
+              .toolbar-noprint button {
+                background: #0ea5e9;
+                color: #ffffff;
+                border: none;
+                padding: 8px 18px;
+                border-radius: 6px;
+                font-weight: 700;
+                font-size: 13px;
+                cursor: pointer;
+              }
+              .sheets-container {
+                padding: 15px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+              }
+              .hvs-sheet {
+                width: 194mm;
+                height: 275mm;
+                background: #ffffff;
+                padding: 5mm;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(3, 1fr);
+                gap: 6mm;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                page-break-after: always;
+                break-after: page;
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+              .hvs-sheet:last-of-type {
+                page-break-after: auto;
+                break-after: auto;
+              }
+              .barcode-card {
+                border: 1.5px dashed #475569;
+                border-radius: 6px;
+                background: #ffffff;
+                padding: 8px 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                height: 100%;
+                max-height: 85mm;
+                overflow: hidden;
+                position: relative;
+              }
+              .empty-card {
+                border-color: #cbd5e1;
+                border-style: dotted;
+                background: #f8fafc;
+              }
+              .empty-placeholder {
+                color: #94a3b8;
+                font-size: 11px;
+                font-weight: 600;
+              }
+              .cut-guide {
+                position: absolute;
+                top: 3px;
+                right: 6px;
+                font-size: 11px;
+                color: #94a3b8;
+                user-select: none;
+              }
+              .qr-box {
+                width: 145px;
+                height: 145px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto;
+              }
+              .qr-box img {
+                width: 145px;
+                height: 145px;
+                object-fit: contain;
+                display: block;
+              }
+              .barcode-code {
+                margin: 8px 0 2px 0;
+                font-size: 16px;
+                font-weight: 800;
+                color: #0b0f19;
+                letter-spacing: 0.5px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+                line-height: 1.2;
+                white-space: nowrap;
+              }
+              .barcode-loc {
+                margin: 0;
+                font-size: 11px;
+                font-weight: 600;
+                color: #334155;
+                line-height: 1.25;
+                max-width: 95%;
+                height: 28px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                text-align: center;
+              }
+              @media print {
+                body {
+                  background: #ffffff !important;
+                }
+                .toolbar-noprint {
+                  display: none !important;
+                }
+                .sheets-container {
+                  padding: 0 !important;
+                  gap: 0 !important;
+                }
+                .hvs-sheet {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  height: 275mm !important;
+                  max-height: 275mm !important;
+                  box-shadow: none !important;
+                  margin: 0 !important;
+                  padding: 2mm !important;
+                  page-break-after: always !important;
+                  break-after: page !important;
+                }
+                .hvs-sheet:last-of-type {
+                  page-break-after: auto !important;
+                  break-after: auto !important;
+                }
+                .empty-card {
+                  visibility: hidden !important;
+                }
+              }
             </style>
           </head>
           <body>
-            ${allHtml.join('')}
-            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">Total ${areas.length} QR Checkpoint</p>
-            <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
+            <div class="toolbar-noprint">
+              <div>
+                <strong>Cetak Barcode Checkpoint</strong> — Total ${sorted.length} Barcode (${pages.length} Lembar HVS A4)
+              </div>
+              <button onclick="window.print()">🖨️ Cetak Dokumen</button>
+            </div>
+            <div class="sheets-container">
+              ${pagesHtml}
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                }, 500);
+              };
+            <\/script>
           </body>
         </html>
       `);
@@ -313,6 +640,51 @@ export default function BarcodeGenerator({
     } catch (err) {
       console.error('Print all QR failed:', err);
       if (addToast) addToast('Gagal mencetak QR', 'danger');
+    }
+  };
+
+  const handleResequenceAndStandardize = () => {
+    if (!areas || areas.length === 0) {
+      if (addToast) addToast('Tidak ada checkpoint untuk dirapikan', 'warning');
+      return;
+    }
+    const confirmed = window.confirm(
+      'Apakah Anda ingin merapikan dan mengurutkan nomor titik (1..N) serta memperbarui kode barcode agar seragam sesuai standar lantai & zona?'
+    );
+    if (!confirmed) return;
+
+    const sorted = [...areas].sort((a, b) => {
+      const fa = FLOOR_ORDER[a.lantai] !== undefined ? FLOOR_ORDER[a.lantai] : 99;
+      const fb = FLOOR_ORDER[b.lantai] !== undefined ? FLOOR_ORDER[b.lantai] : 99;
+      if (fa !== fb) return fa - fb;
+      const za = (a.zona || '').localeCompare(b.zona || '');
+      if (za !== 0) return za;
+      const na = parseInt(a.nomorTitik, 10);
+      const nb = parseInt(b.nomorTitik, 10);
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+      return (a.titik || '').localeCompare(b.titik || '');
+    });
+
+    let updatedCount = 0;
+    sorted.forEach((area, index) => {
+      const newNum = String(index + 1);
+      const newQr = buildBarcodeCode(area.lantai, area.zona, newNum);
+      if (area.nomorTitik !== newNum || area.qrCode !== newQr) {
+        updatedCount++;
+        onUpdateArea(area.id, {
+          nomorTitik: newNum,
+          qrCode: newQr
+        });
+      }
+    });
+
+    if (addToast) {
+      addToast(
+        updatedCount > 0
+          ? `Berhasil merapikan & menstandarkan ${updatedCount} barcode!`
+          : 'Semua checkpoint sudah rapi dan berurutan sesuai standar.',
+        'success'
+      );
     }
   };
 
@@ -341,8 +713,9 @@ export default function BarcodeGenerator({
     if (!eTitik.trim()) { alert('Lokasi tidak boleh kosong!'); return; }
     const eFloorFinal = eFloor === '__LAINNYA__' ? (eFloorCustom.trim() || 'Custom') : eFloor;
     const eZoneFinal = eZone === '__LAINNYA__' ? (eZoneCustom.trim() || 'Custom') : eZone;
-    const eQrLocCode = QR_LOCATION_CODES[eFloor] || eFloorFinal.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    const newQrCode = eNomorTitik.trim() ? `JDC-${eQrLocCode}-${eNomorTitik.trim()}` : eQrCode;
+    const newQrCode = eNomorTitik.trim()
+      ? buildBarcodeCode(eFloorFinal, eZoneFinal, eNomorTitik.trim())
+      : (eQrCode.trim() || buildBarcodeCode(eFloorFinal, eZoneFinal, '0'));
     onUpdateArea(editArea.id, {
       lantai: eFloorFinal,
       zona: eZoneFinal,
@@ -398,17 +771,18 @@ export default function BarcodeGenerator({
     setBulkDownloadReady(false);
     setGenProgress(0);
 
-    const areasToGenerate = areas;
+    const areasToGenerate = getSortedAreas(areas);
     const total = areasToGenerate.length;
 
     for (let i = 0; i < total; i++) {
       const area = areasToGenerate[i];
-      const qrData = area.qrCode || `JDC-${area.zona || 'X'}-${area.nomorTitik}`;
+      const qrData = area.qrCode || buildBarcodeCode(area.lantai, area.zona, area.nomorTitik || (i + 1));
       try {
         const dataUrl = await generateQRDataURL(qrData);
         const link = document.createElement('a');
         link.href = dataUrl;
-        link.download = `QR-${qrData.replace(/[^a-zA-Z0-9]/g, '-')}.png`;
+        const numPrefix = String(area.nomorTitik || (i + 1)).padStart(2, '0');
+        link.download = `QR-${numPrefix}-${qrData.replace(/[^a-zA-Z0-9]/g, '-')}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -445,15 +819,6 @@ export default function BarcodeGenerator({
       p.lantai?.toLowerCase().includes(q)
     );
   }, [posList, searchPos]);
-
-  const getSortedAreas = (items) => [...items].sort((a, b) => {
-    const na = parseInt(a.nomorTitik, 10);
-    const nb = parseInt(b.nomorTitik, 10);
-    if (isNaN(na) && isNaN(nb)) return (a.nomorTitik || '').localeCompare(b.nomorTitik || '');
-    if (isNaN(na)) return 1;
-    if (isNaN(nb)) return -1;
-    return na - nb;
-  });
 
   const handleExportCheckpointPDF = () => {
     const rows = getSortedAreas(filteredAreas);
@@ -631,7 +996,7 @@ export default function BarcodeGenerator({
                     <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">{titik || '-'}</span></div>
                     <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid var(--border-glass)' }}>
                       <span className="preview-label">QR Code:</span>
-                      <p className="preview-qr">{nomorTitik.trim() ? `JDC-${qrLocCode}-${nomorTitik.trim()}` : getQRPattern()}</p>
+                      <p className="preview-qr">{nomorTitik.trim() ? buildBarcodeCode(floorFinal, zoneFinal, nomorTitik.trim()) : getQRPattern()}</p>
                     </div>
                   </div>
                 </div>
@@ -651,17 +1016,24 @@ export default function BarcodeGenerator({
                 <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
                 <span>Daftar Checkpoint Aktif ({areas.length})</span>
               </h3>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', minWidth: '140px' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ position: 'relative', minWidth: '130px' }}>
                   <input type="text" value={searchArea} onChange={e => setSearchArea(e.target.value)}
-                    placeholder="Cari lokasi/QR..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '44px' }} />
+                    placeholder="Cari lokasi/QR..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '42px' }} />
                 </div>
                 <button type="button" onClick={handlePrintAllQRs} className="btn-primary"
-                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
-                  <Printer size={14} /> Cetak Semua QR
+                  title="Cetak format kertas HVS (A4) isi 6 barcode per lembar"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '42px', touchAction: 'manipulation' }} data-no-ripple>
+                  <Printer size={14} /> Cetak 6 QR / Lembar HVS
+                </button>
+                <button type="button" onClick={handleResequenceAndStandardize} className="btn-secondary"
+                  title="Urutkan nomor titik 1..N & sinkronkan format kode barcode"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '42px', touchAction: 'manipulation' }} data-no-ripple>
+                  <ArrowUpDown size={14} /> Urutkan & Rapikan
                 </button>
                 <button type="button" onClick={handleExportCheckpointPDF} className="btn-secondary"
-                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
+                  title="Export tabel format PDF"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '42px', touchAction: 'manipulation' }} data-no-ripple>
                   <Download size={14} /> Export Tabel PDF
                 </button>
               </div>
@@ -1220,9 +1592,21 @@ export default function BarcodeGenerator({
 
               <div className="form-field">
                 <label className="form-label">QR CODE</label>
-                <input type="text" value={eQrCode} onChange={e => setEQrCode(e.target.value)} className="form-input form-input-sm"
-                  style={{ fontFamily: 'monospace', fontSize: '0.8rem', opacity: 0.7 }} />
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>* Akan digenerate otomatis jika nomor titik diisi</span>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  <input type="text" value={eQrCode} onChange={e => setEQrCode(e.target.value)} className="form-input form-input-sm"
+                    style={{ fontFamily: 'monospace', fontSize: '0.8rem', opacity: 0.9, flex: 1 }} />
+                  <button type="button" className="btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.72rem', whiteSpace: 'nowrap' }}
+                    onClick={() => {
+                      const ef = eFloor === '__LAINNYA__' ? (eFloorCustom.trim() || 'Custom') : eFloor;
+                      const ez = eZone === '__LAINNYA__' ? (eZoneCustom.trim() || 'Custom') : eZone;
+                      setEQrCode(buildBarcodeCode(ef, ez, eNomorTitik.trim() || '0'));
+                    }}>
+                    Standarkan
+                  </button>
+                </div>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  * Kode standar: {buildBarcodeCode(eFloor === '__LAINNYA__' ? (eFloorCustom.trim() || 'Custom') : eFloor, eZone === '__LAINNYA__' ? (eZoneCustom.trim() || 'Custom') : eZone, eNomorTitik.trim() || '-')}
+                </span>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>

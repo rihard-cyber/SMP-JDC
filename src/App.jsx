@@ -97,7 +97,7 @@ const INITIAL_AREAS = [
   { id: 'l4-b-9',    gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '9',  zona: 'B',              titik: 'Tangga Sudut Pantry',               qrCode: 'JDC-LT04-B-9' },
   { id: 'l4-a-10',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '4',                 nomorTitik: '10', zona: 'A',              titik: 'Tangga Sudut BNI 46',               qrCode: 'JDC-LT04-A-10' },
   { id: 'l5-b-11',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '11', zona: 'B',              titik: 'Tangga Sudut Gardu PLN',            qrCode: 'JDC-LT05-B-11' },
-  { id: 'l5-a-12',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '12', zona: 'A',              titik: 'Tangga Sudut R. Rapat JDC OFFICE Office', qrCode: 'JDC-LT05-A-12' },
+  { id: 'l5-a-12',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '5',                 nomorTitik: '12', zona: 'A',              titik: 'Tangga Sudut R. Rapat JDC Office', qrCode: 'JDC-LT05-A-12' },
   { id: 'l6-a-13',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '13', zona: 'A',              titik: 'Tangga Sudut Mushola',              qrCode: 'JDC-LT06-A-13' },
   { id: 'l6-b-14',   gedung: 'SMPJDC - Jakarta Design Center', lantai: '6',                 nomorTitik: '14', zona: 'B',              titik: 'Depan Gudang Banquet / R.Carnition', qrCode: 'JDC-LT06-B-14' },
   { id: 'hd-c-15',   gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Halaman Depan',     nomorTitik: '15', zona: 'C',              titik: 'Coridor IAI DKI',                   qrCode: 'JDC-HD-C-15' },
