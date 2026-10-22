@@ -1905,19 +1905,42 @@ export default function App() {
     }
   };
 
-  const handleUpdateFoundItem = (id, updates) => {
+  const handleUpdateFoundItem = async (id, updates) => {
     const target = foundItems.find(f => f.id === id);
     if (!target) return;
+
+    const prepared = { ...updates };
+    try {
+      if (prepared.foto_barang && prepared.foto_barang.startsWith('data:image')) {
+        prepared.foto_barang = await uploadPhoto(prepared.foto_barang, `found_items/${id}_main.jpg`);
+      }
+      if (Array.isArray(prepared.photos) && prepared.photos.length) {
+        const uploaded = [];
+        for (let i = 0; i < prepared.photos.length; i++) {
+          const p = prepared.photos[i];
+          if (typeof p === 'string' && p.startsWith('data:image')) {
+            uploaded.push(await uploadPhoto(p, `found_items/${id}_${i}.jpg`));
+          } else {
+            uploaded.push(p);
+          }
+        }
+        prepared.photos = uploaded;
+      }
+    } catch (e) {
+      addToast(`Gagal upload foto: ${e.message}`, 'warning');
+    }
+
     setFoundItems(prev => {
-      const updated = prev.map(f => f.id === id ? { ...f, ...updates, updated_at: new Date().toISOString() } : f);
+      const updated = prev.map(f => f.id === id ? { ...f, ...prepared, updated_at: new Date().toISOString() } : f);
       try { localStorage.setItem('sapujagat_found_items', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
+
     const fid = target.supabaseId || target.firebaseId;
     if (fid) {
-      updateFoundItemInFirestore(fid, updates).catch(e => addToast(`Gagal update barang: ${e.message}`, 'warning'));
+      updateFoundItemInFirestore(fid, prepared).catch(e => addToast(`Gagal update barang: ${e.message}`, 'warning'));
     } else {
-      addFoundItemToFirestore({ ...target, ...updates }).then(fid2 => {
+      addFoundItemToFirestore({ ...target, ...prepared }).then(fid2 => {
         if (fid2) {
           setFoundItems(prev => prev.map(f =>
             f.id === id ? { ...f, supabaseId: fid2, firebaseId: fid2 } : f
@@ -1955,20 +1978,40 @@ export default function App() {
     });
   };
 
-  const updateFoundItemStatus = (itemId, newStatus, extraData = {}) => {
-    let updatedItem = null;
+  const updateFoundItemStatus = async (itemId, newStatus, extraData = {}) => {
+    const target = foundItems.find(f => f.id === itemId);
+    const prepared = { ...extraData };
+
+    try {
+      if (prepared.foto_identitas && prepared.foto_identitas.startsWith('data:image')) {
+        prepared.foto_identitas = await uploadPhoto(prepared.foto_identitas, `found_items/${itemId}_identitas.jpg`);
+      }
+    } catch (e) {
+      addToast(`Gagal upload foto identitas: ${e.message}`, 'warning');
+    }
+
+    const merged = { status: newStatus, ...prepared, updated_at: new Date().toISOString() };
+
     setFoundItems(prev => prev.map(f => {
       if (f.id === itemId) {
         addToast(`Status barang ${f.nama_barang} diubah ke ${newStatus}`, 'info');
-        updatedItem = { ...f, status: newStatus, ...extraData, updated_at: new Date().toISOString() };
-        const fid = updatedItem.supabaseId || updatedItem.firebaseId;
-        if (fid) {
-          updateFoundItemInFirestore(fid, { status: newStatus, ...extraData }).catch(e => addToast(`Gagal update status: ${e.message}`, 'warning'));
-        }
-        return updatedItem;
+        return { ...f, ...merged };
       }
       return f;
     }));
+
+    const fid = target?.supabaseId || target?.firebaseId;
+    if (fid) {
+      updateFoundItemInFirestore(fid, merged).catch(e => addToast(`Gagal update status: ${e.message}`, 'warning'));
+    } else if (target) {
+      addFoundItemToFirestore({ ...target, ...merged }).then(fid2 => {
+        if (fid2) {
+          setFoundItems(prev => prev.map(f =>
+            f.id === itemId ? { ...f, supabaseId: fid2, firebaseId: fid2 } : f
+          ));
+        }
+      }).catch(e => addToast(`Gagal sync status: ${e.message}`, 'warning'));
+    }
   };
 
   const handleAddMutasi = async (log) => {

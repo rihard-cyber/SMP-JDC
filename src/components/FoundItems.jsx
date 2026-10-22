@@ -3,49 +3,73 @@
  *   SMPJDC - Found Items / Lost & Found (Penemuan Barang)
  *   Component: FoundItems.jsx
  *   Signed by: Richard Meha (by -Richard)
- *   Description: Manage lost & found items with photo, claim workflow
+ *   Description: Dashboard Penemuan Barang (gaya ComplaintAdmin)
+ *                + Export PDF (gaya ReportsExport)
  * =======================================================
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Package, Archive, Search, Filter, Plus, Edit, Trash2, Eye, 
-  CheckCircle, XCircle, AlertCircle, Info, Camera, Image,
-  Download, Upload, Mail, Phone, User, Clock, Calendar,
-  Tag, MapPin, Shield, ArrowRight, ArrowLeft, RefreshCw,
-  ChevronDown, ChevronUp, MoreVertical, Printer, FileText
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Package, Search, Printer, Plus, Edit, Trash2, X, Camera, Image,
+  MapPin, Calendar, Clock, User, Phone, Tag, Shield, CheckCircle,
+  AlertTriangle, ArrowRight, Archive, FileText, ChevronDown, ChevronUp,
+  RefreshCw, Info
 } from 'lucide-react';
+import { exportTableToPdf, formatDateOnlyId, formatDateForFile, getFirstPhoto } from '../utils/exportPdf';
 import { compressImage } from '../utils/image';
 import { hapticLight } from '../utils/haptics';
-import ConfirmModal from './ConfirmModal';
 
-const STATUS_OPTIONS = [
-  { value: 'Ditemukan', label: 'Ditemukan', color: 'bg-blue-500', icon: Package },
-  { value: 'Diklaim', label: 'Diklaim', color: 'bg-yellow-500', icon: AlertCircle },
-  { value: 'Diambil', label: 'Diambil', color: 'bg-green-500', icon: CheckCircle },
-  { value: 'Diserahkan', label: 'Diserahkan', color: 'bg-purple-500', icon: Archive },
-  { value: 'Dihapus', label: 'Dihapus', color: 'bg-gray-500', icon: XCircle },
-];
+const STATUS_LIST = ['Ditemukan', 'Diklaim', 'Diambil', 'Diserahkan'];
+
+const STATUS_COLOR = {
+  Ditemukan: '#3b82f6',
+  Diklaim: '#f59e0b',
+  Diambil: '#10b981',
+  Diserahkan: '#8b5cf6',
+  Dihapus: '#6b7280'
+};
 
 const JENIS_BARANG = [
-  'Elektronik', 'Aksesoris', 'Dokumen', 'Pakaian', 
+  'Elektronik', 'Aksesoris', 'Dokumen', 'Pakaian',
   'Tas/Dompet', 'Kunci', 'Kartu Akses', 'Lainnya'
 ];
 
 const KATEGORI_BARANG = [
-  { value: 'Value tinggi', label: 'Value Tinggi (>1jt)', color: 'bg-red-100 text-red-700' },
-  { value: 'Value sedang', label: 'Value Sedang (100rb-1jt)', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'Value rendah', label: 'Value Rendah (<100rb)', color: 'bg-green-100 text-green-700' },
-  { value: 'Dokumentasi', label: 'Dokumentasi Penting', color: 'bg-blue-100 text-blue-700' },
+  'Value tinggi (>1jt)',
+  'Value sedang (100rb - 1jt)',
+  'Value rendah (<100rb)',
+  'Dokumentasi penting'
 ];
 
-const KATEGORI_PENEMU = [
-  'Security', 'Cleaning', 'Tenant', 'Pengunjung', 'Staff Teknik', 'Lainnya'
-];
+const KATEGORI_PENEMU = ['Security', 'Cleaning', 'Tenant', 'Pengunjung', 'Staff Teknik', 'Lainnya'];
 
-export default function FoundItems({ 
-  foundItems = [], 
-  users = [], 
+const emptyForm = (user) => ({
+  nama_barang: '',
+  jenis_barang: '',
+  kategori_barang: '',
+  lokasi_penemuan: '',
+  nama_penemu: user?.nama || '',
+  kategori_penemu: 'Security',
+  kontak_penemu: user?.nomorHp || user?.nomor_hp || '',
+  keterangan_penemu: '',
+  tanggal_penemuan: new Date().toISOString().split('T')[0],
+  jam_penemuan: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+  foto_barang: '',
+  photos: []
+});
+
+const emptyClaim = (user) => ({
+  nama_pengambil: '',
+  kontak_pengambil: '',
+  no_identitas_pengambil: '',
+  foto_identitas: '',
+  diserahkan_oleh: user?.nama || '',
+  catatan_serah_terima: ''
+});
+
+export default function FoundItems({
+  foundItems = [],
+  users = [],
   currentUser,
   onAddFoundItem,
   onUpdateFoundItem,
@@ -53,730 +77,650 @@ export default function FoundItems({
   onUpdateFoundItemStatus,
   isClient = false
 }) {
-  const [activeTab, setActiveTab] = useState('semua');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [viewingItem, setViewingItem] = useState(null);
-  const [showConfirm, setShowConfirm] = useState(null);
-  const [formData, setFormData] = useState({
-    nama_barang: '',
-    jenis_barang: '',
-    kategori_barang: '',
-    lokasi_penemuan: '',
-    nama_penemu: '',
-    kategori_penemu: 'Security',
-    kontak_penemu: '',
-    keterangan_penemu: '',
-    foto_barang: '',
-    photos: [],
-  });
-  const [claimData, setClaimData] = useState({
-    nama_pengambil: '',
-    kontak_pengambil: '',
-    no_identitas_pengambil: '',
-    foto_identitas: '',
-    diserahkan_oleh: '',
-    catatan_serah_terima: '',
-  });
-  const [cameraMode, setCameraMode] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [formData, setFormData] = useState(() => emptyForm(currentUser));
+  const [claimItem, setClaimItem] = useState(null);
+  const [claimData, setClaimData] = useState(() => emptyClaim(currentUser));
   const [toasts, setToasts] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [claimError, setClaimError] = useState('');
 
-  // Auto-clear toasts
-  useEffect(() => {
-    toasts.forEach(toast => {
-      setTimeout(() => removeToast(toast.id), 3000);
-    });
-  }, [toasts]);
+  const canManage = ['Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru'].includes(currentUser?.jabatan);
 
   const addToast = (message, type = 'info') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   };
 
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  // Reset form when opening/closing
-  useEffect(() => {
-    if (!showForm && !editingItem) {
-      setFormData({
-        nama_barang: '',
-        jenis_barang: '',
-        kategori_barang: '',
-        lokasi_penemuan: '',
-        nama_penemu: currentUser?.nama || '',
-        kategori_penemu: 'Security',
-        kontak_penemu: currentUser?.nomor_hp || currentUser?.nomorHp || '',
-        keterangan_penemu: '',
-        foto_barang: '',
-        photos: [],
-      });
-      setEditingItem(null);
-      setCameraMode(false);
-      setPhotoPreview(null);
-      setActivePhotoIndex(0);
-    }
-    if (editingItem) {
-      setFormData({
-        nama_barang: editingItem.nama_barang || '',
-        jenis_barang: editingItem.jenis_barang || '',
-        kategori_barang: editingItem.kategori_barang || '',
-        lokasi_penemuan: editingItem.lokasi_penemuan || '',
-        nama_penemu: editingItem.nama_penemu || '',
-        kategori_penemu: editingItem.kategori_penemu || 'Security',
-        kontak_penemu: editingItem.kontak_penemu || '',
-        keterangan_penemu: editingItem.keterangan_penemu || '',
-        foto_barang: editingItem.foto_barang || '',
-        photos: editingItem.photos || [],
-      });
-      setCameraMode(false);
-      setPhotoPreview(null);
-      setActivePhotoIndex(0);
-    }
-  }, [showForm, editingItem, currentUser]);
-
-  // Filter items
-  const filteredItems = useMemo(() => {
-    let items = [...foundItems].sort((a, b) => new Date(b.tanggal_penemuan || 0) - new Date(a.tanggal_penemuan || 0));
-    
-    if (activeTab !== 'semua') {
-      items = items.filter(f => f.status === activeTab);
-    }
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      items = items.filter(f => 
-        (f.nama_barang || '').toLowerCase().includes(q) ||
-        (f.item_code || '').toLowerCase().includes(q) ||
-        (f.jenis_barang || '').toLowerCase().includes(q) ||
-        (f.lokasi_penemuan || '').toLowerCase().includes(q) ||
-        (f.nama_penemu || '').toLowerCase().includes(q) ||
-        (f.nama_pengambil || '').toLowerCase().includes(q)
-      );
-    }
-    
-    return items;
-  }, [foundItems, activeTab, searchQuery]);
-
-  // Stats
+  // ── Stats ──────────────────────────────────────────────────────────────
   const stats = useMemo(() => ({
-    total: foundItems.length,
-    ditemukan: foundItems.filter(f => f.status === 'Ditemukan').length,
-    diklaim: foundItems.filter(f => f.status === 'Diklaim').length,
-    diambil: foundItems.filter(f => f.status === 'Diambil').length,
-    diserahkan: foundItems.filter(f => f.status === 'Diserahkan').length,
+    all: foundItems.length,
+    Ditemukan: foundItems.filter(f => f.status === 'Ditemukan').length,
+    Diklaim: foundItems.filter(f => f.status === 'Diklaim').length,
+    Diambil: foundItems.filter(f => f.status === 'Diambil').length,
+    Diserahkan: foundItems.filter(f => f.status === 'Diserahkan').length
   }), [foundItems]);
 
-  const handleImageUpload = async (e, field) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-      addToast('File harus berupa gambar', 'danger');
-      return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      addToast('Ukuran file maksimal 5MB', 'danger');
-      return;
-    }
-
-    try {
-      const compressed = await compressImage(file, 800, 0.7);
-      if (field === 'foto_barang') {
-        setFormData(prev => ({ ...prev, foto_barang: compressed }));
-      } else if (field === 'foto_identitas') {
-        setClaimData(prev => ({ ...prev, foto_identitas: compressed }));
-      } else if (field === 'photos') {
-        setFormData(prev => ({ ...prev, photos: [...prev.photos, compressed] }));
+  // ── Filter + Search ────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return foundItems.filter(f => {
+      if (filter !== 'all' && f.status !== filter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const hay = [
+          f.item_code, f.nama_barang, f.jenis_barang, f.kategori_barang,
+          f.lokasi_penemuan, f.nama_penemu, f.kontak_penemu,
+          f.nama_pengambil, f.kontak_pengambil, f.keterangan_penemu
+        ].map(v => String(v || '').toLowerCase()).join(' ');
+        if (!hay.includes(q)) return false;
       }
-      addToast('Foto berhasil ditambahkan', 'success');
-    } catch (err) {
-      addToast(`Gagal memproses foto: ${err.message}`, 'danger');
-    }
+      return true;
+    }).sort((a, b) => String(b.tanggal_penemuan || b.created_at || '').localeCompare(String(a.tanggal_penemuan || a.created_at || '')));
+  }, [foundItems, filter, search]);
+
+  // ── Form helpers ───────────────────────────────────────────────────────
+  const openAddForm = () => {
+    setEditingItem(null);
+    setFormData(emptyForm(currentUser));
+    setFormError('');
+    setShowForm(true);
+    hapticLight?.();
   };
 
-  const handleCameraCapture = async (field) => {
+  const openEditForm = (item) => {
+    setEditingItem(item);
+    setFormData({
+      nama_barang: item.nama_barang || '',
+      jenis_barang: item.jenis_barang || '',
+      kategori_barang: item.kategori_barang || '',
+      lokasi_penemuan: item.lokasi_penemuan || '',
+      nama_penemu: item.nama_penemu || '',
+      kategori_penemu: item.kategori_penemu || 'Security',
+      kontak_penemu: item.kontak_penemu || '',
+      keterangan_penemu: item.keterangan_penemu || '',
+      tanggal_penemuan: item.tanggal_penemuan || new Date().toISOString().split('T')[0],
+      jam_penemuan: item.jam_penemuan || '',
+      foto_barang: item.foto_barang || '',
+      photos: Array.isArray(item.photos) ? [...item.photos] : []
+    });
+    setFormError('');
+    setShowForm(true);
+    hapticLight?.();
+  };
+
+  const readImage = (file) => new Promise((resolve, reject) => {
+    if (!file) return resolve('');
+    if (!file.type.startsWith('image/')) return reject(new Error('File harus berupa gambar'));
+    if (file.size > 5 * 1024 * 1024) return reject(new Error('Ukuran maksimal 5MB'));
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const compressed = await compressImage(reader.result, 800, 0.7);
+        resolve(compressed);
+      } catch (e) { resolve(reader.result); }
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleMainPhoto = async (e) => {
     try {
-      const { Camera } = await import('@capacitor/camera');
-      const photo = await Camera.getPhoto({
+      const data = await readImage(e.target.files?.[0]);
+      if (data) {
+        setFormData(prev => ({ ...prev, foto_barang: data }));
+        addToast('Foto utama ditambahkan', 'success');
+      }
+    } catch (err) {
+      addToast(err.message, 'danger');
+    }
+    e.target.value = '';
+  };
+
+  const handleExtraPhoto = async (e) => {
+    try {
+      const data = await readImage(e.target.files?.[0]);
+      if (data) {
+        setFormData(prev => ({ ...prev, photos: [...prev.photos, data] }));
+        addToast('Foto tambahan ditambahkan', 'success');
+      }
+    } catch (err) {
+      addToast(err.message, 'danger');
+    }
+    e.target.value = '';
+  };
+
+  const takePhoto = async (field) => {
+    try {
+      const { Camera: CapCamera } = await import('@capacitor/camera');
+      const photo = await CapCamera.getPhoto({
         quality: 80,
         allowEditing: true,
         resultType: 'dataUrl',
-        source: 'camera',
-        saveToGallery: false,
+        source: 'CAMERA',
+        saveToGallery: false
       });
-      
-      const dataUrl = photo.dataUrl;
-      if (field === 'foto_barang') {
-        setFormData(prev => ({ ...prev, foto_barang: dataUrl }));
-      } else if (field === 'foto_identitas') {
-        setClaimData(prev => ({ ...prev, foto_identitas: dataUrl }));
-      } else if (field === 'photos') {
-        setFormData(prev => ({ ...prev, photos: [...prev.photos, dataUrl] }));
-      }
+      const data = await compressImage(photo.dataUrl, 800, 0.7);
+      if (field === 'main') setFormData(prev => ({ ...prev, foto_barang: data }));
+      else if (field === 'extra') setFormData(prev => ({ ...prev, photos: [...prev.photos, data] }));
+      else if (field === 'identitas') setClaimData(prev => ({ ...prev, foto_identitas: data }));
       addToast('Foto berhasil diambil', 'success');
     } catch (err) {
-      if (!err.message?.includes('cancelled')) {
-        addToast(`Gagal ambil foto: ${err.message}`, 'danger');
+      if (!String(err?.message || '').toLowerCase().includes('cancel')) {
+        addToast(`Kamera tidak tersedia: ${err.message || err}`, 'danger');
       }
     }
   };
 
-  const removePhoto = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index)
-    }));
+  const handleClaimIdentitas = async (e) => {
+    try {
+      const data = await readImage(e.target.files?.[0]);
+      if (data) {
+        setClaimData(prev => ({ ...prev, foto_identitas: data }));
+        addToast('Foto identitas ditambahkan', 'success');
+      }
+    } catch (err) {
+      addToast(err.message, 'danger');
+    }
+    e.target.value = '';
   };
 
-  const handleSubmit = async (e) => {
+  const submitForm = async (e) => {
     e.preventDefault();
-    hapticLight();
-    
-    if (!formData.nama_barang || !formData.jenis_barang || !formData.lokasi_penemuan) {
-      addToast('Nama barang, jenis, dan lokasi wajib diisi', 'danger');
-      return;
-    }
+    setFormError('');
+    if (!formData.nama_barang.trim()) return setFormError('Nama barang wajib diisi');
+    if (!formData.jenis_barang) return setFormError('Jenis barang wajib dipilih');
+    if (!formData.lokasi_penemuan.trim()) return setFormError('Lokasi penemuan wajib diisi');
 
-    const itemData = {
-      ...formData,
-      photos: formData.photos.length > 0 ? formData.photos : undefined,
-    };
-
-    if (editingItem) {
-      onUpdateFoundItem(editingItem.id, itemData);
-      addToast('Data barang temuan diperbarui', 'success');
-    } else {
-      await onAddFoundItem(itemData);
+    setSaving(true);
+    try {
+      const payload = {
+        ...formData,
+        nama_barang: formData.nama_barang.trim(),
+        lokasi_penemuan: formData.lokasi_penemuan.trim(),
+        photos: formData.photos.length ? formData.photos : undefined
+      };
+      if (editingItem) {
+        await onUpdateFoundItem(editingItem.id, payload);
+        addToast('Data barang temuan diperbarui', 'success');
+      } else {
+        await onAddFoundItem(payload);
+        addToast('Barang temuan berhasil dicatat', 'success');
+      }
+      setShowForm(false);
+      setEditingItem(null);
+      setFormData(emptyForm(currentUser));
+    } catch (err) {
+      setFormError(err?.message || 'Gagal menyimpan data');
+    } finally {
+      setSaving(false);
     }
-    
-    setShowForm(false);
-    setEditingItem(null);
   };
 
-  const handleClaim = (item) => {
-    setClaimData({
-      nama_pengambil: '',
-      kontak_pengambil: '',
-      no_identitas_pengambil: '',
-      foto_identitas: '',
-      diserahkan_oleh: currentUser?.nama || '',
-      catatan_serah_terima: '',
-    });
-    setShowConfirm({
-      title: 'Konfirmasi Pengambilan Barang',
-      message: <>Barang <strong>{item.nama_barang}</strong> (Kode: {item.item_code}) akan ditandai sebagai <strong>Diambil</strong>.<br/>Isi data pengambil di bawah ini.</>,
-      confirmLabel: 'Proses Pengambilan',
-      variant: 'success',
-      showClaimForm: true,
-      item,
-      claimData,
-      setClaimData,
-      onConfirm: async () => {
-        if (!claimData.nama_pengambil || !claimData.kontak_pengambil || !claimData.no_identitas_pengambil) {
-          addToast('Nama, kontak, dan no identitas pengambil wajib diisi', 'danger');
-          return false;
-        }
-        
-        const today = new Date().toISOString().split('T')[0];
-        const updates = {
-          status: 'Diambil',
-          nama_pengambil: claimData.nama_pengambil,
-          kontak_pengambil: claimData.kontak_pengambil,
-          no_identitas_pengambil: claimData.no_identitas_pengambil,
-          foto_identitas: claimData.foto_identitas,
-          diserahkan_oleh: claimData.diserahkan_oleh,
-          tanggal_pengambilan: today,
-          catatan_serah_terima: claimData.catatan_serah_terima,
-        };
-        
-        onUpdateFoundItemStatus(item.id, 'Diambil', updates);
-        addToast('Barang berhasil diserahkan ke pengambil', 'success');
-        setShowConfirm(null);
-        return true;
-      },
-      onCancel: () => setShowConfirm(null),
-    });
+  const submitClaim = async (e) => {
+    e.preventDefault();
+    setClaimError('');
+    if (!claimData.nama_pengambil.trim()) return setClaimError('Nama pengambil wajib diisi');
+    if (!claimData.kontak_pengambil.trim()) return setClaimError('Kontak pengambil wajib diisi');
+    if (!claimData.no_identitas_pengambil.trim()) return setClaimError('No identitas wajib diisi');
+
+    setSaving(true);
+    try {
+      await onUpdateFoundItemStatus(claimItem.id, 'Diambil', {
+        ...claimData,
+        tanggal_pengambilan: new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString()
+      });
+      addToast('Barang berhasil diserahkan ke pengambil', 'success');
+      setClaimItem(null);
+      setClaimData(emptyClaim(currentUser));
+    } catch (err) {
+      setClaimError(err?.message || 'Gagal memproses pengambilan');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleHandover = (item) => {
-    setShowConfirm({
-      title: 'Serahkan ke Manajemen/Pihak Berwajib',
-      message: <>Barang <strong>{item.nama_barang}</strong> akan ditandai sebagai <strong>Diserahkan</strong> ke manajemen/pihak berwajib.</>,
-      confirmLabel: 'Serahkan',
-      variant: 'primary',
-      onConfirm: () => {
-        onUpdateFoundItemStatus(item.id, 'Diserahkan', { 
-          diserahkan_oleh: currentUser?.nama || '',
-          keterangan: 'Diserahkan ke manajemen/pihak berwajib',
-        });
-        addToast('Barang telah diserahkan ke manajemen', 'success');
-        setShowConfirm(null);
-      },
-      onCancel: () => setShowConfirm(null),
+    onUpdateFoundItemStatus(item.id, 'Diserahkan', {
+      diserahkan_oleh: currentUser?.nama || '',
+      keterangan: 'Diserahkan ke manajemen / pihak berwajib',
+      tanggal_pengambilan: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString()
     });
+    addToast('Barang ditandai Diserahkan ke manajemen', 'success');
   };
 
-  const handleDelete = (item) => {
-    setShowConfirm({
-      title: 'Hapus Data Barang',
-      message: <>Yakin hapus data <strong>{item.nama_barang}</strong> (Kode: {item.item_code})?<br/>Data yang dihapus tidak bisa dikembalikan.</>,
-      confirmLabel: 'Hapus',
-      variant: 'danger',
-      onConfirm: () => {
-        onDeleteFoundItem(item.id);
-        addToast('Data barang temuan dihapus', 'success');
-        setShowConfirm(null);
-      },
-      onCancel: () => setShowConfirm(null),
+  const changeStatus = (item, status) => {
+    onUpdateFoundItemStatus(item.id, status, { updated_at: new Date().toISOString() });
+    addToast(`Status ${item.nama_barang} → ${status}`, 'info');
+  };
+
+  // ── Export PDF (gaya laporan) ──────────────────────────────────────────
+  const handleExportPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Laporan Penemuan Barang (Lost & Found)',
+      subtitle: 'SMPJDC - Jakarta Design Center',
+      fileName: `laporan-penemuan-barang-smpjdc-${formatDateForFile()}`,
+      orientation: 'landscape',
+      meta: [
+        { label: 'Filter Status', value: filter === 'all' ? 'Semua' : filter },
+        { label: 'Pencarian', value: search || '-' },
+        { label: 'Total Data', value: filtered.length },
+        { label: 'Sumber', value: 'Penemuan Barang / Lost & Found' }
+      ],
+      columns: [
+        { header: 'NO', width: '3%' },
+        { header: 'KODE BARANG', width: '8%' },
+        { header: 'JAM / TGL DITEMUKAN', width: '9%' },
+        { header: 'NAMA BARANG', width: '11%' },
+        { header: 'JENIS / NILAI', width: '10%' },
+        { header: 'LOKASI PENEMUAN', width: '11%' },
+        { header: 'PENEMU', width: '9%' },
+        { header: 'KONTAK PENEMU', width: '8%' },
+        { header: 'FOTO', width: '7%' },
+        { header: 'STATUS', width: '7%' },
+        { header: 'PENGAMBIL / TGL', width: '9%' },
+        { header: 'KETERANGAN', width: '8%' }
+      ],
+      rows: filtered.map((f, idx) => {
+        const tanggal = formatDateOnlyId(f.tanggal_penemuan || f.created_at);
+        const jam = f.jam_penemuan || '-';
+        const pengambil = f.nama_pengambil
+          ? `${f.nama_pengambil}${f.tanggal_pengambilan ? ` (${formatDateOnlyId(f.tanggal_pengambilan)})` : ''}`
+          : '-';
+        return [
+          idx + 1,
+          f.item_code || '-',
+          `${jam} / ${tanggal}`,
+          { text: f.nama_barang || '-', className: 'text-left' },
+          `${f.jenis_barang || '-'}${f.kategori_barang ? ` / ${f.kategori_barang}` : ''}`,
+          { text: f.lokasi_penemuan || '-', className: 'text-left' },
+          f.nama_penemu || '-',
+          f.kontak_penemu || '-',
+          { image: getFirstPhoto(f.foto_barang || f.photos), text: f.foto_barang ? 'Foto barang' : (f.photos?.length ? `${f.photos.length} foto` : '-') },
+          (f.status || 'Ditemukan').toUpperCase(),
+          pengambil,
+          { text: f.catatan_serah_terima || f.keterangan_penemu || f.keterangan || '-', className: 'text-left' }
+        ];
+      })
     });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
   };
 
-  const handleView = (item) => {
-    setViewingItem(item);
-  };
+  // ── Render helpers ─────────────────────────────────────────────────────
+  const statusColor = (s) => STATUS_COLOR[s] || '#6b7280';
 
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setShowForm(true);
-  };
-
-  const getStatusConfig = (status) => {
-    return STATUS_OPTIONS.find(s => s.value === status) || { value: status, label: status, color: 'bg-gray-500', icon: Info };
-  };
-
-  const getKategoriConfig = (kat) => {
-    return KATEGORI_BARANG.find(k => k.value === kat) || { value: kat, label: kat, color: 'bg-gray-100 text-gray-700' };
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
+  const formatDate = (v) => {
+    if (!v) return '-';
     try {
-      return new Date(dateStr).toLocaleDateString('id-ID', { 
-        day: '2-digit', month: 'short', year: 'numeric' 
-      });
-    } catch { return dateStr; }
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return String(v); }
   };
 
-  const formatTime = (timeStr) => {
-    if (!timeStr) return '-';
-    return timeStr;
-  };
-
-  return (
-    <div className="found-items-page">
-      {/* Header */}
-      <div className="page-header">
-        <div className="header-left">
-          <h1 className="page-title">
-            <Package className="inline mr-2" size={24} />
-            Penemuan Barang (Lost & Found)
-          </h1>
-          <p className="page-subtitle">Kelola barang temuan, klaim, dan serah terima</p>
-        </div>
-        <div className="header-right">
-          <button 
-            className="btn-primary" 
-            onClick={() => { setEditingItem(null); setShowForm(true); }}
-          >
-            <Plus size={18} className="mr-1" /> Catat Barang Temuan
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="stat-icon"><Package size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.total}</span>
-            <span className="stat-label">Total Barang</span>
-          </div>
-        </div>
-        <div className="stat-card blue">
-          <div className="stat-icon"><Package size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.ditemukan}</span>
-            <span className="stat-label">Ditemukan</span>
-          </div>
-        </div>
-        <div className="stat-card yellow">
-          <div className="stat-icon"><AlertCircle size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.diklaim}</span>
-            <span className="stat-label">Diklaim</span>
-          </div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-icon"><CheckCircle size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.diambil}</span>
-            <span className="stat-label">Diambil</span>
-          </div>
-        </div>
-        <div className="stat-card purple">
-          <div className="stat-icon"><Archive size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.diserahkan}</span>
-            <span className="stat-label">Diserahkan</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Search & Filter */}
-      <div className="toolbar">
-        <div className="search-box">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Cari nama barang, kode, lokasi, penemu..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-        </div>
-        <div className="filter-tabs">
-          {[
-            { key: 'semua', label: 'Semua', count: stats.total },
-            { key: 'Ditemukan', label: 'Ditemukan', count: stats.ditemukan },
-            { key: 'Diklaim', label: 'Diklaim', count: stats.diklaim },
-            { key: 'Diambil', label: 'Diambil', count: stats.diambil },
-            { key: 'Diserahkan', label: 'Diserahkan', count: stats.diserahkan },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              className={`filter-tab ${activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-              <span className="tab-count">{tab.count}</span>
-            </button>
+  const renderPhotos = (item) => {
+    const photos = [item.foto_barang, ...(Array.isArray(item.photos) ? item.photos : [])].filter(Boolean);
+    if (!photos.length) return null;
+    return (
+      <div style={{ marginBottom: '0.75rem' }}>
+        <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.35rem' }}>
+          FOTO BARANG ({photos.length})
+        </p>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {photos.map((p, i) => (
+            <a key={i} href={p} target="_blank" rel="noreferrer" title="Buka foto">
+              <img src={p} alt={`Foto ${i + 1}`} style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-glass)' }} />
+            </a>
           ))}
         </div>
       </div>
+    );
+  };
 
-      {/* Items List */}
-      <div className="items-container">
-        {filteredItems.length === 0 ? (
-          <div className="empty-state">
-            <Archive size={64} className="empty-icon" />
-            <h3>Tidak ada data barang temuan</h3>
-            <p>{activeTab !== 'semua' ? `Tidak ada barang dengan status "${activeTab}"` : 'Belum ada barang temuan yang dicatat'}</p>
-            {activeTab === 'semua' && (
-              <button className="btn-primary mt-4" onClick={() => setShowForm(true)}>
-                <Plus size={18} className="mr-1" /> Catat Barang Temuan Pertama
-              </button>
-            )}
+  const fieldRow = (Icon, label, value) => (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+      <Icon size={12} style={{ marginTop: 2, flexShrink: 0 }} />
+      <span style={{ minWidth: 92 }}>{label}</span>
+      <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{value || '-'}</strong>
+    </div>
+  );
+
+  return (
+    <div>
+      {/* ══ STATS (gaya Dashboard Komplain) ══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        {[
+          { label: 'Total Barang', value: stats.all, color: '#3b82f6' },
+          { label: 'Ditemukan', value: stats.Ditemukan, color: '#3b82f6' },
+          { label: 'Diklaim', value: stats.Diklaim, color: '#f59e0b' },
+          { label: 'Diambil', value: stats.Diambil, color: '#10b981' },
+          { label: 'Diserahkan', value: stats.Diserahkan, color: '#8b5cf6' }
+        ].map(s => (
+          <div key={s.label} className="glass-panel" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.15rem' }}>{s.label}</p>
+            <p style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color }}>{s.value}</p>
           </div>
-        ) : (
-          <div className="items-grid">
-            {filteredItems.map((item, index) => {
-              const StatusConfig = getStatusConfig(item.status);
-              const KategoriConfig = getKategoriConfig(item.kategori_barang);
-              const StatusIcon = StatusConfig.icon;
-              
-              return (
-                <div key={item.id} className="item-card" style={{ animationDelay: `${index * 50}ms` }}>
-                  {/* Photo Preview */}
-                  <div className="item-image">
-                    {item.foto_barang ? (
-                      <img 
-                        src={item.foto_barang} 
-                        alt={item.nama_barang}
-                        onClick={() => handleView(item)}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="no-image" onClick={() => handleView(item)}>
-                        <Package size={32} />
-                      </div>
-                    )}
-                    <div className="item-status-badge" style={{ backgroundColor: StatusConfig.color.replace('bg-', '').replace('-500', '') }}>
-                      <StatusIcon size={12} className="mr-1" />
-                      {StatusConfig.label}
-                    </div>
-                    {item.photos && item.photos.length > 0 && (
-                      <span className="photo-count-badge">
-                        <Image size={12} className="mr-1" /> +{item.photos.length}
+        ))}
+      </div>
+
+      {/* ══ TOOLBAR: Search + Filter + Export PDF ══ */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 140 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari kode / nama barang / lokasi / penemu..."
+            className="modern-input"
+            style={{ paddingLeft: '2rem', fontSize: '0.78rem' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+          {['all', ...STATUS_LIST].map(f => (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
+              border: `1.5px solid ${filter === f ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+              background: filter === f ? 'rgba(59,130,246,0.12)' : 'transparent',
+              color: filter === f ? 'var(--color-primary)' : 'var(--text-secondary)',
+              cursor: 'pointer', fontFamily: 'var(--font-sans)'
+            }}>{f === 'all' ? 'Semua' : f}</button>
+          ))}
+        </div>
+        <button onClick={handleExportPDF} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <Printer size={12} /> Export PDF
+        </button>
+        <button onClick={openAddForm} className="btn-primary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 700 }}>
+          <Plus size={14} /> Catat Barang
+        </button>
+      </div>
+
+      {/* ══ LIST (gaya kartu komplain) ══ */}
+      {filtered.length === 0 ? (
+        <div className="empty-state" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+          <Archive size={40} style={{ opacity: 0.2, marginBottom: '0.75rem', color: 'var(--text-muted)' }} />
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            {foundItems.length === 0 ? 'Belum ada barang temuan yang dicatat.' : 'Tidak ada data yang cocok dengan filter/pencarian.'}
+          </p>
+          {foundItems.length === 0 && (
+            <button onClick={openAddForm} className="btn-primary" style={{ marginTop: '0.85rem', padding: '0.45rem 0.9rem', fontSize: '0.75rem' }}>
+              <Plus size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Catat Barang Pertama
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {filtered.map(item => {
+            const isOpen = expandedId === item.id;
+            const sc = statusColor(item.status);
+            return (
+              <div key={item.id} className="glass-panel" style={{
+                padding: '0.75rem',
+                transition: 'var(--transition-smooth)',
+                borderLeft: `3px solid ${sc}`,
+                background: isOpen ? 'rgba(59,130,246,0.05)' : undefined
+              }}>
+                {/* Header klik untuk expand */}
+                <div onClick={() => setExpandedId(isOpen ? null : item.id)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.02em', color: 'var(--color-primary)' }}>
+                        {item.item_code || '-'}
                       </span>
-                    )}
+                      <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                        {item.nama_barang}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                      <span style={{
+                        fontSize: '0.6rem', padding: '0.12rem 0.5rem', borderRadius: '20px', fontWeight: 700, whiteSpace: 'nowrap',
+                        background: `${sc}20`, color: sc
+                      }}>{item.status || 'Ditemukan'}</span>
+                      {isOpen ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+                    </div>
                   </div>
+                  <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Tag size={10} /> {item.jenis_barang || '-'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {item.lokasi_penemuan || '-'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={10} /> {item.jam_penemuan || '-'} / {formatDate(item.tanggal_penemuan)}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><User size={10} /> {item.nama_penemu || '-'}</span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.15rem' }}>
+                    {item.kategori_barang ? `Kategori: ${item.kategori_barang}. ` : ''}{item.keterangan_penemu || 'Tidak ada keterangan tambahan.'}
+                  </p>
+                </div>
 
-                  <div className="item-content">
-                    <div className="item-header">
-                      <h3 className="item-name">{item.nama_barang}</h3>
-                      <span className="item-code">{item.item_code}</span>
+                {/* Detail panel (seperti komplain) */}
+                {isOpen && (
+                  <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)' }}>
+                    {renderPhotos(item)}
+
+                    <div className="form-grid-2" style={{ gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DATA PENEMUAN</p>
+                        {fieldRow(Calendar, 'Tanggal', formatDate(item.tanggal_penemuan))}
+                        {fieldRow(Clock, 'Jam', item.jam_penemuan)}
+                        {fieldRow(MapPin, 'Lokasi', item.lokasi_penemuan)}
+                        {fieldRow(Tag, 'Jenis', item.jenis_barang)}
+                        {fieldRow(Info, 'Kategori', item.kategori_barang)}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DATA PENEMU</p>
+                        {fieldRow(User, 'Nama', item.nama_penemu)}
+                        {fieldRow(Shield, 'Kategori', item.kategori_penemu)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem' }}>
+                          <Phone size={12} style={{ color: 'var(--color-success)' }} />
+                          <span style={{ minWidth: 92 }}>Kontak</span>
+                          {item.kontak_penemu ? (
+                            <a
+                              href={`https://wa.me/${String(item.kontak_penemu).replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                              target="_blank" rel="noreferrer"
+                              style={{ color: 'var(--color-success)', fontWeight: 600 }}
+                            >{item.kontak_penemu}</a>
+                          ) : <strong>-</strong>}
+                        </div>
+                        {fieldRow(FileText, 'Keterangan', item.keterangan_penemu)}
+                      </div>
                     </div>
-                    
-                    <div className="item-meta">
-                      <span className="meta-tag">
-                        <Tag size={12} className="mr-1" /> {item.jenis_barang}
-                      </span>
-                      <span className={`meta-tag ${KategoriConfig.color}`}>
-                        {KategoriConfig.label}
-                      </span>
-                    </div>
 
-                    <div className="item-details">
-                      <div className="detail-row">
-                        <MapPin size={14} className="detail-icon" />
-                        <span>{item.lokasi_penemuan}</span>
-                      </div>
-                      <div className="detail-row">
-                        <Calendar size={14} className="detail-icon" />
-                        <span>{formatDate(item.tanggal_penemuan)} · {formatTime(item.jam_penemuan)}</span>
-                      </div>
-                      <div className="detail-row">
-                        <User size={14} className="detail-icon" />
-                        <span>{item.nama_penemu} ({item.kategori_penemu})</span>
-                      </div>
-                      {item.kontak_penemu && (
-                        <div className="detail-row">
-                          <Phone size={14} className="detail-icon" />
-                          <span>{item.kontak_penemu}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Claim/Handover Info */}
-                    {item.status === 'Diambil' && (
-                      <div className="claim-info">
-                        <div className="claim-row">
-                          <User size={14} /> Diambil oleh: <strong>{item.nama_pengambil}</strong>
-                        </div>
-                        <div className="claim-row">
-                          <Phone size={14} /> {item.kontak_pengambil} · ID: {item.no_identitas_pengambil}
-                        </div>
-                        <div className="claim-row">
-                          <Calendar size={14} /> {formatDate(item.tanggal_pengambilan)} · Diserahkan oleh: {item.diserahkan_oleh}
-                        </div>
-                      </div>
-                    )}
-
-                    {item.status === 'Diserahkan' && (
-                      <div className="claim-info">
-                        <div className="claim-row">
-                          <Shield size={14} /> Diserahkan ke manajemen/pihak berwajib
-                        </div>
-                        <div className="claim-row">
-                          <User size={14} /> Oleh: {item.diserahkan_oleh}
-                        </div>
-                        {item.keterangan && (
-                          <div className="claim-row">
-                            <Info size={14} /> {item.keterangan}
+                    {/* Info pengambilan / serah terima */}
+                    {(item.status === 'Diambil' || item.status === 'Diserahkan') && (
+                      <div style={{ marginBottom: '0.75rem', padding: '0.6rem', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.3rem' }}>
+                          {item.status === 'Diambil' ? 'SERAH TERIMA PENGAMBILAN' : 'DISERAHKAN KE MANAJEMEN'}
+                        </p>
+                        {item.nama_pengambil && fieldRow(User, 'Pengambil', item.nama_pengambil)}
+                        {item.kontak_pengambil && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem' }}>
+                            <Phone size={12} style={{ color: 'var(--color-success)' }} />
+                            <span style={{ minWidth: 92 }}>Kontak</span>
+                            <a href={`https://wa.me/${String(item.kontak_pengambil).replace(/[^0-9]/g, '').replace(/^0/, '62')}`} target="_blank" rel="noreferrer" style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                              {item.kontak_pengambil}
+                            </a>
+                          </div>
+                        )}
+                        {item.no_identitas_pengambil && fieldRow(FileText, 'No Identitas', item.no_identitas_pengambil)}
+                        {item.tanggal_pengambilan && fieldRow(Calendar, 'Tgl Ambil', formatDate(item.tanggal_pengambilan))}
+                        {item.diserahkan_oleh && fieldRow(Shield, 'Diserahkan', item.diserahkan_oleh)}
+                        {item.catatan_serah_terima && fieldRow(Info, 'Catatan', item.catatan_serah_terima)}
+                        {item.foto_identitas && (
+                          <div style={{ marginTop: '0.4rem' }}>
+                            <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>FOTO IDENTITAS</p>
+                            <a href={item.foto_identitas} target="_blank" rel="noreferrer">
+                              <img src={item.foto_identitas} alt="Identitas" style={{ width: 96, height: 68, objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border-glass)' }} />
+                            </a>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Actions */}
-                    <div className="item-actions">
-                      <button 
-                        className="btn-action view" 
-                        onClick={() => handleView(item)}
-                        title="Lihat Detail"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      {['Admin Super', 'Danru', 'Wadanru'].includes(currentUser?.jabatan) && (
-                        <>
-                          <button 
-                            className="btn-action edit" 
-                            onClick={() => handleEdit(item)}
-                            title="Edit"
-                            disabled={item.status === 'Diambil' || item.status === 'Diserahkan'}
-                          >
-                            <Edit size={16} />
-                          </button>
-                          {item.status === 'Ditemukan' && (
-                            <button 
-                              className="btn-action claim" 
-                              onClick={() => handleClaim(item)}
-                              title="Proses Pengambilan"
-                            >
-                              <ArrowRight size={16} />
-                            </button>
-                          )}
-                          {item.status === 'Diklaim' && (
-                            <button 
-                              className="btn-action claim" 
-                              onClick={() => handleClaim(item)}
-                              title="Proses Pengambilan"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                          )}
-                          {['Ditemukan', 'Diklaim'].includes(item.status) && (
-                            <button 
-                              className="btn-action handover" 
-                              onClick={() => handleHandover(item)}
-                              title="Serahkan ke Manajemen"
-                            >
-                              <Archive size={16} />
-                            </button>
-                          )}
-                          <button 
-                            className="btn-action delete" 
-                            onClick={() => handleDelete(item)}
-                            title="Hapus"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Add/Edit Form Modal */}
-      {showForm && (
-        <div className="modal-overlay" onClick={() => { setShowForm(false); setEditingItem(null); }}>
-          <div className="modal-container" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingItem ? 'Edit Barang Temuan' : 'Catat Barang Temuan Baru'}</h2>
-              <button className="modal-close" onClick={() => { setShowForm(false); setEditingItem(null); }}>
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Nama Barang <span className="required">*</span></label>
-                  <input
-                    type="text"
-                    value={formData.nama_barang}
-                    onChange={e => setFormData(prev => ({ ...prev, nama_barang: e.target.value }))}
-                    placeholder="Contoh: iPhone 13 Pro, Tas Hitam, Kunci Motor"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Jenis Barang <span className="required">*</span></label>
-                  <select
-                    value={formData.jenis_barang}
-                    onChange={e => setFormData(prev => ({ ...prev, jenis_barang: e.target.value }))}
-                    required
-                  >
-                    <option value="">Pilih jenis</option>
-                    {JENIS_BARANG.map(j => <option key={j} value={j}>{j}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Kategori Nilai</label>
-                  <select
-                    value={formData.kategori_barang}
-                    onChange={e => setFormData(prev => ({ ...prev, kategori_barang: e.target.value }))}
-                  >
-                    <option value="">Pilih kategori</option>
-                    {KATEGORI_BARANG.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Lokasi Penemuan <span className="required">*</span></label>
-                  <input
-                    type="text"
-                    value={formData.lokasi_penemuan}
-                    onChange={e => setFormData(prev => ({ ...prev, lokasi_penemuan: e.target.value }))}
-                    placeholder="Contoh: Lantai 1 dekat tangga darurat B, Lobby utama"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Nama Penemu</label>
-                  <input
-                    type="text"
-                    value={formData.nama_penemu}
-                    onChange={e => setFormData(prev => ({ ...prev, nama_penemu: e.target.value }))}
-                    placeholder="Nama yang menemukan barang"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Kategori Penemu</label>
-                  <select
-                    value={formData.kategori_penemu}
-                    onChange={e => setFormData(prev => ({ ...prev, kategori_penemu: e.target.value }))}
-                  >
-                    {KATEGORI_PENEMU.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Kontak Penemu (WA/Telepon)</label>
-                  <input
-                    type="tel"
-                    value={formData.kontak_penemu}
-                    onChange={e => setFormData(prev => ({ ...prev, kontak_penemu: e.target.value }))}
-                    placeholder="08xxxxxxxxxx"
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>Keterangan Penemu</label>
-                  <textarea
-                    value={formData.keterangan_penemu}
-                    onChange={e => setFormData(prev => ({ ...prev, keterangan_penemu: e.target.value }))}
-                    rows={3}
-                    placeholder="Kondisi barang saat ditemukan, posisi, dll"
-                  />
-                </div>
-
-                {/* Photo Section */}
-                <div className="form-group full-width photo-section">
-                  <label>Foto Utama Barang <span className="required">*</span></label>
-                  <div className="photo-upload-area">
-                    {formData.foto_barang ? (
-                      <div className="photo-preview">
-                        <img src={formData.foto_barang} alt="Preview" />
-                        <button type="button" className="photo-remove" onClick={() => setFormData(prev => ({ ...prev, foto_barang: '' }))}>
-                          <X size={16} />
+                    {/* Aksi */}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {canManage && ['Ditemukan', 'Diklaim'].includes(item.status) && (
+                        <button
+                          onClick={() => {
+                            setClaimItem(item);
+                            setClaimData(emptyClaim(currentUser));
+                            setClaimError('');
+                          }}
+                          className="btn-success"
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem', border: 'none', borderRadius: 6, fontWeight: 700, background: '#25d366', color: '#fff', cursor: 'pointer' }}
+                        >
+                          <CheckCircle size={12} /> Proses Pengambilan
                         </button>
-                      </div>
-                    ) : (
-                      <div className="photo-placeholder" onClick={() => setCameraMode(true)}>
-                        <Camera size={32} className="mb-2" />
-                        <p>Klik untuk ambil foto atau upload</p>
-                        <span className="hint">Maks 5MB • JPG/PNG/WebP</span>
-                      </div>
-                    )}
-                    <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'foto_barang')} hidden id="foto_barang_input" />
-                    <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'photos')} hidden id="photos_input" multiple />
-                  </div>
-                </div>
-
-                {/* Additional Photos */}
-                {formData.photos.length > 0 && (
-                  <div className="form-group full-width">
-                    <label>Foto Tambahan ({formData.photos.length})</label>
-                    <div className="photos-grid">
-                      {formData.photos.map((photo, idx) => (
-                        <div key={idx} className="photo-thumb">
-                          <img src={photo} alt={`Additional ${idx}`} />
-                          <button type="button" className="photo-remove" onClick={() => removePhoto(idx)}>
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-                      <button type="button" className="photo-add" onClick={() => document.getElementById('photos_input').click()}>
-                        <Plus size={24} />
-                      </button>
+                      )}
+                      {canManage && ['Ditemukan', 'Diklaim'].includes(item.status) && (
+                        <button onClick={() => handleHandover(item)} className="btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Archive size={12} /> Serahkan Manajemen
+                        </button>
+                      )}
+                      {canManage && (
+                        <button onClick={() => openEditForm(item)} className="btn-secondary" style={{ padding: '0.35rem 0.65rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Edit size={12} /> Edit
+                        </button>
+                      )}
+                      {canManage && (
+                        <select
+                          value={item.status || 'Ditemukan'}
+                          onChange={(e) => changeStatus(item, e.target.value)}
+                          className="modern-select"
+                          style={{ padding: '0.3rem 0.45rem', fontSize: '0.68rem', width: 'auto' }}
+                        >
+                          {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      )}
+                      {canManage && !isClient && (
+                        <button onClick={() => onDeleteFoundItem(item.id)} className="btn-danger" style={{ padding: '0.35rem 0.65rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>
+                          <Trash2 size={12} /> Hapus
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => { setShowForm(false); setEditingItem(null); }}>
-                  Batal
-                </button>
-                <button type="submit" className="btn-primary">
-                  {editingItem ? 'Simpan Perubahan' : 'Simpan Barang Temuan'}
+            );
+          })}
+        </div>
+      )}
+
+      {/* ══ MODAL FORM TAMBAH / EDIT ══ */}
+      {showForm && (
+        <div className="modal-overlay" onClick={() => !saving && setShowForm(false)}>
+          <div className="glass-panel modal-panel" style={{ width: 720, maxWidth: '94%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="modal-title" style={{ fontSize: '1rem' }}>
+                <Package size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                {editingItem ? 'Edit Barang Temuan' : 'Catat Barang Temuan'}
+              </h2>
+              <button onClick={() => !saving && setShowForm(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {formError && (
+              <div style={{ fontSize: '0.72rem', color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px dashed rgba(239,68,68,0.4)', padding: '0.45rem 0.6rem', borderRadius: 6 }}>
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={submitForm} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <div className="form-grid-2">
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>NAMA BARANG *</p>
+                  <input className="modern-input" value={formData.nama_barang} onChange={e => setFormData(p => ({ ...p, nama_barang: e.target.value }))} placeholder="Contoh: iPhone 13, Tas Hitam, Kunci Motor" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>JENIS BARANG *</p>
+                  <select className="modern-select" value={formData.jenis_barang} onChange={e => setFormData(p => ({ ...p, jenis_barang: e.target.value }))}>
+                    <option value="">Pilih jenis</option>
+                    {JENIS_BARANG.map(j => <option key={j} value={j}>{j}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>KATEGORI NILAI</p>
+                  <select className="modern-select" value={formData.kategori_barang} onChange={e => setFormData(p => ({ ...p, kategori_barang: e.target.value }))}>
+                    <option value="">Pilih kategori</option>
+                    {KATEGORI_BARANG.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>LOKASI PENEMUAN *</p>
+                  <input className="modern-input" value={formData.lokasi_penemuan} onChange={e => setFormData(p => ({ ...p, lokasi_penemuan: e.target.value }))} placeholder="Contoh: Lantai 1 dekat tangga darurat B" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>TANGGAL DITEMUKAN</p>
+                  <input type="date" className="modern-input" value={formData.tanggal_penemuan} onChange={e => setFormData(p => ({ ...p, tanggal_penemuan: e.target.value }))} />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>JAM DITEMUKAN</p>
+                  <input type="time" className="modern-input" value={formData.jam_penemuan} onChange={e => setFormData(p => ({ ...p, jam_penemuan: e.target.value }))} />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>NAMA PENEMU</p>
+                  <input className="modern-input" value={formData.nama_penemu} onChange={e => setFormData(p => ({ ...p, nama_penemu: e.target.value }))} placeholder="Nama yang menemukan" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>KATEGORI PENEMU</p>
+                  <select className="modern-select" value={formData.kategori_penemu} onChange={e => setFormData(p => ({ ...p, kategori_penemu: e.target.value }))}>
+                    {KATEGORI_PENEMU.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>KONTAK PENEMU (WA/TELP)</p>
+                  <input type="tel" className="modern-input" value={formData.kontak_penemu} onChange={e => setFormData(p => ({ ...p, kontak_penemu: e.target.value }))} placeholder="08xxxxxxxxxx" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>KETERANGAN PENEMU</p>
+                  <input className="modern-input" value={formData.keterangan_penemu} onChange={e => setFormData(p => ({ ...p, keterangan_penemu: e.target.value }))} placeholder="Kondisi barang saat ditemukan" />
+                </div>
+              </div>
+
+              {/* Foto barang */}
+              <div>
+                <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.3rem' }}>FOTO BARANG</p>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {formData.foto_barang && (
+                    <div style={{ position: 'relative' }}>
+                      <img src={formData.foto_barang} alt="Foto utama" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-glass)' }} />
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, foto_barang: '' }))} style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={11} />
+                      </button>
+                    </div>
+                  )}
+                  {formData.photos.map((p, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={p} alt={`Tambahan ${i + 1}`} style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-glass)' }} />
+                      <button type="button" onClick={() => setFormData(prev => ({ ...prev, photos: prev.photos.filter((_, x) => x !== i) }))} style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="btn-secondary" style={{ padding: '0.45rem 0.7rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <Image size={13} /> Pilih Foto
+                    <input type="file" accept="image/*" hidden onChange={handleMainPhoto} />
+                  </label>
+                  <button type="button" onClick={() => takePhoto('main')} className="btn-secondary" style={{ padding: '0.45rem 0.7rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Camera size={13} /> Kamera
+                  </button>
+                  <label className="btn-secondary" style={{ padding: '0.45rem 0.7rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <Plus size={13} /> Foto Tambahan
+                    <input type="file" accept="image/*" hidden onChange={handleExtraPhoto} />
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowForm(false)} disabled={saving} style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem' }}>Batal</button>
+                <button type="submit" className="btn-primary" disabled={saving} style={{ padding: '0.45rem 0.95rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  {saving ? <RefreshCw size={13} /> : <CheckCircle size={13} />}
+                  {saving ? 'Menyimpan...' : (editingItem ? 'Simpan Perubahan' : 'Simpan Barang Temuan')}
                 </button>
               </div>
             </form>
@@ -784,126 +728,95 @@ export default function FoundItems({
         </div>
       )}
 
-      {/* View Detail Modal */}
-      {viewingItem && (
-        <div className="modal-overlay" onClick={() => setViewingItem(null)}>
-          <div className="modal-container large" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Detail Barang Temuan</h2>
-              <button className="modal-close" onClick={() => setViewingItem(null)}>
-                <X size={20} />
+      {/* ══ MODAL PROSES PENGAMBILAN ══ */}
+      {claimItem && (
+        <div className="modal-overlay" onClick={() => !saving && setClaimItem(null)}>
+          <div className="glass-panel modal-panel" style={{ width: 560, maxWidth: '94%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="modal-title" style={{ fontSize: '1rem' }}>
+                <CheckCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6, color: '#10b981' }} />
+                Proses Pengambilan Barang
+              </h2>
+              <button onClick={() => !saving && setClaimItem(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
-            <div className="modal-body detail-view">
-              <div className="detail-main">
-                {viewingItem.foto_barang ? (
-                  <img src={viewingItem.foto_barang} alt={viewingItem.nama_barang} className="detail-main-image" />
-                ) : (
-                  <div className="detail-no-image"><Package size={64} /></div>
-                )}
-                <div className="detail-main-info">
-                  <h3>{viewingItem.nama_barang}</h3>
-                  <span className="detail-code">{viewingItem.item_code}</span>
-                  <div className="detail-status">
-                    <StatusIcon size={16} className="mr-1" style={{ color: StatusConfig.color.replace('bg-', '').replace('-500', '') }} />
-                    <span className={`status-badge ${StatusConfig.color.replace('bg-', 'text-')}`}>{StatusConfig.label}</span>
-                  </div>
-                  <div className="detail-kategori">
-                    <Tag size={14} className="mr-1" /> {viewingItem.jenis_barang} · 
-                    <span className={`kategori-badge ${KategoriConfig.color}`}>{KategoriConfig.label}</span>
-                  </div>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+              Barang: <strong style={{ color: 'var(--text-primary)' }}>{claimItem.nama_barang}</strong> ({claimItem.item_code})
+            </p>
+
+            {claimError && (
+              <div style={{ fontSize: '0.72rem', color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: '1px dashed rgba(239,68,68,0.4)', padding: '0.45rem 0.6rem', borderRadius: 6 }}>
+                {claimError}
+              </div>
+            )}
+
+            <form onSubmit={submitClaim} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+              <div className="form-grid-2">
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>NAMA PENGAMBIL *</p>
+                  <input className="modern-input" value={claimData.nama_pengambil} onChange={e => setClaimData(p => ({ ...p, nama_pengambil: e.target.value }))} placeholder="Nama penerima/pengambil" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>KONTAK PENGAMBIL *</p>
+                  <input type="tel" className="modern-input" value={claimData.kontak_pengambil} onChange={e => setClaimData(p => ({ ...p, kontak_pengambil: e.target.value }))} placeholder="08xxxxxxxxxx" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>NO IDENTITAS (KTP/SIM) *</p>
+                  <input className="modern-input" value={claimData.no_identitas_pengambil} onChange={e => setClaimData(p => ({ ...p, no_identitas_pengambil: e.target.value }))} placeholder="Nomor KTP/SIM/ID" />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>DISERAHKAN OLEH</p>
+                  <input className="modern-input" value={claimData.diserahkan_oleh} onChange={e => setClaimData(p => ({ ...p, diserahkan_oleh: e.target.value }))} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.2rem' }}>CATATAN SERAH TERIMA</p>
+                  <textarea className="modern-input" rows={2} value={claimData.catatan_serah_terima} onChange={e => setClaimData(p => ({ ...p, catatan_serah_terima: e.target.value }))} placeholder="Kondisi barang saat diserahkan, dll" />
                 </div>
               </div>
 
-              <div className="detail-grid">
-                <div className="detail-section">
-                  <h4><MapPin size={16} className="mr-1" /> Lokasi & Waktu</h4>
-                  <div className="detail-field"><span>Lokasi</span> <strong>{viewingItem.lokasi_penemuan}</strong></div>
-                  <div className="detail-field"><span>Tanggal Penemuan</span> <strong>{formatDate(viewingItem.tanggal_penemuan)}</strong></div>
-                  <div className="detail-field"><span>Jam Penemuan</span> <strong>{formatTime(viewingItem.jam_penemuan)}</strong></div>
-                  <div className="detail-field"><span>Tanggal Laporan</span> <strong>{formatDate(viewingItem.tanggal_laporan)}</strong></div>
-                </div>
-                <div className="detail-section">
-                  <h4><User size={16} className="mr-1" /> Penemu</h4>
-                  <div className="detail-field"><span>Nama</span> <strong>{viewingItem.nama_penemu || '-'}</strong></div>
-                  <div className="detail-field"><span>Kategori</span> <strong>{viewingItem.kategori_penemu || '-'}</strong></div>
-                  <div className="detail-field"><span>Kontak</span> <strong>{viewingItem.kontak_penemu || '-'}</strong></div>
-                  <div className="detail-field"><span>Keterangan</span> <strong>{viewingItem.keterangan_penemu || '-'}</strong></div>
-                </div>
-                <div className="detail-section">
-                  <h4><Shield size={16} className="mr-1" /> Status & Proses</h4>
-                  <div className="detail-field"><span>Status</span> <strong className={`status-badge ${StatusConfig.color.replace('bg-', 'text-')}`}>{StatusConfig.label}</strong></div>
-                  {viewingItem.status === 'Diambil' && (
-                    <>
-                      <div className="detail-field"><span>Nama Pengambil</span> <strong>{viewingItem.nama_pengambil || '-'}</strong></div>
-                      <div className="detail-field"><span>Kontak Pengambil</span> <strong>{viewingItem.kontak_pengambil || '-'}</strong></div>
-                      <div className="detail-field"><span>No Identitas</span> <strong>{viewingItem.no_identitas_pengambil || '-'}</strong></div>
-                      <div className="detail-field"><span>Tanggal Pengambilan</span> <strong>{formatDate(viewingItem.tanggal_pengambilan)}</strong></div>
-                      <div className="detail-field"><span>Diserahkan Oleh</span> <strong>{viewingItem.diserahkan_oleh || '-'}</strong></div>
-                      <div className="detail-field"><span>Catatan Serah Terima</span> <strong>{viewingItem.catatan_serah_terima || '-'}</strong></div>
-                    </>
+              <div>
+                <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '0.3rem' }}>FOTO IDENTITAS PENGAMBIL</p>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {claimData.foto_identitas && (
+                    <div style={{ position: 'relative' }}>
+                      <img src={claimData.foto_identitas} alt="Identitas" style={{ width: 96, height: 68, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-glass)' }} />
+                      <button type="button" onClick={() => setClaimData(p => ({ ...p, foto_identitas: '' }))} style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer' }}>
+                        <X size={11} />
+                      </button>
+                    </div>
                   )}
-                  {viewingItem.status === 'Diserahkan' && (
-                    <>
-                      <div className="detail-field"><span>Diserahkan Oleh</span> <strong>{viewingItem.diserahkan_oleh || '-'}</strong></div>
-                      <div className="detail-field"><span>Keterangan</span> <strong>{viewingItem.keterangan || '-'}</strong></div>
-                    </>
-                  )}
+                  <label className="btn-secondary" style={{ padding: '0.45rem 0.7rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <Image size={13} /> Pilih Foto
+                    <input type="file" accept="image/*" hidden onChange={handleClaimIdentitas} />
+                  </label>
+                  <button type="button" onClick={() => takePhoto('identitas')} className="btn-secondary" style={{ padding: '0.45rem 0.7rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Camera size={13} /> Kamera
+                  </button>
                 </div>
               </div>
 
-              {viewingItem.photos && viewingItem.photos.length > 0 && (
-                <div className="detail-section">
-                  <h4><Image size={16} className="mr-1" /> Foto Tambahan</h4>
-                  <div className="detail-photos">
-                    {viewingItem.photos.map((photo, idx) => (
-                      <img key={idx} src={photo} alt={`Photo ${idx}`} className="detail-photo" />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button type="button" className="btn-secondary" onClick={() => setClaimItem(null)} disabled={saving} style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem' }}>Batal</button>
+                <button type="submit" className="btn-primary" disabled={saving} style={{ padding: '0.45rem 0.95rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#10b981' }}>
+                  <CheckCircle size={13} /> {saving ? 'Memproses...' : 'Konfirmasi Pengambilan'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Confirm Modal with Claim Form */}
-      {showConfirm && (
-        <ConfirmModal
-          {...showConfirm}
-          claimData={claimData}
-          setClaimData={setClaimData}
-          handleImageUpload={(e, field) => handleImageUpload(e, field)}
-          handleCameraCapture={(field) => handleCameraCapture(field)}
-        />
-      )}
-
-      {/* Toasts */}
-      <div className="toast-container">
-        {toasts.map(toast => (
-          <div key={toast.id} className={`toast ${toast.type}`}>
-            <span>{toast.message}</span>
-            <button onClick={() => removeToast(toast.id)}><X size={14} /></button>
-          </div>
+      {/* ══ TOASTS ══ */}
+      <div style={{ position: 'fixed', bottom: 20, right: 20, display: 'flex', flexDirection: 'column', gap: '0.4rem', zIndex: 200 }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            padding: '0.55rem 0.8rem', borderRadius: 8, fontSize: '0.75rem', fontWeight: 600,
+            background: t.type === 'danger' ? '#ef4444' : t.type === 'success' ? '#10b981' : t.type === 'warning' ? '#f59e0b' : '#3b82f6',
+            color: '#fff', boxShadow: '0 6px 20px rgba(0,0,0,0.3)', maxWidth: 320
+          }}>{t.message}</div>
         ))}
       </div>
-
-      {/* Camera Mode Overlay */}
-      {cameraMode && (
-        <div className="camera-overlay" onClick={() => setCameraMode(false)}>
-          <div className="camera-options" onClick={e => e.stopPropagation()}>
-            <button className="camera-option" onClick={() => { handleCameraCapture('foto_barang'); setCameraMode(false); }}>
-              <Camera size={24} className="mr-2" /> Ambil Foto (Kamera)
-            </button>
-            <button className="camera-option" onClick={() => { document.getElementById('foto_barang_input').click(); setCameraMode(false); }}>
-              <Image size={24} className="mr-2" /> Pilih dari Galeri
-            </button>
-            <button className="camera-option cancel" onClick={() => setCameraMode(false)}>
-              <X size={24} className="mr-2" /> Batal
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
