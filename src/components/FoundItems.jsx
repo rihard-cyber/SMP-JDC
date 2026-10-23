@@ -18,8 +18,16 @@ import {
 import { exportTableToPdf, formatDateOnlyId, formatDateTimeId, formatDateForFile, getFirstPhoto } from '../utils/exportPdf';
 import { compressImage } from '../utils/image';
 import { hapticLight } from '../utils/haptics';
+import { registerBackHandler } from '../utils/navigation';
 
 const STATUS_LIST = ['Ditemukan', 'Diklaim', 'Diambil', 'Diserahkan'];
+const FILTER_SHORT = {
+  all: 'Semua',
+  Ditemukan: 'Temuan',
+  Diklaim: 'Klaim',
+  Diambil: 'Ambil',
+  Diserahkan: 'Serah'
+};
 
 const STATUS_COLOR = {
   Ditemukan: '#3b82f6',
@@ -100,6 +108,21 @@ export default function FoundItems({
   const [claimError, setClaimError] = useState('');
 
   const canManage = ['Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru'].includes(currentUser?.jabatan);
+
+  // Android hardware back: tutup form / klaim sebelum keluar halaman
+  useEffect(() => {
+    if (!showForm && !claimItem) return;
+    const unregister = registerBackHandler(() => {
+      if (saving) return true;
+      if (showForm) {
+        setShowForm(false);
+        setEditingItem(null);
+      }
+      if (claimItem) setClaimItem(null);
+      return true;
+    });
+    return unregister;
+  }, [showForm, claimItem, saving]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random();
@@ -431,52 +454,64 @@ export default function FoundItems({
 
   return (
     <div>
-      {/* ══ STATS (gaya Dashboard Komplain) ══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+      {/* ══ STATS (grid simetris 5 kolom di semua ukuran layar) ══ */}
+      <div className="found-stats-grid">
         {[
-          { label: 'Total Barang', value: stats.all, color: '#3b82f6' },
-          { label: 'Ditemukan', value: stats.Ditemukan, color: '#3b82f6' },
-          { label: 'Diklaim', value: stats.Diklaim, color: '#f59e0b' },
-          { label: 'Diambil', value: stats.Diambil, color: '#10b981' },
-          { label: 'Diserahkan', value: stats.Diserahkan, color: '#8b5cf6' }
+          { label: 'Total Barang', short: 'Total', value: stats.all, color: '#3b82f6' },
+          { label: 'Ditemukan', short: 'Temuan', value: stats.Ditemukan, color: '#3b82f6' },
+          { label: 'Diklaim', short: 'Klaim', value: stats.Diklaim, color: '#f59e0b' },
+          { label: 'Diambil', short: 'Ambil', value: stats.Diambil, color: '#10b981' },
+          { label: 'Diserahkan', short: 'Serah', value: stats.Diserahkan, color: '#8b5cf6' }
         ].map(s => (
-          <div key={s.label} className="glass-panel" style={{ padding: '0.75rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.15rem' }}>{s.label}</p>
-            <p style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color }}>{s.value}</p>
+          <div
+            key={s.label}
+            className={`glass-panel found-stat-card${s.label === 'Total Barang' ? ' is-total' : ''}`}
+            style={{ '--stat-color': s.color }}
+          >
+            <p className="found-stat-label">
+              <span className="found-stat-label-full">{s.label}</span>
+              <span className="found-stat-label-short">{s.short}</span>
+            </p>
+            <p className="found-stat-value">{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* ══ TOOLBAR: Search + Filter + Export PDF ══ */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 140 }}>
+      {/* ══ TOOLBAR: Search + Filter (wrap, tanpa scroll horizontal) + Aksi ══ */}
+      <div className="android-toolbar">
+        <div className="android-search">
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Cari kode / nama barang / lokasi / penemu..."
+            placeholder="Cari kode / nama / lokasi..."
             className="modern-input"
             style={{ paddingLeft: '2rem', fontSize: '0.78rem' }}
           />
         </div>
-        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+        <div className="segmented-filter" role="group" aria-label="Filter status barang temuan">
           {['all', ...STATUS_LIST].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
-              border: `1.5px solid ${filter === f ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-              background: filter === f ? 'rgba(59,130,246,0.12)' : 'transparent',
-              color: filter === f ? 'var(--color-primary)' : 'var(--text-secondary)',
-              cursor: 'pointer', fontFamily: 'var(--font-sans)'
-            }}>{f === 'all' ? 'Semua' : f}</button>
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={filter === f ? 'active' : ''}
+              aria-pressed={filter === f}
+            >
+              <span className="filter-label-full">{f === 'all' ? 'Semua' : f}</span>
+              <span className="filter-label-short">{FILTER_SHORT[f] || f}</span>
+            </button>
           ))}
         </div>
-        <button onClick={handleExportPDF} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <Printer size={12} /> Export PDF
-        </button>
-        <button onClick={openAddForm} className="btn-primary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 700 }}>
-          <Plus size={14} /> Catat Barang
-        </button>
+        <div className="android-actions">
+          <button onClick={handleExportPDF} className="btn-secondary" type="button">
+            <Printer size={12} /> Export PDF
+          </button>
+          <button onClick={openAddForm} className="btn-primary" type="button">
+            <Plus size={14} /> Catat Barang
+          </button>
+        </div>
       </div>
 
       {/* ══ LIST (gaya kartu komplain) ══ */}
@@ -497,6 +532,15 @@ export default function FoundItems({
           {filtered.map(item => {
             const isOpen = expandedId === item.id;
             const sc = statusColor(item.status);
+            const waktuLabel = [item.jam_penemuan, item.tanggal_penemuan ? formatDate(item.tanggal_penemuan) : '']
+              .filter(v => v && String(v).trim() && String(v).trim() !== '-')
+              .join(' / ');
+            const metaItems = [
+              { id: 'jenis', Icon: Tag, value: item.jenis_barang },
+              { id: 'lokasi', Icon: MapPin, value: item.lokasi_penemuan },
+              { id: 'waktu', Icon: Clock, value: waktuLabel },
+              { id: 'penemu', Icon: User, value: item.nama_penemu }
+            ].filter(m => m.value && String(m.value).trim() && String(m.value).trim() !== '-');
             return (
               <div key={item.id} className="glass-panel" style={{
                 padding: '0.75rem',
@@ -509,10 +553,10 @@ export default function FoundItems({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                     <div style={{ minWidth: 0 }}>
                       <span style={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.02em', color: 'var(--color-primary)' }}>
-                        {item.item_code || '-'}
+                        {item.item_code || 'TANPA KODE'}
                       </span>
                       <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', fontWeight: 700 }}>
-                        {item.nama_barang}
+                        {item.nama_barang || 'Barang tanpa nama'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
@@ -524,10 +568,11 @@ export default function FoundItems({
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Tag size={10} /> {item.jenis_barang || '-'}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {item.lokasi_penemuan || '-'}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={10} /> {item.jam_penemuan || '-'} / {formatDate(item.tanggal_penemuan)}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><User size={10} /> {item.nama_penemu || '-'}</span>
+                    {metaItems.map(({ id, Icon, value }) => (
+                      <span key={id} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', minWidth: 0 }}>
+                        <Icon size={10} style={{ flexShrink: 0 }} /> {value}
+                      </span>
+                    ))}
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.15rem' }}>
                     {item.kategori_barang ? `Kategori: ${item.kategori_barang}. ` : ''}{item.keterangan_penemu || 'Tidak ada keterangan tambahan.'}

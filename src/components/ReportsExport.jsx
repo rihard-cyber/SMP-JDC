@@ -202,9 +202,9 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
             <span className="form-label">SHIFT</span>
             <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="form-select form-select-sm">
               <option value="All">Semua Shift</option>
-              <option value="Pagi">Pagi (06:00-14:00)</option>
-              <option value="Siang">Siang (14:00-22:00)</option>
-              <option value="Malam">Malam (22:00-06:00)</option>
+              <option value="Pagi">Pagi 06-14</option>
+              <option value="Siang">Siang 14-22</option>
+              <option value="Malam">Malam 22-06</option>
             </select>
           </div>
 
@@ -359,15 +359,72 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
       {/* 3. REPORTS DATA TABLE */}
       <div className="glass-panel panel-body">
-        <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+        <div className="flex-between report-log-header" style={{ marginBottom: '1.25rem' }}>
           <h3 style={{ fontSize: '1.1rem' }}>Log Laporan Patroli Keamanan ({filteredReports.length})</h3>
-          <div className="flex-row" style={{ gap: '0.5rem' }}>
+          <div className="flex-row report-log-actions" style={{ gap: '0.5rem' }}>
             <button onClick={handleExportCSV} className="btn-secondary btn-full"><FileSpreadsheet size={16} /> Export Excel (CSV)</button>
             <button onClick={handleExportPDF} className="btn-primary btn-full"><FileText size={16} /> Export PDF Patroli</button>
           </div>
         </div>
 
-        <div className="table-wrap">
+        {/* Mobile: kartu simetris tanpa scroll horizontal */}
+        <div className="mobile-only-cards report-mobile-cards">
+          {filteredReports.map(report => (
+            <article className="mobile-data-card report-mobile-card" key={report.id}>
+              <div className="report-mobile-head">
+                <div>
+                  <span className="report-mobile-time">
+                    {new Date(report.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                  </span>
+                  <span className="report-mobile-date">
+                    {new Date(report.timestamp).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <span className={`badge badge-${report.status === 'critical' ? 'danger' : report.status === 'temuan' ? 'warning' : 'success'}`}>
+                  {report.status === 'critical' ? 'Critical' : report.status === 'temuan' ? 'Temuan' : 'Normal'}
+                </span>
+              </div>
+
+              <div className="report-mobile-grid">
+                <div className="report-mobile-item">
+                  <span className="report-mobile-label">Petugas</span>
+                  <span className="report-mobile-value">{report.userName}</span>
+                </div>
+                <div className="report-mobile-item">
+                  <span className="report-mobile-label">Shift</span>
+                  <span className="report-mobile-value">{report.shift || '-'}</span>
+                </div>
+                <div className="report-mobile-item report-mobile-wide">
+                  <span className="report-mobile-label">Lokasi</span>
+                  <span className="report-mobile-value">
+                    {report.titik} · {['1','2','3','4','5','6'].includes(report.lantai) ? `Lt. ${report.lantai}` : report.lantai} ({report.zona})
+                  </span>
+                </div>
+                <div className="report-mobile-item">
+                  <span className="report-mobile-label">Kategori</span>
+                  <span className="report-mobile-value">{report.kategori || '-'}</span>
+                </div>
+                <div className="report-mobile-item">
+                  <span className="report-mobile-label">Kode Temuan</span>
+                  <span className="report-mobile-value">{report.kodeTemuan || '-'}</span>
+                </div>
+              </div>
+
+              {(report.temuan || report.kondisi) && (
+                <p className="report-mobile-note">{report.temuan || report.kondisi}</p>
+              )}
+
+              <button onClick={() => setSelectedLog(report)} className="btn-secondary report-mobile-btn">
+                <Eye size={14} /> Lihat Detail
+              </button>
+            </article>
+          ))}
+          {filteredReports.length === 0 && (
+            <div className="empty-state">Tidak ada laporan ditemukan dengan filter tersebut.</div>
+          )}
+        </div>
+
+        <div className="table-wrap desktop-only-table">
           <table className="table-data">
             <thead>
               <tr>

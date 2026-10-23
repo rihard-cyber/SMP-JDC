@@ -95,9 +95,9 @@ export const buildBarcodeCode = (floorVal, zoneVal, numVal) => {
 
 const REGU_OPTIONS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
 const SHIFT_OPTIONS = [
-  { value: 'Pagi', label: 'Pagi (06:00 - 14:00)' },
-  { value: 'Siang', label: 'Siang (14:00 - 22:00)' },
-  { value: 'Malam', label: 'Malam (22:00 - 06:00)' }
+  { value: 'Pagi', label: 'Pagi 06-14' },
+  { value: 'Siang', label: 'Siang 14-22' },
+  { value: 'Malam', label: 'Malam 22-06' }
 ];
 
 export default function BarcodeGenerator({

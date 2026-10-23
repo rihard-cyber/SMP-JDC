@@ -836,52 +836,88 @@ export default function ManagementDashboard({
           stroke: #ffffff !important;
         }
         
-        /* Command Tab Panels styling - 100% Android Native Grid (Zero Horizontal Scroll) */
+        /* Command Tab Panels styling - 5 equal columns on every screen (Zero Horizontal Scroll) */
         .command-tab-bar {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 0.5rem;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 0.45rem;
           background: rgba(19, 27, 46, 0.6);
           padding: 0.4rem;
           border-radius: 12px;
           border: 1px solid var(--border-glass);
           margin-bottom: 1rem;
           width: 100%;
-        }
-        @media (max-width: 900px) {
-          .command-tab-bar {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-        @media (max-width: 640px) {
-          .command-tab-bar {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.45rem;
-          }
-          .command-tab-bar > button:nth-child(5) {
-            grid-column: span 2;
-          }
+          min-width: 0;
         }
         .command-tab-btn {
+          position: relative;
           width: 100%;
-          min-height: 48px;
-          padding: 0.55rem 0.65rem;
+          min-width: 0;
+          min-height: 68px;
+          padding: 0.45rem 0.15rem;
           border: 1px solid transparent;
           background: rgba(255, 255, 255, 0.02);
           color: var(--text-secondary);
           font-family: var(--font-sans);
           font-weight: 700;
-          font-size: 0.76rem;
+          font-size: clamp(0.52rem, 2.2vw, 0.66rem);
+          line-height: 1.12;
           border-radius: 10px;
           cursor: pointer;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 0.35rem;
+          gap: 0.2rem;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           text-align: center;
           touch-action: manipulation;
           white-space: normal;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .command-tab-icon {
+          font-size: 1.15rem;
+          line-height: 1;
+        }
+        .command-tab-label {
+          display: block;
+          max-width: 100%;
+          overflow-wrap: anywhere;
+        }
+        .command-tab-count {
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          min-width: 17px;
+          padding: 1px 4px;
+          border-radius: 8px;
+          background: rgba(0, 240, 255, 0.14);
+          border: 1px solid rgba(0, 240, 255, 0.28);
+          color: var(--color-primary);
+          font-size: 0.5rem;
+          line-height: 1.2;
+          font-weight: 800;
+          text-align: center;
+        }
+        @media (min-width: 769px) {
+          .command-tab-bar {
+            gap: 0.5rem;
+          }
+          .command-tab-btn {
+            flex-direction: row;
+            gap: 0.4rem;
+            min-height: 48px;
+            padding: 0.55rem 0.5rem;
+            font-size: 0.74rem;
+          }
+          .command-tab-icon {
+            font-size: 1rem;
+          }
+          .command-tab-count {
+            position: static;
+            margin-left: 0.1rem;
+            min-width: 18px;
+          }
         }
         .command-tab-btn:active {
           transform: scale(0.97);
@@ -1259,22 +1295,29 @@ export default function ManagementDashboard({
 
       {/* ── COMMAND HUB & REAL-TIME OPERASIONAL TABS (Bottom Section) ── */}
       <div>
-        <div className="command-tab-bar" role="tablist">
-          <button className={`command-tab-btn ${activeCommandTab === 'temuan' ? 'active' : ''}`} onClick={() => handleCommandTabClick('temuan')}>
-            📋 Tiket Temuan ({combinedFindings.length})
-          </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'komplain' ? 'active' : ''}`} onClick={() => handleCommandTabClick('komplain')}>
-            📩 Komplain Tenant ({complaints.length})
-          </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'patroli' ? 'active' : ''}`} onClick={() => handleCommandTabClick('patroli')}>
-            🗺️ Heatmap & Live Feed
-          </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'mutasi' ? 'active' : ''}`} onClick={() => handleCommandTabClick('mutasi')}>
-            📝 Log Mutasi ({mutasiLogs.length})
-          </button>
-          <button className={`command-tab-btn ${activeCommandTab === 'arsip' ? 'active' : ''}`} onClick={() => handleCommandTabClick('arsip')}>
-            ⚙️ Arsip & Set
-          </button>
+        <div className="command-tab-bar" role="tablist" aria-label="Menu operasional">
+          {[
+            { id: 'temuan', icon: '📋', label: 'Temuan', count: combinedFindings.length },
+            { id: 'komplain', icon: '📩', label: 'Komplain', count: complaints.length },
+            { id: 'patroli', icon: '🗺️', label: 'Patroli' },
+            { id: 'mutasi', icon: '📝', label: 'Mutasi', count: mutasiLogs.length },
+            { id: 'arsip', icon: '⚙️', label: 'Arsip' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeCommandTab === tab.id}
+              className={`command-tab-btn ${activeCommandTab === tab.id ? 'active' : ''}`}
+              onClick={() => handleCommandTabClick(tab.id)}
+            >
+              <span className="command-tab-icon" aria-hidden="true">{tab.icon}</span>
+              <span className="command-tab-label">{tab.label}</span>
+              {typeof tab.count === 'number' && (
+                <span className="command-tab-count" aria-label={`${tab.count} data`}>{tab.count}</span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Anchor for direct smooth scroll */}
@@ -1333,7 +1376,7 @@ export default function ManagementDashboard({
                 )}
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(85px, 1fr))', gap: '0.3rem', background: 'var(--bg-primary)', padding: '0.3rem', borderRadius: '10px', width: '100%', maxWidth: '440px' }}>
+              <div className="dept-filter-grid" style={{ display: 'grid', gap: '0.3rem', background: 'var(--bg-primary)', padding: '0.3rem', borderRadius: '10px', width: '100%', maxWidth: '440px' }}>
                 {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
                   <button key={tab} style={{ ...tabStyle(tab), minHeight: '38px', touchAction: 'manipulation' }} onClick={() => { hapticLight(); setActiveTab(tab); }}>
                     {tab === 'semua' ? '🗂 Semua' : `${WA_CONTACTS[tab]?.emoji} ${tab}`}

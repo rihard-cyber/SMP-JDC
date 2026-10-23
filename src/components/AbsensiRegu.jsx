@@ -43,6 +43,7 @@ export default function AbsensiRegu({
       id: 'roster-daily', 
       icon: <BookOpen size={18} />, 
       title: 'Absensi Roster', 
+      short: 'Roster',
       sub: 'Jadwal Otomatis',
       color: '#00f0ff'
     },
@@ -50,6 +51,7 @@ export default function AbsensiRegu({
       id: 'dashboard',    
       icon: <Activity size={18} />,     
       title: 'Dashboard Regu', 
+      short: 'Dashboard',
       sub: 'Live Monitoring',
       color: '#39ff14'
     },
@@ -57,6 +59,7 @@ export default function AbsensiRegu({
       id: 'form',         
       icon: <ClipboardList size={18} />, 
       title: 'Form Manual', 
+      short: 'Form',
       sub: 'Plotting & Jaga',
       color: '#ffb700'
     },
@@ -64,6 +67,7 @@ export default function AbsensiRegu({
       id: 'history',      
       icon: <UserCheck size={18} />,     
       title: 'Histori Absensi', 
+      short: 'Histori',
       sub: 'Arsip Log',
       color: '#3b82f6'
     },
@@ -71,6 +75,7 @@ export default function AbsensiRegu({
       id: 'lemburan',     
       icon: <Clock size={18} />,         
       title: 'Rekap Lemburan', 
+      short: 'Lembur',
       sub: 'Overtime & Backup',
       color: '#a855f7'
     }
@@ -602,10 +607,11 @@ _Sistem Manajemen Keamanan JDC_`;
                 type="button"
                 role="tab"
                 aria-selected={isActive}
+                aria-label={tab.title}
                 onClick={() => handleSelectTab(tab.id)}
                 className={`android-subtab-card ${isActive ? 'active' : ''}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '0.35rem' }}>
+                <div className="subtab-icon-row">
                   <div 
                     className="subtab-icon-wrap" 
                     style={{ 
@@ -617,20 +623,13 @@ _Sistem Manajemen Keamanan JDC_`;
                     {tab.icon}
                   </div>
                   {isActive && (
-                    <span style={{
-                      fontSize: '0.58rem',
-                      fontWeight: 800,
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      background: 'rgba(0, 240, 255, 0.2)',
-                      color: 'var(--color-primary)',
-                      border: '1px solid var(--color-primary)'
-                    }}>
+                    <span className="subtab-active-badge">
                       ● Aktif
                     </span>
                   )}
                 </div>
-                <span className="subtab-title">{tab.title}</span>
+                <span className="subtab-title subtab-title-full">{tab.title}</span>
+                <span className="subtab-title subtab-title-short">{tab.short}</span>
                 <span className="subtab-sub">{tab.sub}</span>
               </button>
             );
@@ -644,7 +643,7 @@ _Sistem Manajemen Keamanan JDC_`;
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.65rem 0.85rem', borderRadius: '12px',
           borderLeft: `4px solid ${activeTabMeta.color}`,
-          background: 'rgba(13, 19, 36, 0.75)',
+          background: 'var(--bg-glass)',
           gap: '0.65rem', flexWrap: 'wrap'
         }}>
           <button
@@ -710,7 +709,7 @@ _Sistem Manajemen Keamanan JDC_`;
               style={{ padding: '0.45rem 0.75rem', fontSize: '0.82rem', width: '100%' }}
             >
               {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
-                <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
+                <option key={code} value={code}>{code} · {info.label}</option>
               ))}
             </select>
           </div>
@@ -1189,11 +1188,11 @@ _Sistem Manajemen Keamanan JDC_`;
                 </div>
                 
                 <div className="step-field">
-                  <label><Clock size={12} /> SHIFT JAGA (Pilih Shift)</label>
+                  <label><Clock size={12} /> SHIFT JAGA</label>
                   <select value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="modern-select">
-                    <option value="P">Pagi (06:00 - 14:00)</option>
-                    <option value="S">Siang (14:00 - 22:00)</option>
-                    <option value="M">Malam (22:00 - 06:00)</option>
+                    <option value="P">Pagi 06-14</option>
+                    <option value="S">Siang 14-22</option>
+                    <option value="M">Malam 22-06</option>
                   </select>
                 </div>
 

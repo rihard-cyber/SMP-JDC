@@ -14,7 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera as CapCamera } from '@capacitor/camera';
-import { executeBackHandlers } from './utils/navigation';
+import { executeBackHandlers, registerBackHandler } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession, queryWebPermissions, checkDeviceSecurity, getGPSCoordinates, verifyGPSAntiFake } from './utils/security';
 import SecurityCheckBlock from './components/SecurityCheckBlock';
 import { isSupabaseConfigured } from './utils/supabaseConfig';
@@ -256,7 +256,8 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           box-shadow: inset 0 0 25px rgba(0, 240, 255, 0.35), 0 0 20px rgba(0, 240, 255, 0.25);
           border: 2px solid rgba(0, 240, 255, 0.65);
           background: rgba(13, 19, 36, 0.55);
-          opacity: 0.80;
+          /* Tetap halus agar tidak menutupi konten, tetapi jelas terlihat */
+          opacity: 0.24;
         }
         .theme-dark .ukiran-logo-text {
           color: #00f0ff;
@@ -284,11 +285,12 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         }
 
         .theme-light .ukiran-watermark {
-          color: #2563eb;
-          box-shadow: inset 0 0 22px rgba(59, 130, 246, 0.3), 0 0 16px rgba(59, 130, 246, 0.2);
-          border: 2px solid rgba(59, 130, 246, 0.55);
-          background: rgba(255, 255, 255, 0.75);
-          opacity: 0.75;
+          color: #1d4ed8;
+          box-shadow: inset 0 0 22px rgba(59, 130, 246, 0.2), 0 0 16px rgba(59, 130, 246, 0.12);
+          border: 2px solid rgba(37, 99, 235, 0.5);
+          background: rgba(255, 255, 255, 0.55);
+          opacity: 0.45;
+          mix-blend-mode: multiply;
         }
         .theme-light .ukiran-logo-text {
           color: #1e40af;
@@ -321,16 +323,21 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
         @media (max-width: 768px) {
           .ukiran-watermark {
-            width: 220px;
+            width: 240px;
             padding: 0.35rem 0.5rem;
-            opacity: 0.18 !important;
+            opacity: 0.34 !important;
             background: transparent !important;
-            border: 1px dashed rgba(0, 240, 255, 0.25) !important;
+            border: 1px dashed rgba(0, 240, 255, 0.4) !important;
             box-shadow: none !important;
+          }
+          .theme-light .ukiran-watermark {
+            border-color: rgba(37, 99, 235, 0.42) !important;
+            opacity: 0.4 !important;
+            mix-blend-mode: multiply;
           }
           .theme-dark .ukiran-logo-text, .theme-light .ukiran-logo-text {
             font-size: 0.9rem;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
           }
           .theme-dark .ukiran-sub-text, .theme-light .ukiran-sub-text {
             font-size: 0.55rem;
@@ -346,6 +353,11 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
             50% { transform: translate3d(5vw, 55vh, 0); }
             75% { transform: translate3d(28vw, 35vh, 0); }
             100% { transform: translate3d(5vw, 5vh, 0); }
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ukiran-watermark {
+            animation: none !important;
           }
         }
       `}</style>
@@ -377,6 +389,7 @@ export function OrnamentalWatermark() {
 export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
   const [isSecurityPassed, setIsSecurityPassed] = useState(false);
+  const [isSecurityBypassed, setIsSecurityBypassed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [hasUsers, setHasUsers] = useState(true);
   const [firebaseUsersLoaded, setFirebaseUsersLoaded] = useState(false);
@@ -455,7 +468,7 @@ export default function App() {
 
   // Periodic security validation & active real-time security trackers
   useEffect(() => {
-    if (!isSecurityPassed) return;
+    if (!isSecurityPassed || isSecurityBypassed) return;
 
     // 1. Run check immediately on load
     verifyAppSecurityRealtime();
@@ -531,7 +544,7 @@ export default function App() {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [isSecurityPassed, verifyAppSecurityRealtime]);
+  }, [isSecurityPassed, isSecurityBypassed, verifyAppSecurityRealtime]);
 
   useEffect(() => {
     if (authenticated) {
@@ -721,6 +734,25 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Browser/PWA back: tutup sidebar atau modal profil sebelum pindah halaman
+  useEffect(() => {
+    if (!isSidebarOpen && !showProfileModal) return;
+    const unregister = registerBackHandler(() => {
+      if (showProfileModal) {
+        setShowProfileModal(false);
+        setVerifStep('idle');
+        setVerifError('');
+        return true;
+      }
+      if (isSidebarOpen) {
+        setIsSidebarOpen(false);
+        return true;
+      }
+      return false;
+    });
+    return unregister;
+  }, [isSidebarOpen, showProfileModal]);
+
   const clearSOS = React.useCallback(() => {
     if (sosAudio) {
       try {
@@ -857,6 +889,10 @@ export default function App() {
     const setStatusBarStyle = async () => {
       try {
         const { StatusBar } = await import('@capacitor/status-bar');
+        // Android edge-to-edge: jangan biarkan konten WebView berada di bawah status bar.
+        if (Capacitor.isNativePlatform()) {
+          await StatusBar.setOverlaysWebView({ overlay: false });
+        }
         if (theme === 'dark') {
           await StatusBar.setStyle({ style: 'DARK' });
           await StatusBar.setBackgroundColor({ color: '#0f172a' });
@@ -2608,7 +2644,7 @@ export default function App() {
   }
 
   if (!isSecurityPassed) {
-    return <SecurityCheckBlock onPassed={() => setIsSecurityPassed(true)} theme={theme} />;
+    return <SecurityCheckBlock onPassed={(bypassed = false) => { setIsSecurityBypassed(!!bypassed); setIsSecurityPassed(true); }} theme={theme} />;
   }
 
   if (authenticated === null) {
@@ -2668,8 +2704,14 @@ export default function App() {
 
   if (!authenticated) {
     return (
-      <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)', position: 'relative' }}>
-        <DeveloperWatermarkBackground theme="dark" />
+      <div style={{
+        minHeight: '100vh',
+        background: theme === 'light'
+          ? 'radial-gradient(ellipse at 50% 0%, #ffffff 0%, #edf5ff 55%, #dfeaf9 100%)'
+          : 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
+        position: 'relative'
+      }}>
+        <DeveloperWatermarkBackground theme={theme} />
         <LoginPage users={users} onLogin={handleLogin} onSetup={handleSetup} hasUsers={hasUsers} firebaseUsersLoaded={firebaseUsersLoaded} />
         <PWAInstallPrompt />
       </div>
@@ -2741,10 +2783,18 @@ export default function App() {
           <div className="sidebar-logo-box">
             <img src="logo.png" alt="SMPJDC" className="logo-3d" />
           </div>
-          <div>
+          <div className="sidebar-brand-text">
             <h2>SMPJDC<span className="text-primary"> JDC</span></h2>
             <p>SISTEM MANAGEMENT KEAMANAN JDC</p>
           </div>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Tutup menu"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <div className="sidebar-user glass-panel" onClick={() => setShowProfileModal(true)} style={{ cursor: 'pointer' }}>
@@ -3194,7 +3244,7 @@ export default function App() {
 
       {/* Profile & Email Reset Modal */}
       {showProfileModal && (
-        <div className="sidebar-overlay" onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ zIndex: 200 }}>
+        <div className="sidebar-overlay profile-modal-overlay" onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ zIndex: 200 }}>
           <div className="panic-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--border-radius-lg)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
               <h3 style={{ fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800 }}>
@@ -3203,12 +3253,12 @@ export default function App() {
               <button onClick={() => { setShowProfileModal(false); setVerifStep('idle'); setVerifError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.25rem' }}>✕</button>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', whiteSpace: 'nowrap' }} className="filter-tabs-wrap">
-              <button onClick={() => { setActiveProfileTab('info'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'info' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'info' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Informasi</button>
-              <button onClick={() => { setActiveProfileTab('photo'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'photo' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'photo' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Foto Profil</button>
-              <button onClick={() => { setActiveProfileTab('pin'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'pin' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'pin' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>PIN Keamanan</button>
-              <button onClick={() => { setActiveProfileTab('email'); setProfileError(''); setProfileSuccess(''); }} style={{ background: activeProfileTab === 'email' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', border: 'none', color: activeProfileTab === 'email' ? 'var(--color-primary)' : 'var(--text-secondary)', padding: '0.5rem 0.8rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Verifikasi Email</button>
+            {/* Modal Navigation Tabs — wrap 2×2 di HP, tanpa scroll horizontal */}
+            <div className="segmented-filter profile-tabs" role="tablist" aria-label="Pengaturan profil">
+              <button type="button" role="tab" aria-selected={activeProfileTab === 'info'} className={activeProfileTab === 'info' ? 'active' : ''} onClick={() => { setActiveProfileTab('info'); setProfileError(''); setProfileSuccess(''); }}>Informasi</button>
+              <button type="button" role="tab" aria-selected={activeProfileTab === 'photo'} className={activeProfileTab === 'photo' ? 'active' : ''} onClick={() => { setActiveProfileTab('photo'); setProfileError(''); setProfileSuccess(''); }}>Foto Profil</button>
+              <button type="button" role="tab" aria-selected={activeProfileTab === 'pin'} className={activeProfileTab === 'pin' ? 'active' : ''} onClick={() => { setActiveProfileTab('pin'); setProfileError(''); setProfileSuccess(''); }}>PIN Keamanan</button>
+              <button type="button" role="tab" aria-selected={activeProfileTab === 'email'} className={activeProfileTab === 'email' ? 'active' : ''} onClick={() => { setActiveProfileTab('email'); setProfileError(''); setProfileSuccess(''); }}>Verifikasi Email</button>
             </div>
 
             {/* Profile Notifications */}

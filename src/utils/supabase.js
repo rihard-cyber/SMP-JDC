@@ -300,7 +300,7 @@ export const subscribeWAContacts = (callback) => {
 
   const fetchWA = async () => {
     if (unsubscribed) return;
-    const { data, error } = await client.from('config').select('*').eq('key', 'wa_contacts').single();
+    const { data, error } = await client.from('config').select('*').eq('key', 'wa_contacts').maybeSingle();
     if (error) { callback(null); return; }
     callback(data?.data || null);
   };
@@ -360,8 +360,8 @@ export const loadRosterFromFirestore = async (yearMonth) => {
   const client = initSupabase();
   if (!client) return null;
   try {
-    const { data, error } = await client.from('rosters').select('*').eq('year_month', yearMonth).single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const { data, error } = await client.from('rosters').select('*').eq('year_month', yearMonth).maybeSingle();
+    if (error) throw error;
     return data?.roster_data || null;
   } catch (e) {
     console.warn('[Supabase] Gagal baca roster:', e);
@@ -377,8 +377,8 @@ export const subscribeRoster = (yearMonth, callback) => {
 
   const fetchRoster = async () => {
     if (unsubscribed) return;
-    const { data, error } = await client.from('rosters').select('*').eq('year_month', yearMonth).single();
-    if (error && error.code !== 'PGRST116') { callback(null); return; }
+    const { data, error } = await client.from('rosters').select('*').eq('year_month', yearMonth).maybeSingle();
+    if (error) { callback(null); return; }
     callback(data?.roster_data || null);
   };
 

@@ -166,45 +166,106 @@ export default function SecurityPatrolApp({
     return unregister;
   }, [tab, step, mode]);
 
-  // ── Helper: nyalakan/matikan torch langsung dari track video kamera scanner ──
+  // ── Helper: ambil video track aktif dari container scanner ──
+  const getScannerVideoTrack = (containerId) => {
+    try {
+      const videoEl = document.querySelector(`#${containerId} video`);
+      const mediaStream = videoEl?.srcObject;
+      return mediaStream?.getVideoTracks?.()[0] || null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // ── Helper: nyalakan/matikan torch dengan beberapa strategi kompatibilitas ──
+  // Android WebView / Chrome punya perilaku berbeda: ada yang menerima
+  // { advanced: [{ torch }] }, ada yang hanya { torch }. Semua dicoba.
   const setTorchForElement = async (scannerInstance, containerId, on) => {
-    let success = false;
-    // Cara 1: via Html5Qrcode applyVideoConstraints jika didukung
+    const desired = !!on;
+    let capabilities = null;
+
+    try {
+      if (scannerInstance && typeof scannerInstance.getRunningTrackCapabilities === 'function') {
+        capabilities = scannerInstance.getRunningTrackCapabilities();
+      }
+    } catch (e) {
+      capabilities = null;
+    }
+
+    const track = getScannerVideoTrack(containerId);
+    if (!capabilities && track && typeof track.getCapabilities === 'function') {
+      try {
+        capabilities = track.getCapabilities();
+      } catch (e) {
+        capabilities = null;
+      }
+    }
+
+    // Jika perangkat secara eksplisit menyatakan torch tidak tersedia, jangan
+    // memaksa dan memicu OverconstrainedError.
+    if (desired && capabilities && capabilities.torch === false) return false;
+
+    // Strategi 1: API internal html5-qrcode (paling aman karena memakai track aktif)
     if (scannerInstance && typeof scannerInstance.applyVideoConstraints === 'function') {
       try {
-        await scannerInstance.applyVideoConstraints({ advanced: [{ torch: on }] });
-        success = true;
+        await scannerInstance.applyVideoConstraints({ advanced: [{ torch: desired }] });
+        return true;
       } catch (e) {
-        // Fallback ke Cara 2
+        // Coba bentuk constraint kedua
       }
-    }
-    // Cara 2: cari video element di dalam container dan ambil track-nya
-    if (!success) {
       try {
-        const videoEl = document.querySelector(`#${containerId} video`);
-        const mediaStream = videoEl?.srcObject;
-        if (mediaStream) {
-          const track = mediaStream.getVideoTracks()[0];
-          if (track && typeof track.applyConstraints === 'function') {
-            const caps = typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
-            if (caps.torch || 'torch' in caps) {
-              await track.applyConstraints({ advanced: [{ torch: on }] });
-              success = true;
-            }
-          }
-        }
+        await scannerInstance.applyVideoConstraints({ torch: desired });
+        return true;
       } catch (e) {
-        // Abaikan
+        // Lanjut ke native track API
       }
     }
-    return success;
+
+    // Strategi 2: native MediaStreamTrack.applyConstraints
+    if (track && typeof track.applyConstraints === 'function') {
+      try {
+        await track.applyConstraints({ advanced: [{ torch: desired }] });
+        return true;
+      } catch (e) {
+        // Coba bentuk constraint kedua
+      }
+      try {
+        await track.applyConstraints({ torch: desired });
+        return true;
+      } catch (e) {
+        // Torch benar-benar tidak didukung
+      }
+    }
+
+    return false;
+  };
+
+  // ── Helper: paksa flash ON setelah kamera benar-benar hidup ──
+  // Retry diperlukan karena track kamera Android kadang belum siap saat
+  // callback start() selesai (terutama WebView / perangkat kelas menengah).
+  const forceTorchOn = async (scannerInstance, containerId, setState) => {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const ok = await setTorchForElement(scannerInstance, containerId, true);
+      if (ok) {
+        setState(true);
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 160 + attempt * 55));
+    }
+    setState(false);
+    return false;
   };
 
   // ── Toggle torch dari tombol UI ──
   const handleToggleTorch = async () => {
     const newState = !torchOn;
-    await setTorchForElement(scannerRef.current, "reader", newState);
-    setTorchOn(newState);
+    if (newState) {
+      const ok = await forceTorchOn(scannerRef.current, "reader", setTorchOn);
+      if (!ok) setTorchOn(false);
+      return;
+    }
+    await setTorchForElement(scannerRef.current, "reader", false);
+    setTorchOn(false);
   };
 
   // Live Camera Scanner Lifecycle using html5-qrcode
@@ -238,14 +299,10 @@ export default function SecurityPatrolApp({
             }
           ).then(async () => {
             setScanLoading(false);
-            // ── AUTO-TORCH: nyalakan lampu senter / blitz hp otomatis untuk area gelap ──
-            for (let i = 0; i < 3; i++) {
-              await new Promise(r => setTimeout(r, 180 * (i + 1))); // delay warmup kamera
-              const ok = await setTorchForElement(html5QrCode, elementId, true);
-              if (ok) {
-                setTorchOn(true);
-                break;
-              }
+            // ── AUTO-TORCH WAJIB: paksa flash ON setelah kamera warm-up ──
+            const torchActive = await forceTorchOn(html5QrCode, elementId, setTorchOn);
+            if (!torchActive) {
+              console.warn("[Torch] Perangkat/WebView tidak mendukung flash kamera belakang.");
             }
           }).catch(err => {
             console.warn("Kamera scanner gagal aktif:", err);
@@ -263,6 +320,8 @@ export default function SecurityPatrolApp({
 
       return () => {
         clearTimeout(timer);
+        // Matikan flash lebih dulu agar lampu tidak tertinggal menyala.
+        setTorchForElement(html5QrCode, elementId, false).catch(() => {});
         if (html5QrCode && html5QrCode.isScanning) {
           html5QrCode.stop().catch(err => console.error(err));
         }
@@ -621,8 +680,13 @@ export default function SecurityPatrolApp({
   // ── Toggle torch scanner presensi ──
   const handleTogglePresensiTorch = async () => {
     const newState = !presenciTorchOn;
-    await setTorchForElement(presenciScannerRef.current, "reader-presensi", newState);
-    setPresensiTorchOn(newState);
+    if (newState) {
+      const ok = await forceTorchOn(presenciScannerRef.current, "reader-presensi", setPresensiTorchOn);
+      if (!ok) setPresensiTorchOn(false);
+      return;
+    }
+    await setTorchForElement(presenciScannerRef.current, "reader-presensi", false);
+    setPresensiTorchOn(false);
   };
 
   // Live Camera Scanner Lifecycle for Presensi QR (Staff Room)
@@ -656,14 +720,10 @@ export default function SecurityPatrolApp({
             }
           ).then(async () => {
             setPresensiScanLoading(false);
-            // ── AUTO-TORCH: nyalakan flash otomatis segera setelah kamera aktif ──
-            for (let i = 0; i < 3; i++) {
-              await new Promise(r => setTimeout(r, 180 * (i + 1)));
-              const ok = await setTorchForElement(html5QrCodePresensi, elementId, true);
-              if (ok) {
-                setPresensiTorchOn(true);
-                break;
-              }
+            // ── AUTO-TORCH WAJIB: paksa flash ON setelah kamera warm-up ──
+            const torchActive = await forceTorchOn(html5QrCodePresensi, elementId, setPresensiTorchOn);
+            if (!torchActive) {
+              console.warn("[Torch] Flash tidak didukung pada scanner presensi.");
             }
           }).catch(err => {
             console.warn("Kamera scanner presensi gagal aktif:", err);
@@ -681,6 +741,8 @@ export default function SecurityPatrolApp({
 
       return () => {
         clearTimeout(timer);
+        // Matikan flash lebih dulu agar lampu tidak tertinggal menyala.
+        setTorchForElement(html5QrCodePresensi, elementId, false).catch(() => {});
         if (html5QrCodePresensi && html5QrCodePresensi.isScanning) {
           html5QrCodePresensi.stop().catch(err => console.error(err));
         }

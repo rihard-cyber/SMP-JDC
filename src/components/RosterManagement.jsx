@@ -289,9 +289,9 @@ export default function RosterManagement({ users = [], currentUser }) {
       {/* View Mode Switcher (Android First vs Matrix - Zero Horizontal Scroll) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
         gap: '0.4rem',
-        background: 'rgba(13, 19, 36, 0.65)',
+        background: 'var(--bg-tertiary)',
         padding: '0.4rem',
         borderRadius: '12px',
         border: '1px solid var(--border-glass)',
@@ -309,7 +309,7 @@ export default function RosterManagement({ users = [], currentUser }) {
             transition: 'all 0.15s ease', minHeight: '44px', width: '100%', touchAction: 'manipulation'
           }}
         >
-          📱 Mode Android (Harian)
+          Harian
         </button>
         <button
           type="button"
@@ -323,7 +323,7 @@ export default function RosterManagement({ users = [], currentUser }) {
             transition: 'all 0.15s ease'
           }}
         >
-          👤 Per Anggota
+          Anggota
         </button>
         <button
           type="button"
@@ -337,7 +337,7 @@ export default function RosterManagement({ users = [], currentUser }) {
             transition: 'all 0.15s ease'
           }}
         >
-          🖥️ Tabel Matrix
+          Matrix
         </button>
       </div>
 

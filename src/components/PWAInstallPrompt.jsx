@@ -1,199 +1,176 @@
-import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone, ArrowUpCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Download, X, Smartphone, ArrowUpCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+
+const DISMISS_KEY = 'smpjdc_pwa_dismissed_until';
+const SESSION_KEY = 'smpjdc_pwa_prompt_shown';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function readDismissedUntil() {
+  try {
+    return Number(localStorage.getItem(DISMISS_KEY) || 0);
+  } catch (e) {
+    return 0;
+  }
+}
 
 export default function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [promptType, setPromptType] = useState('pwa'); // 'pwa' | 'android' | 'ios'
+  const [promptType, setPromptType] = useState('pwa'); // 'pwa' | 'ios'
+
+  const rememberDismissal = useCallback((days = 30) => {
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + days * DAY_MS));
+      sessionStorage.setItem(SESSION_KEY, 'true');
+    } catch (e) {}
+  }, []);
+
+  const openPrompt = useCallback((type) => {
+    // Only one prompt per browser session, even though the component is
+    // mounted both on the login screen and inside the main app shell.
+    try {
+      if (sessionStorage.getItem(SESSION_KEY) === 'true') return;
+      sessionStorage.setItem(SESSION_KEY, 'true');
+    } catch (e) {}
+    setPromptType(type);
+    setShowPrompt(true);
+  }, []);
 
   useEffect(() => {
-    // Clear old localStorage block to force prompt to show up immediately
+    // Never show anything inside the native Android/iOS app shell.
+    if (Capacitor.isNativePlatform()) return;
+
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    // Respect the persistent "Nanti saja" choice for 30 days.
+    if (readDismissedUntil() > Date.now()) return;
+    // Already shown once in this browser session.
     try {
-      localStorage.removeItem('smpjdc_pwa_dismissed_until');
+      if (sessionStorage.getItem(SESSION_KEY) === 'true') return;
     } catch (e) {}
 
-    // 1. If running inside native Capacitor app, do absolutely nothing
-    if (Capacitor.isNativePlatform()) {
-      return;
-    }
-
-    // 2. Detect if already in standalone (installed PWA) mode
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (isStandalone) {
-      return;
-    }
-
-    // 3. Check if user dismissed the prompt in the current session
-    const isDismissed = sessionStorage.getItem('smpjdc_pwa_dismissed') === 'true';
-    if (isDismissed) {
-      return;
-    }
-
     const userAgent = window.navigator.userAgent.toLowerCase();
-    const iosDetected = /iphone|ipad|ipod/.test(userAgent);
-    const androidDetected = /android/.test(userAgent);
+    const isIos = /iphone|ipad|ipod/.test(userAgent);
+    const isSafari = /safari/.test(userAgent) && !/crios|fxios|edgios/.test(userAgent);
 
-    // 4. Handle Android specifically (Direct APK download & prompt)
-    if (androidDetected) {
-      setPromptType('android');
-      setShowPrompt(true);
-
-      // Trigger auto-download once per browser session
-      const hasDownloaded = sessionStorage.getItem('smpjdc_apk_downloaded');
-      if (!hasDownloaded) {
-        sessionStorage.setItem('smpjdc_apk_downloaded', 'true');
-        setTimeout(() => {
-          triggerApkDownload();
-        }, 1500); // 1.5 seconds delay for smoother page loading
-      }
-      return;
+    // iOS cannot fire beforeinstallprompt: show the short manual guide once.
+    let iosTimer = null;
+    if (isIos && isSafari) {
+      iosTimer = setTimeout(() => openPrompt('ios'), 4000);
     }
 
-    // 5. Handle iOS Safari specifically
-    if (iosDetected) {
-      setPromptType('ios');
-      const timer = setTimeout(() => {
-        setShowPrompt(true);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-
-    // 6. Fallback for Desktop/Other Chrome browsers: Listen for PWA installation
+    // Android Chrome and desktop browsers expose the native install flow.
+    // We deliberately do NOT auto-download the APK: the browser prompt is
+    // enough and the native app never shows a web install banner.
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setPromptType('pwa');
-      setShowPrompt(true);
+      // Let the first screen paint before showing a small, dismissible card.
+      setTimeout(() => openPrompt('pwa'), 1800);
+    };
+
+    const handleInstalled = () => {
+      rememberDismissal(365);
+      setShowPrompt(false);
+      setDeferredPrompt(null);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Auto-show prompt after 1.5 seconds even if beforeinstallprompt hasn't fired yet
-    const desktopTimer = setTimeout(() => {
-      setShowPrompt(true);
-    }, 1500);
+    window.addEventListener('appinstalled', handleInstalled);
 
     return () => {
+      if (iosTimer) clearTimeout(iosTimer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      clearTimeout(desktopTimer);
+      window.removeEventListener('appinstalled', handleInstalled);
     };
-  }, []);
-
-  const triggerApkDownload = () => {
-    const link = document.createElement('a');
-    link.href = './App.SMPJDC.apk';
-    link.download = 'App.SMPJDC.apk';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  }, [openPrompt, rememberDismissal]);
 
   const handleInstallClick = async () => {
-    if (promptType === 'android') {
-      triggerApkDownload();
+    if (!deferredPrompt) {
+      handleDismiss();
       return;
     }
 
-    if (!deferredPrompt) {
-      triggerApkDownload();
-      return;
-    }
-    
     setShowPrompt(false);
-    deferredPrompt.prompt();
-    
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to PWA install: ${outcome}`);
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        rememberDismissal(365);
+      } else {
+        rememberDismissal(14);
+      }
+    } catch (e) {
+      rememberDismissal(14);
+    }
     setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    try {
-      sessionStorage.setItem('smpjdc_pwa_dismissed', 'true');
-    } catch (e) {}
+    rememberDismissal(30);
   };
 
   if (!showPrompt) return null;
 
   return (
-    <>
-      <div className="pwa-prompt-overlay">
-        <div className="pwa-prompt-card">
-          <div className="pwa-prompt-header">
-            <div className="pwa-prompt-icon-container">
-              <Smartphone className="pwa-icon-phone" />
-              <Download className="pwa-icon-download" />
-            </div>
-            <button className="pwa-close-btn" onClick={handleDismiss} aria-label="Tutup">
-              <X size={18} />
-            </button>
+    <div className="pwa-prompt-overlay" role="dialog" aria-modal="false" aria-label="Pasang aplikasi SMPJDC">
+      <div className="pwa-prompt-card">
+        <div className="pwa-prompt-header">
+          <div className="pwa-prompt-icon-container">
+            <Smartphone className="pwa-icon-phone" />
+            <Download className="pwa-icon-download" />
           </div>
-          
-          <div className="pwa-prompt-body">
-            {promptType === 'android' ? (
-              <>
-                <h3>Unduh Aplikasi Android (APK)</h3>
-                <p>
-                  Sistem mendeteksi Anda menggunakan perangkat Android. Unduhan file APK <strong>App.SMPJDC.apk</strong> seharusnya sudah berjalan otomatis.
-                </p>
-                <div className="apk-info-box">
-                  <AlertCircle size={16} className="text-warning" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div style={{ fontSize: '0.75rem', lineHeight: '1.4', color: 'var(--text-secondary)' }}>
-                    Pasang APK ini untuk mengaktifkan fitur patroli penuh: GPS Presisi (Anti-Fraud), Kamera Keamanan, Haptics, & Notifikasi Real-time.
-                  </div>
-                </div>
-                <div className="download-status-indicator">
-                  <RefreshCw className="spinner-icon" size={12} />
-                  <span>Jika unduhan tidak mulai otomatis, ketuk tombol di bawah.</span>
-                </div>
-              </>
-            ) : promptType === 'ios' ? (
-              <>
-                <h3>Pasang Aplikasi SMPJDC (PWA)</h3>
-                <p>
-                  Tambahkan ke Layar Utama perangkat iOS Anda untuk mendapatkan akses patroli cepat dan notifikasi real-time.
-                </p>
-                <div className="ios-instructions">
-                  <p className="ios-step">
-                    <span className="step-num">1</span>
-                    Tap tombol share/bagikan <ArrowUpCircle size={15} style={{ display: 'inline', verticalAlign: 'middle', color: 'var(--color-primary, #3b82f6)' }} /> di bagian bawah Safari.
-                  </p>
-                  <p className="ios-step">
-                    <span className="step-num">2</span>
-                    Pilih menu <strong>"Tambahkan ke Layar Utama"</strong> (Add to Home Screen).
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3>Pasang Aplikasi SMPJDC</h3>
-                <p>
-                  Dapatkan akses cepat, notifikasi patroli real-time, dan kestabilan sistem langsung dari beranda Anda.
-                </p>
-              </>
-            )}
-          </div>
+          <button className="pwa-close-btn" onClick={handleDismiss} aria-label="Tutup">
+            <X size={18} />
+          </button>
+        </div>
 
-          <div className="pwa-prompt-footer">
-            <button className="pwa-btn-dismiss" onClick={handleDismiss}>
-              Nanti Saja
+        <div className="pwa-prompt-body">
+          {promptType === 'ios' ? (
+            <>
+              <h3>Pasang di Layar Utama</h3>
+              <p>
+                Tambahkan SMPJDC ke layar utama untuk akses patroli lebih cepat, tanpa membuka browser.
+              </p>
+              <div className="ios-instructions">
+                <p className="ios-step">
+                  <span className="step-num">1</span>
+                  Ketuk tombol bagikan <ArrowUpCircle size={15} className="ios-step-icon" /> di Safari.
+                </p>
+                <p className="ios-step">
+                  <span className="step-num">2</span>
+                  Pilih <strong>Tambahkan ke Layar Utama</strong>.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3>Pasang Aplikasi SMPJDC</h3>
+              <p>
+                Buka lebih cepat dari beranda, layar penuh, dan notifikasi patroli tetap aktif.
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="pwa-prompt-footer">
+          <button className="pwa-btn-dismiss" onClick={handleDismiss}>
+            Nanti Saja
+          </button>
+          {promptType === 'ios' ? (
+            <button className="pwa-btn-install" onClick={handleDismiss}>
+              Saya Mengerti
             </button>
-            {promptType === 'android' ? (
-              <button className="pwa-btn-install android-download" onClick={handleInstallClick}>
-                Download APK (Manual)
-              </button>
-            ) : promptType === 'ios' ? (
-              <button className="pwa-btn-install ios-understand" onClick={handleDismiss}>
-                Saya Mengerti
-              </button>
-            ) : (
-              <button className="pwa-btn-install" onClick={handleInstallClick}>
-                Pasang Sekarang
-              </button>
-            )}
-          </div>
+          ) : (
+            <button className="pwa-btn-install" onClick={handleInstallClick}>
+              Pasang Sekarang
+            </button>
+          )}
         </div>
       </div>
 
@@ -202,25 +179,25 @@ export default function PWAInstallPrompt() {
           position: fixed;
           bottom: 24px;
           right: 24px;
-          z-index: 999999;
+          z-index: 950;
           animation: pwaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          width: 380px;
-          max-width: calc(100vw - 48px);
+          width: 370px;
+          max-width: calc(100vw - 32px);
         }
 
         .pwa-prompt-card {
-          background: var(--bg-glass, rgba(15, 23, 42, 0.75));
+          background: var(--bg-glass, rgba(15, 23, 42, 0.9));
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
           border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.08));
           border-radius: 20px;
-          padding: 1.25rem;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
+          padding: 1.1rem;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
                       inset 0 1px 1px rgba(255, 255, 255, 0.1);
           color: var(--text-primary, #f8fafc);
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.85rem;
         }
 
         .pwa-prompt-header {
@@ -231,8 +208,8 @@ export default function PWAInstallPrompt() {
 
         .pwa-prompt-icon-container {
           position: relative;
-          width: 44px;
-          height: 44px;
+          width: 42px;
+          height: 42px;
           background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.15));
           border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.1));
           border-radius: 12px;
@@ -243,8 +220,8 @@ export default function PWAInstallPrompt() {
 
         .pwa-icon-phone {
           color: var(--color-primary, #3b82f6);
-          width: 22px;
-          height: 22px;
+          width: 21px;
+          height: 21px;
         }
 
         .pwa-icon-download {
@@ -264,8 +241,8 @@ export default function PWAInstallPrompt() {
           border: none;
           color: var(--text-muted, #94a3b8);
           cursor: pointer;
-          width: 28px;
-          height: 28px;
+          width: 30px;
+          height: 30px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -280,60 +257,30 @@ export default function PWAInstallPrompt() {
 
         .pwa-prompt-body h3 {
           font-family: 'Outfit', sans-serif;
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           font-weight: 700;
-          margin: 0 0 0.5rem 0;
+          margin: 0 0 0.4rem 0;
           letter-spacing: -0.01em;
           color: var(--text-primary, #f8fafc);
         }
 
         .pwa-prompt-body p {
           font-family: 'Inter', sans-serif;
-          font-size: 0.825rem;
+          font-size: 0.8rem;
           line-height: 1.45;
           margin: 0;
           color: var(--text-secondary, #cbd5e1);
         }
 
-        .apk-info-box {
-          margin-top: 0.75rem;
-          padding: 0.75rem;
-          background: rgba(245, 158, 11, 0.05);
-          border: 1px solid rgba(245, 158, 11, 0.15);
-          border-radius: 10px;
-          display: flex;
-          gap: 0.5rem;
-          align-items: flex-start;
-        }
-
-        .download-status-indicator {
-          margin-top: 0.6rem;
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          font-size: 0.7rem;
-          color: var(--text-muted, #94a3b8);
-        }
-
-        .spinner-icon {
-          animation: spin 2s linear infinite;
-          color: var(--color-primary, #3b82f6);
-        }
-
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
         .ios-instructions {
-          margin-top: 0.75rem;
-          padding: 0.75rem;
+          margin-top: 0.7rem;
+          padding: 0.7rem;
           background: rgba(255, 255, 255, 0.03);
           border: 1px dashed var(--border-glass, rgba(255, 255, 255, 0.1));
           border-radius: 10px;
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.45rem;
         }
 
         .ios-step {
@@ -343,6 +290,13 @@ export default function PWAInstallPrompt() {
           gap: 0.5rem;
           color: var(--text-secondary, #94a3b8) !important;
           margin: 0 !important;
+        }
+
+        .ios-step-icon {
+          display: inline;
+          vertical-align: middle;
+          color: var(--color-primary, #3b82f6);
+          margin: 0 2px;
         }
 
         .step-num {
@@ -364,8 +318,7 @@ export default function PWAInstallPrompt() {
         .pwa-prompt-footer {
           display: flex;
           justify-content: flex-end;
-          gap: 0.75rem;
-          margin-top: 0.25rem;
+          gap: 0.6rem;
         }
 
         .pwa-btn-dismiss {
@@ -375,7 +328,7 @@ export default function PWAInstallPrompt() {
           background: transparent;
           border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.15));
           color: var(--text-secondary, #cbd5e1);
-          padding: 0.5rem 0.875rem;
+          padding: 0.55rem 0.875rem;
           border-radius: 10px;
           cursor: pointer;
           transition: all 0.2s;
@@ -394,7 +347,7 @@ export default function PWAInstallPrompt() {
           background: linear-gradient(135deg, var(--color-primary, #2563eb), #1d4ed8);
           border: none;
           color: white;
-          padding: 0.5rem 1rem;
+          padding: 0.55rem 1rem;
           border-radius: 10px;
           cursor: pointer;
           box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
@@ -411,24 +364,9 @@ export default function PWAInstallPrompt() {
           transform: translateY(0);
         }
 
-        .android-download {
-          background: linear-gradient(135deg, #10b981, #059669);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .android-download:hover {
-          background: linear-gradient(135deg, #059669, #047857);
-          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-        }
-
-        .ios-understand {
-          background: linear-gradient(135deg, var(--color-primary, #2563eb), #1d4ed8);
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        }
-
         @keyframes pwaSlideUp {
           from {
-            transform: translateY(100px);
+            transform: translateY(24px);
             opacity: 0;
           }
           to {
@@ -439,33 +377,32 @@ export default function PWAInstallPrompt() {
 
         @media (max-width: 640px) {
           .pwa-prompt-overlay {
-            bottom: 0;
-            right: 0;
-            left: 0;
-            width: 100%;
-            max-width: 100%;
+            left: 12px;
+            right: 12px;
+            bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+            width: auto;
+            max-width: none;
           }
-          
+
           .pwa-prompt-card {
-            border-radius: 24px 24px 0 0;
-            border-bottom: none;
-            border-left: none;
-            border-right: none;
-            padding: 1.5rem 1.5rem 2rem 1.5rem;
+            border-radius: 18px;
+            padding: 1rem;
+            gap: 0.7rem;
           }
-          
+
           .pwa-prompt-footer {
-            flex-direction: column-reverse;
+            flex-direction: row-reverse;
           }
-          
-          .pwa-btn-dismiss, .pwa-btn-install {
-            width: 100%;
-            padding: 0.75rem;
-            font-size: 0.875rem;
+
+          .pwa-btn-dismiss,
+          .pwa-btn-install {
+            flex: 1 1 0;
+            padding: 0.7rem 0.5rem;
+            font-size: 0.8rem;
             text-align: center;
           }
         }
       `}</style>
-    </>
+    </div>
   );
 }

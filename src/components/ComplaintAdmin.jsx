@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, CheckCircle, AlertTriangle, Clock, Filter, Search, Send, Phone, Building, MapPin, User, FileText, X, ChevronRight, QrCode, Copy, Download, Printer } from 'lucide-react';
 import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 import ComplaintPosterModal from './ComplaintPosterModal';
+import { registerBackHandler } from '../utils/navigation';
 
 const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
 const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
+const FILTER_SHORT = {
+  all: 'Semua',
+  Baru: 'Baru',
+  Diterima: 'Terima',
+  Diproses: 'Proses',
+  Selesai: 'Selesai'
+};
 
 export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onDeleteComplaint }) {
   const [filter, setFilter] = useState('all');
@@ -25,6 +33,27 @@ export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onD
     }
     return origin + pathname;
   });
+
+  // Android hardware back: detail -> QR -> poster, berurutan
+  useEffect(() => {
+    if (!detail && !showQR && !showPosterModal) return;
+    const unregister = registerBackHandler(() => {
+      if (showPosterModal) {
+        setShowPosterModal(false);
+        return true;
+      }
+      if (showQR) {
+        setShowQR(false);
+        return true;
+      }
+      if (detail) {
+        setDetail(null);
+        return true;
+      }
+      return false;
+    });
+    return unregister;
+  }, [detail, showQR, showPosterModal]);
 
   const complaintUrl = customBaseUrl + (customBaseUrl.includes('?') ? '&' : '?') + 'complaint';
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(complaintUrl)}`;
@@ -206,25 +235,30 @@ export default function ComplaintAdmin({ complaints = [], onUpdateComplaint, onD
       </div>
 
       {/* Filter */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 140px', minWidth: 120 }}>
+      <div className="android-toolbar">
+        <div className="android-search">
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari tiket/nama/tenant..." className="modern-input" style={{ paddingLeft: '2rem', fontSize: '0.78rem' }} />
         </div>
-        <div className="filter-tabs-wrap">
-          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-            {['all', 'Baru', 'Diterima', 'Diproses', 'Selesai'].map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
-                border: `1.5px solid ${filter === f ? 'var(--color-primary)' : 'var(--border-glass)'}`,
-                background: filter === f ? 'rgba(59,130,246,0.12)' : 'transparent',
-                color: filter === f ? 'var(--color-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer', fontFamily: 'var(--font-sans)'
-              }}>{f === 'all' ? 'Semua' : f}</button>
-            ))}
-          </div>
+        <div className="segmented-filter" role="group" aria-label="Filter status komplain">
+          {['all', 'Baru', 'Diterima', 'Diproses', 'Selesai'].map(f => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={filter === f ? 'active' : ''}
+              aria-pressed={filter === f}
+            >
+              <span className="filter-label-full">{f === 'all' ? 'Semua' : f}</span>
+              <span className="filter-label-short">{FILTER_SHORT[f] || f}</span>
+            </button>
+          ))}
         </div>
-        <button onClick={handleExportComplaintPDF} className="btn-primary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Printer size={12} /> Export PDF</button>
+        <div className="android-actions">
+          <button onClick={handleExportComplaintPDF} className="btn-primary" type="button">
+            <Printer size={12} /> Export PDF
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

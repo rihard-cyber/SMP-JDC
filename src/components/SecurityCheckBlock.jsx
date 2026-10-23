@@ -191,7 +191,7 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
     if (errors.length === 0) {
       addLog('>> VERIFIKASI SUKSES! MENGALIHKAN KE APLIKASI...');
       setTimeout(() => {
-        onPassed();
+        onPassed(false);
       }, 1000);
     } else {
       addLog('>> VERIFIKASI GAGAL: Perangkat tidak memenuhi standar keamanan patroli.');
@@ -724,7 +724,7 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
                 type="button"
                 onClick={() => {
                   addLog('>> MODE PENGELOLA / DESKTOP DIAKTIFKAN');
-                  onPassed();
+                  onPassed(true);
                 }}
                 className="btn-desktop-bypass"
                 style={{
