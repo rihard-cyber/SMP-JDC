@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight } from 'lucide-react';
+import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight, MessageSquare } from 'lucide-react';
 import { compressImage } from '../utils/image';
 import { registerBackHandler } from '../utils/navigation';
 
@@ -19,6 +19,7 @@ const CATEGORIES = [
   { id: 'Engineering', label: 'Engineering', icon: AlertTriangle, color: '#f59e0b' },
   { id: 'Cleaning', label: 'Cleaning', icon: AlertTriangle, color: '#10b981' },
   { id: 'Satpam', label: 'Satpam / Security', icon: AlertTriangle, color: '#8b5cf6' },
+  { id: 'Kritik & Saran', label: 'Kritik & Saran', icon: MessageSquare, color: '#ec4899' },
   { id: 'Lainnya', label: 'Lainnya', icon: FileText, color: '#6b7280' }
 ];
 
@@ -157,9 +158,9 @@ export default function ComplaintForm({ onAddComplaint }) {
     if (!name.trim()) errs.name = 'Nama wajib diisi';
     if (!floor) errs.floor = 'Pilih lantai';
     if (!tenant.trim()) errs.tenant = 'Nama tenant / unit wajib diisi';
-    if (!category) errs.category = 'Pilih kategori komplain';
-    if (category === 'Lainnya' && !categoryCustom.trim()) errs.category = 'Tulis kategori komplain';
-    if (!description.trim()) errs.description = 'Deskripsi komplain wajib diisi';
+    if (!category) errs.category = 'Pilih kategori pengaduan / saran';
+    if (category === 'Lainnya' && !categoryCustom.trim()) errs.category = 'Tulis kategori pengaduan';
+    if (!description.trim()) errs.description = category === 'Kritik & Saran' ? 'Isi kritik & saran wajib diisi' : 'Deskripsi komplain wajib diisi';
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
 
@@ -473,7 +474,7 @@ export default function ComplaintForm({ onAddComplaint }) {
 
           {/* Category */}
           <div className="step-field">
-            <label>KATEGORI KOMPLAIN <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+            <label>KATEGORI TIKET / PENGADUAN <span style={{ color: 'var(--color-danger)' }}>*</span></label>
             <div className="complaint-cat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
               {CATEGORIES.map(c => (
                 <button key={c.id} type="button" onClick={() => { setCategory(c.id); setCategoryCustom(''); setErrors(p => ({ ...p, category: '' })); }} style={{
@@ -494,9 +495,9 @@ export default function ComplaintForm({ onAddComplaint }) {
 
           {/* Description */}
           <div className="step-field">
-            <label>DESKRIPSI KOMPLAIN <span style={{ color: 'var(--color-danger)' }}>*</span></label>
+            <label>{category === 'Kritik & Saran' ? 'ISI KRITIK & SARAN' : 'DESKRIPSI KOMPLAIN'} <span style={{ color: 'var(--color-danger)' }}>*</span></label>
             <textarea value={description} onChange={e => { setDescription(e.target.value); setErrors(p => ({ ...p, description: '' })); }}
-              placeholder="Jelaskan detail komplain Anda..." className="modern-input"
+              placeholder={category === 'Kritik & Saran' ? 'Tuliskan kritik, masukan, atau saran Anda untuk peningkatan layanan gedung JDC...' : 'Jelaskan detail komplain atau kendala Anda...'} className="modern-input"
               style={{ height: '90px', resize: 'vertical', fontSize: '0.82rem', padding: '0.5rem' }} />
             {errors.description && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{errors.description}</span>}
           </div>

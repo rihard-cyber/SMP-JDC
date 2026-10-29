@@ -277,6 +277,7 @@ export default function ComplaintPosterModal({ isOpen, onClose, complaintUrl, qr
               <div class="pill">🛡️ Keamanan & Satpam</div>
               <div class="pill">🚗 Parkir & Akses Lift</div>
               <div class="pill">💡 Fasilitas Tenant</div>
+              <div class="pill">💬 Kritik & Saran</div>
             </div>
           </div>
 
@@ -626,7 +627,7 @@ export default function ComplaintPosterModal({ isOpen, onClose, complaintUrl, qr
                 <span style={{ fontSize: '0.48rem', background: isDark ? '#0f172a' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`, padding: '0.15rem 0.35rem', borderRadius: '4px' }}>❄️ AC & Fasilitas</span>
                 <span style={{ fontSize: '0.48rem', background: isDark ? '#0f172a' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`, padding: '0.15rem 0.35rem', borderRadius: '4px' }}>🧹 Kebersihan</span>
                 <span style={{ fontSize: '0.48rem', background: isDark ? '#0f172a' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`, padding: '0.15rem 0.35rem', borderRadius: '4px' }}>🛡️ Keamanan</span>
-                <span style={{ fontSize: '0.48rem', background: isDark ? '#0f172a' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`, padding: '0.15rem 0.35rem', borderRadius: '4px' }}>🚗 Parkir & Lift</span>
+                <span style={{ fontSize: '0.48rem', background: isDark ? '#0f172a' : '#f1f5f9', border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`, padding: '0.15rem 0.35rem', borderRadius: '4px' }}>💬 Kritik & Saran</span>
               </div>
 
               {/* Footer Preview */}

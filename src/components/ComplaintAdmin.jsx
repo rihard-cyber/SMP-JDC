@@ -4,7 +4,7 @@ import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } 
 import ComplaintPosterModal from './ComplaintPosterModal';
 import { registerBackHandler } from '../utils/navigation';
 
-const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
+const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan', 'Manajemen'];
 
 const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
 const FILTER_SHORT = {
