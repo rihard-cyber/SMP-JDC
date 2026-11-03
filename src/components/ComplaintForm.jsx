@@ -226,7 +226,7 @@ export default function ComplaintForm({ onAddComplaint }) {
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
+            <img src="logo.webp" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
         </div>
         <div className="cyber-progress-container">
@@ -414,7 +414,7 @@ export default function ComplaintForm({ onAddComplaint }) {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1.5rem', position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <img src="./logo.png" alt="SMPJDC" className="logo-3d" style={{ height: 32, width: 'auto' }} />
+            <img src="./logo.webp" alt="SMPJDC" className="logo-3d" style={{ height: 32, width: 'auto' }} />
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 800, lineHeight: 1.2 }}>SMPJDC</h2>
               <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Sistem Komplain Terpadu</p>

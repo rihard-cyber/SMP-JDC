@@ -21,6 +21,7 @@ import { getGPSCoordinates, generateAntiFraudData, checkDeviceSecurity, verifyGP
 import { compressImage } from '../utils/image';
 import { registerBackHandler } from '../utils/navigation';
 import { hapticMedium, hapticSuccess, hapticHeavy, hapticLight } from '../utils/haptics';
+import { setNativeTorch } from '../utils/torch';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -32,7 +33,7 @@ const KATEGORI_MUTASI = [
 ];
 
 export default function SecurityPatrolApp({
-  currentUser, areas, posList = [], attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
+  currentUser, areas, users = [], posList = [], attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
   onAddReport, onTriggerSOS, onAddLog, onAddAttendance, onToggleSidebar, onBackToDashboard
 }) {
   const [online, setOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -107,6 +108,11 @@ export default function SecurityPatrolApp({
 
   // ── Tab: Patroli ──
   const [step, setStep] = useState(1); // 1=start, 2=scan, 3=lapor, 4=done
+  // Verifikasi NRP Danru wajib sebelum anggota boleh memulai patroli.
+  const [danruNrp, setDanruNrp] = useState('');
+  const [danruVerified, setDanruVerified] = useState(null);
+  const [danruError, setDanruError] = useState('');
+  const [isSubmittingPatrol, setIsSubmittingPatrol] = useState(false);
   const [shift, setShift] = useState(() => {
     const active = getDetectedShiftCode();
     const shiftMap = { P: 'Pagi (06:00-14:00)', S: 'Siang (14:00-22:00)', M: 'Malam (22:00-06:00)' };
@@ -132,15 +138,17 @@ export default function SecurityPatrolApp({
   const [torchOn, setTorchOn] = useState(false);
   const scannerRef = useRef(null); // menyimpan instance html5QrCode aktif
 
-  // Trigger early Geolocation permissions and warm up GPS coordinates
+  // Trigger early Geolocation permissions and warm up GPS coordinates.
+  // Kamera hanya boleh hidup saat tab patroli benar-benar aktif, sehingga
+  // flash tidak tertinggal menyala ketika pengguna pindah tab.
   useEffect(() => {
-    if (step === 2) {
+    if (tab === 'patroli' && step === 2) {
       setScanning(true);
       getGPSCoordinates().then(() => {});
     } else {
       setScanning(false);
     }
-  }, [step]);
+  }, [step, tab]);
 
   // Handle back button interception for step and tab navigation in simulator app
   useEffect(() => {
@@ -178,66 +186,57 @@ export default function SecurityPatrolApp({
   };
 
   // ── Helper: nyalakan/matikan torch dengan beberapa strategi kompatibilitas ──
-  // Android WebView / Chrome punya perilaku berbeda: ada yang menerima
-  // { advanced: [{ torch }] }, ada yang hanya { torch }. Semua dicoba.
+  // Strategi 0 adalah plugin native Android (paling andal karena langsung
+  // mengontrol CameraManager, tidak bergantung pada dukungan torch WebView).
+  // Strategi 1 & 2 adalah fallback untuk browser/PWA dan WebView yang support
+  // constraint { advanced: [{ torch }] } maupun { torch }.
   const setTorchForElement = async (scannerInstance, containerId, on) => {
     const desired = !!on;
-    let capabilities = null;
+    let nativeOk = false;
 
-    try {
-      if (scannerInstance && typeof scannerInstance.getRunningTrackCapabilities === 'function') {
-        capabilities = scannerInstance.getRunningTrackCapabilities();
-      }
-    } catch (e) {
-      capabilities = null;
+    // Strategi 0: native Android bridge.
+    nativeOk = await setNativeTorch(desired);
+    if (desired && nativeOk) {
+      // Flash native sudah menyala; constraint web tidak perlu dipaksa lagi.
+      return true;
     }
 
     const track = getScannerVideoTrack(containerId);
-    if (!capabilities && track && typeof track.getCapabilities === 'function') {
-      try {
-        capabilities = track.getCapabilities();
-      } catch (e) {
-        capabilities = null;
-      }
-    }
-
-    // Jika perangkat secara eksplisit menyatakan torch tidak tersedia, jangan
-    // memaksa dan memicu OverconstrainedError.
-    if (desired && capabilities && capabilities.torch === false) return false;
+    let webOk = false;
 
     // Strategi 1: API internal html5-qrcode (paling aman karena memakai track aktif)
     if (scannerInstance && typeof scannerInstance.applyVideoConstraints === 'function') {
       try {
         await scannerInstance.applyVideoConstraints({ advanced: [{ torch: desired }] });
-        return true;
+        webOk = true;
       } catch (e) {
         // Coba bentuk constraint kedua
-      }
-      try {
-        await scannerInstance.applyVideoConstraints({ torch: desired });
-        return true;
-      } catch (e) {
-        // Lanjut ke native track API
+        try {
+          await scannerInstance.applyVideoConstraints({ torch: desired });
+          webOk = true;
+        } catch (e2) {
+          // Lanjut ke native track API
+        }
       }
     }
 
     // Strategi 2: native MediaStreamTrack.applyConstraints
-    if (track && typeof track.applyConstraints === 'function') {
+    if (!webOk && track && typeof track.applyConstraints === 'function') {
       try {
         await track.applyConstraints({ advanced: [{ torch: desired }] });
-        return true;
+        webOk = true;
       } catch (e) {
         // Coba bentuk constraint kedua
-      }
-      try {
-        await track.applyConstraints({ torch: desired });
-        return true;
-      } catch (e) {
-        // Torch benar-benar tidak didukung
+        try {
+          await track.applyConstraints({ torch: desired });
+          webOk = true;
+        } catch (e2) {
+          // Torch benar-benar tidak didukung oleh WebView/browser
+        }
       }
     }
 
-    return false;
+    return nativeOk || webOk;
   };
 
   // ── Helper: paksa flash ON setelah kamera benar-benar hidup ──
@@ -273,7 +272,7 @@ export default function SecurityPatrolApp({
     let html5QrCode;
     const elementId = "reader";
     
-    if (scanning && step === 2) {
+    if (tab === 'patroli' && scanning && step === 2 && danruVerified) {
       setScanLoading(true);
       setScanError('');
       setTorchOn(false); // reset state torch
@@ -329,21 +328,37 @@ export default function SecurityPatrolApp({
         setTorchOn(false);
       };
     }
-  }, [scanning, step]);
+  }, [scanning, step, danruVerified, tab]);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   const { todayLog, myPlotting } = useMemo(() => {
     const currentHourShift = getDetectedShiftCode();
-    // 1. Find log for today matching current shift
+    const myId = String(currentUser?.id);
+
+    // Prioritaskan log yang benar-benar memuat personil ini. Ini mencegah
+    // plotting terbaca kosong ketika ada beberapa regu pada shift yang sama.
+    const containsMe = (log) => (log.details || []).some(d => String(d.personilId) === myId);
+
     let activeLog = attendanceLogs.find(
-      log => log.tanggal === todayStr && log.shift === currentHourShift
+      log => log.tanggal === todayStr && log.shift === currentHourShift && containsMe(log)
     );
-    // 2. Fallback: find any log for today
+    if (!activeLog) {
+      activeLog = attendanceLogs.find(log => log.tanggal === todayStr && containsMe(log));
+    }
+    if (!activeLog && currentUser?.regu) {
+      activeLog = attendanceLogs.find(
+        log => log.tanggal === todayStr && log.shift === currentHourShift && String(log.regu || '') === String(currentUser.regu)
+      );
+    }
+    if (!activeLog) {
+      activeLog = attendanceLogs.find(log => log.tanggal === todayStr && log.shift === currentHourShift);
+    }
     if (!activeLog) {
       activeLog = attendanceLogs.find(log => log.tanggal === todayStr);
     }
-    const plotting = activeLog?.details?.find(d => String(d.personilId) === String(currentUser?.id));
+
+    const plotting = activeLog?.details?.find(d => String(d.personilId) === myId);
     return {
       todayLog: activeLog || null,
       myPlotting: plotting || null
@@ -356,6 +371,121 @@ export default function SecurityPatrolApp({
       setShift(shiftMap[todayLog.shift] || todayLog.shift || 'Pagi (06:00-14:00)');
     }
   }, [myPlotting, todayLog]);
+
+  const isTestAccount = useMemo(() => (
+    ['Admin Super', 'admin', 'Admin'].includes(currentUser?.jabatan) ||
+    currentUser?.nama?.toLowerCase().includes('richard')
+  ), [currentUser]);
+
+  // Daftar Danru yang sah untuk regu petugas hari ini. Sumber utama adalah
+  // absensi/plotting hari ini, lalu fallback ke master user.
+  const danruCandidates = useMemo(() => {
+    const attendanceMap = new Map();
+    const masterMap = new Map();
+    const usersById = new Map();
+    const usersByName = new Map();
+    const absentKeys = new Set();
+
+    const personKey = (person) => {
+      const id = person?.personilId ?? person?.id ?? person?.userId;
+      if (id !== undefined && id !== null && String(id) !== '') return `id:${String(id)}`;
+      const name = String(person?.nama || '').trim().toLowerCase();
+      return name ? `nama:${name}` : '';
+    };
+
+    const markAbsent = (person) => {
+      const key = personKey(person);
+      if (key) absentKeys.add(key);
+      const name = String(person?.nama || '').trim().toLowerCase();
+      if (name) absentKeys.add(`nama:${name}`);
+    };
+
+    const isMarkedAbsent = (person) => {
+      if (absentKeys.has(personKey(person))) return true;
+      const name = String(person?.nama || '').trim().toLowerCase();
+      return !!name && absentKeys.has(`nama:${name}`);
+    };
+
+    (users || []).forEach(u => {
+      if (!u) return;
+      if (u.id !== undefined && u.id !== null && String(u.id) !== '') {
+        usersById.set(String(u.id), u);
+      }
+      const normalizedName = String(u.nama || '').trim().toLowerCase();
+      if (normalizedName) usersByName.set(normalizedName, u);
+    });
+
+    const addCandidate = (person, target) => {
+      if (!person) return;
+
+      // Detail absensi (terutama yang berbasis roster) belum tentu menyimpan
+      // NRP. Lengkapi dari master user memakai personilId atau nama.
+      const personId = person.personilId ?? person.id ?? person.userId;
+      const normalizedName = String(person.nama || '').trim().toLowerCase();
+      const linkedUser = (personId !== undefined && personId !== null && String(personId) !== '')
+        ? usersById.get(String(personId))
+        : (normalizedName ? usersByName.get(normalizedName) : null);
+
+      const role = String(person.jabatan || linkedUser?.jabatan || '').trim().toLowerCase();
+      if (role !== 'danru') return;
+
+      const nrp = String(person.nrp || linkedUser?.nrp || '').trim();
+      if (!nrp) return; // Tanpa NRP, Danru tidak bisa diverifikasi.
+
+      const key = `nrp:${nrp.toLowerCase()}`;
+      if (!target.has(key)) {
+        target.set(key, {
+          id: personId || key,
+          nrp,
+          nama: String(person.nama || linkedUser?.nama || 'Danru').trim(),
+          regu: String(person.regu || linkedUser?.regu || '').trim(),
+          jabatan: person.jabatan || linkedUser?.jabatan || 'Danru'
+        });
+      }
+    };
+
+    // Sumber utama: absensi/plotting hari ini. Danru yang tercatat tidak hadir
+    // tidak boleh dipakai sebagai verifikator.
+    const absentStatuses = ['sakit', 'cuti', 'mangkir', 'tidak hadir', 'izin', 'libur', 'off'];
+    (todayLog?.details || []).forEach(person => {
+      if (!person) return;
+      const status = String(person.status || '').trim().toLowerCase();
+      if (absentStatuses.includes(status)) {
+        markAbsent(person);
+        return;
+      }
+      addCandidate(person, attendanceMap);
+    });
+
+    // Fallback: master user, tetap mengecualikan personil yang absen hari ini.
+    (users || []).forEach(person => {
+      if (!person || isMarkedAbsent(person)) return;
+      addCandidate(person, masterMap);
+    });
+
+    const attendanceList = Array.from(attendanceMap.values());
+    const masterList = Array.from(masterMap.values());
+    const myRegu = String(currentUser?.regu || myPlotting?.regu || todayLog?.regu || '').trim().toLowerCase();
+    const inMyRegu = (d) => myRegu && String(d.regu || '').trim().toLowerCase() === myRegu;
+
+    if (!myRegu) {
+      return attendanceList.length > 0 ? attendanceList : masterList;
+    }
+
+    const attendanceSameRegu = attendanceList.filter(inMyRegu);
+    const masterSameRegu = masterList.filter(inMyRegu);
+    if (attendanceSameRegu.length > 0) return attendanceSameRegu;
+    if (masterSameRegu.length > 0) return masterSameRegu;
+    return attendanceList.length > 0 ? attendanceList : masterList;
+  }, [todayLog, users, currentUser, myPlotting]);
+
+  // Tidak boleh masuk ke kamera/scan tanpa verifikasi Danru.
+  useEffect(() => {
+    if (step > 1 && !danruVerified) {
+      setStep(1);
+      setScanning(false);
+    }
+  }, [step, danruVerified]);
 
   useEffect(() => {
     const handleTabChange = () => {
@@ -831,9 +961,6 @@ export default function SecurityPatrolApp({
   };
 
   const handleSelfClockIn = async () => {
-    const isTestAccount = ['Admin Super', 'admin', 'Admin'].includes(currentUser?.jabatan) || 
-                          currentUser?.nama?.toLowerCase().includes('richard');
-
     // 1. Enforce Developer Options Block
     if (deviceBlocked && !isTestAccount) {
       alert('⚠️ PRESENSI DIBLOKIR: Opsi Pengembang (Developer Options / USB Debugging) terdeteksi aktif. Harap matikan Opsi Pengembang di HP Anda!');
@@ -1074,13 +1201,58 @@ export default function SecurityPatrolApp({
   const kategoriData = KATEGORI_TEMUAN;
   const daftarTemuan = kategori ? kategoriData.find(k => k.id === kategori)?.items || [] : [];
 
-  const resetLaporan = () => {
+  const resetLaporan = (options = {}) => {
     setStep(1); setArea(null); setTimeScan(null);
     setMode(null); setKategori(''); setTemuan('');
     setSeverity('low'); setDeskripsi(''); setFoto(null);
     setBarcodeInput(''); setScanError('');
     setIsCustomKategori(false); setKategoriCustom('');
     setIsCustomTemuan(false); setTemuanCustom('');
+    setIsSubmittingPatrol(false);
+
+    // Verifikasi Danru dipertahankan saat lanjut ke checkpoint berikutnya,
+    // tetapi harus diisi ulang saat sesi patroli benar-benar selesai.
+    if (!options.keepDanru) {
+      setDanruNrp('');
+      setDanruVerified(null);
+      setDanruError('');
+    }
+  };
+
+  const handleStartPatrol = () => {
+    if (!danruVerified) {
+      const inputNrp = danruNrp.trim();
+      if (!inputNrp) {
+        setDanruError('NRP Danru wajib diisi sebelum memulai patroli.');
+        hapticHeavy();
+        return;
+      }
+
+      if (danruCandidates.length === 0) {
+        setDanruError('Data Danru belum tersedia. Pastikan absensi/plotting hari ini sudah diisi oleh Danru.');
+        hapticHeavy();
+        return;
+      }
+
+      const matched = danruCandidates.find(d => d.nrp.trim().toLowerCase() === inputNrp.toLowerCase());
+      if (!matched) {
+        setDanruError('NRP Danru tidak valid untuk regu Anda. Periksa kembali NRP Danru yang bertugas hari ini.');
+        hapticHeavy();
+        return;
+      }
+
+      setDanruVerified(matched);
+      setDanruError('');
+      hapticSuccess();
+    }
+    setStep(2);
+  };
+
+  const handleChangeDanru = () => {
+    setDanruVerified(null);
+    setDanruNrp('');
+    setDanruError('');
+    setStep(1);
   };
 
   const playBeepSound = () => {
@@ -1179,47 +1351,64 @@ export default function SecurityPatrolApp({
   };
 
   const handleNormal = async () => {
-    const fraudData = await generateAntiFraudData(currentUser.id);
-    const r = {
-      timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
-      userId: currentUser.id, userName: currentUser.nama,
-      areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
-      shift, kategori: '-', kodeTemuan: '-', temuan: 'Normal', status: 'normal',
-      kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null,
-      antiFraud: fraudData
-    };
-    (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
-    setStep(4);
+    if (isSubmittingPatrol) return;
+    setIsSubmittingPatrol(true);
+    try {
+      const fraudData = await generateAntiFraudData(currentUser.id);
+      const r = {
+        timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
+        userId: currentUser.id, userName: currentUser.nama,
+        areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
+        shift, kategori: '-', kodeTemuan: '-', temuan: 'Normal', status: 'normal',
+        kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null,
+        antiFraud: fraudData
+      };
+      (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
+      setStep(4);
+    } catch (err) {
+      console.error('Gagal mengirim laporan patroli:', err);
+      alert('Gagal mengirim laporan patroli. Silakan coba lagi.');
+    } finally {
+      setIsSubmittingPatrol(false);
+    }
   };
 
   const handleTemuanSubmit = async (e) => {
     e.preventDefault();
-    if (!kategori || !temuan) return;
-    const kat = kategoriData.find(k => k.id === kategori);
-    const item = daftarTemuan.find(t => t.kode === temuan);
-    const severityMap = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
-    
-    const categoryName = isCustomKategori ? kategoriCustom : (kat?.nama || kategori || 'Lainnya');
-    const findingName = isCustomTemuan ? temuanCustom : (item?.nama || temuan || 'Ada Temuan');
+    if (!kategori || !temuan || isSubmittingPatrol) return;
+    setIsSubmittingPatrol(true);
+    try {
+      const kat = kategoriData.find(k => k.id === kategori);
+      const item = daftarTemuan.find(t => t.kode === temuan);
+      const severityMap = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
 
-    const fraudData = await generateAntiFraudData(currentUser.id);
-    const r = {
-      timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
-      userId: currentUser.id, userName: currentUser.nama,
-      areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
-      shift,
-      kategori: categoryName,
-      kodeTemuan: isCustomTemuan ? '__lainnya__' : (item?.kode || temuan || ''),
-      temuan: findingName,
-      status: 'temuan',
-      kondisi: findingName,
-      severity: severityMap[severity] || 'Rendah',
-      keterangan: deskripsi,
-      foto,
-      antiFraud: fraudData
-    };
-    (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
-    setStep(4);
+      const categoryName = isCustomKategori ? kategoriCustom : (kat?.nama || kategori || 'Lainnya');
+      const findingName = isCustomTemuan ? temuanCustom : (item?.nama || temuan || 'Ada Temuan');
+
+      const fraudData = await generateAntiFraudData(currentUser.id);
+      const r = {
+        timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
+        userId: currentUser.id, userName: currentUser.nama,
+        areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
+        shift,
+        kategori: categoryName,
+        kodeTemuan: isCustomTemuan ? '__lainnya__' : (item?.kode || temuan || ''),
+        temuan: findingName,
+        status: 'temuan',
+        kondisi: findingName,
+        severity: severityMap[severity] || 'Rendah',
+        keterangan: deskripsi,
+        foto,
+        antiFraud: fraudData
+      };
+      (online ? onAddReport(r) : setQueue(p => [...p, { type: 'report', data: r }]));
+      setStep(4);
+    } catch (err) {
+      console.error('Gagal mengirim laporan temuan:', err);
+      alert('Gagal mengirim laporan temuan. Silakan coba lagi.');
+    } finally {
+      setIsSubmittingPatrol(false);
+    }
   };
 
   // ── Tab: Mutasi ──
@@ -1469,7 +1658,7 @@ export default function SecurityPatrolApp({
                 <Menu size={18} />
               </button>
             )}
-            <img src="logo.png" alt="" className="mobile-logo logo-3d" />
+            <img src="logo.webp" alt="" className="mobile-logo logo-3d" />
           </div>
           <div className="mobile-brand-title" style={{ justifySelf: 'center', textAlign: 'center' }}>
             <h4 className="mobile-app-title" style={{ margin: 0 }}>SMPJDC</h4>
@@ -2353,7 +2542,7 @@ export default function SecurityPatrolApp({
                 }}>← Kembali ke Beranda</button>
                 <div className="step-login-header">
                   <h3>Mulai Patroli</h3>
-                  <p>Scan barcode checkpoint untuk memulai patroli.</p>
+                  <p>Masukkan NRP Danru, lalu scan barcode checkpoint untuk memulai patroli.</p>
                 </div>
                 {!todayLog && (
                   <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-warning)', background: 'rgba(245,158,11,0.08)', marginBottom: '0.75rem' }}>
@@ -2403,7 +2592,85 @@ export default function SecurityPatrolApp({
                     <Info size={11} /> Shift & Regu terdeteksi otomatis sinkron real-time.
                   </div>
                 </div>
-                <button onClick={() => setStep(2)} className="btn-primary btn-full">Mulai Scan</button>
+                <div
+                  className="glass-panel"
+                  style={{
+                    marginTop: '0.75rem',
+                    padding: '0.85rem',
+                    border: danruVerified ? '1px solid rgba(16,185,129,0.45)' : '1px solid rgba(59,130,246,0.35)',
+                    background: danruVerified ? 'rgba(16,185,129,0.06)' : 'rgba(59,130,246,0.05)'
+                  }}
+                >
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: danruVerified ? 'var(--color-success)' : 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem', letterSpacing: '0.02em' }}>
+                    <Fingerprint size={13} /> VERIFIKASI NRP DANRU
+                  </div>
+
+                  {danruVerified ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.2rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Danru:</span>
+                        <strong style={{ color: 'var(--text-primary)' }}>{danruVerified.nama}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>NRP:</span>
+                        <strong style={{ fontFamily: 'var(--font-mono)' }}>{danruVerified.nrp}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Regu:</span>
+                        <strong>{danruVerified.regu || myPlotting?.regu || currentUser?.regu || '-'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.45rem', fontSize: '0.65rem', color: 'var(--color-success)', fontWeight: 700 }}>
+                        <Check size={12} /> NRP Danru terverifikasi. Akses patroli dibuka.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleChangeDanru}
+                        style={{ marginTop: '0.45rem', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.68rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                      >
+                        Ganti NRP Danru
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', lineHeight: 1.45 }}>
+                        Anggota wajib memasukkan NRP Danru regu yang bertugas hari ini sebelum bisa membuka kamera patroli.
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={danruNrp}
+                        onChange={e => { setDanruNrp(e.target.value.replace(/\s/g, '')); setDanruError(''); }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleStartPatrol(); } }}
+                        placeholder="Masukkan NRP Danru..."
+                        aria-label="NRP Danru"
+                        className="modern-input"
+                        style={{
+                          width: '100%',
+                          fontSize: '0.9rem',
+                          fontFamily: 'var(--font-mono)',
+                          letterSpacing: '0.08em',
+                          textAlign: 'center',
+                          borderColor: danruError ? 'var(--color-danger)' : undefined
+                        }}
+                      />
+                      {danruError && (
+                        <div role="alert" style={{ marginTop: '0.45rem', padding: '0.45rem 0.55rem', borderRadius: '6px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--color-danger)', fontSize: '0.66rem', fontWeight: 600, lineHeight: 1.4 }}>
+                          ⚠️ {danruError}
+                        </div>
+                      )}
+                      {danruCandidates.length === 0 && !danruError && (
+                        <div style={{ marginTop: '0.45rem', fontSize: '0.64rem', color: 'var(--color-warning)', lineHeight: 1.4 }}>
+                          Data Danru belum ditemukan. Pastikan absensi & plotting hari ini sudah disimpan.
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <button onClick={handleStartPatrol} className="btn-primary btn-full" style={{ marginTop: '0.65rem' }}>
+                  {danruVerified ? 'Mulai Scan' : 'Verifikasi NRP & Mulai Scan'}
+                </button>
 
                 {/* Riwayat Patroli Saya */}
                 {myReports.length > 0 && (
@@ -2574,18 +2841,21 @@ export default function SecurityPatrolApp({
                     </div>
                   )}
                 </div>
-                <p className="decision-label">PILIH STATUS AREA:</p>
-                <button onClick={handleNormal} className="decision-btn decision-normal">
-                  <ThumbsUp size={32} />
-                  <span className="decision-btn-title">NORMAL</span>
-                  <span className="decision-btn-sub">Tidak ada temuan</span>
-                </button>
-                <button onClick={() => setMode('temuan')} className="decision-btn decision-temuan">
+                <p className="decision-label">APAKAH ADA TEMUAN DI TITIK INI?</p>
+                <p style={{ fontSize: '0.67rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '-0.15rem 0 0.55rem', lineHeight: 1.4 }}>
+                  Pilih <strong>Tidak</strong> untuk langsung mengirim laporan tanpa mengisi form.
+                </p>
+                <button onClick={() => setMode('temuan')} disabled={isSubmittingPatrol} className="decision-btn decision-temuan" style={{ opacity: isSubmittingPatrol ? 0.6 : 1 }}>
                   <AlertTriangle size={32} />
-                  <span className="decision-btn-title">TEMUAN</span>
-                  <span className="decision-btn-sub">Ada temuan / kendala</span>
+                  <span className="decision-btn-title">YA, ADA TEMUAN</span>
+                  <span className="decision-btn-sub">Isi form temuan / kendala</span>
                 </button>
-                <button onClick={() => setStep(2)} className="btn-secondary btn-full" style={{ marginTop: '0.5rem' }}>Kembali</button>
+                <button onClick={handleNormal} disabled={isSubmittingPatrol} className="decision-btn decision-normal" style={{ opacity: isSubmittingPatrol ? 0.6 : 1 }}>
+                  <ThumbsUp size={32} />
+                  <span className="decision-btn-title">{isSubmittingPatrol ? 'MENGIRIM...' : 'TIDAK, AMAN'}</span>
+                  <span className="decision-btn-sub">Langsung kirim tanpa form</span>
+                </button>
+                <button onClick={() => setStep(2)} className="btn-secondary btn-full" style={{ marginTop: '0.5rem' }} disabled={isSubmittingPatrol}>Kembali</button>
               </div>
             )}
 
@@ -2692,7 +2962,9 @@ export default function SecurityPatrolApp({
                 </div>
                 <div className="form-actions">
                   <button type="button" onClick={() => setMode(null)} className="btn-secondary" style={{ flex: 1 }}>Kembali</button>
-                  <button type="submit" className="btn-primary" style={{ flex: 2, opacity: kategori && temuan ? 1 : 0.5 }} disabled={!kategori || !temuan}>Kirim Laporan</button>
+                  <button type="submit" className="btn-primary" style={{ flex: 2, opacity: kategori && temuan && !isSubmittingPatrol ? 1 : 0.5 }} disabled={!kategori || !temuan || isSubmittingPatrol}>
+                    {isSubmittingPatrol ? 'Mengirim...' : 'Kirim Laporan'}
+                  </button>
                 </div>
               </form>
             )}
@@ -2716,7 +2988,7 @@ export default function SecurityPatrolApp({
                     </>
                   )}
                 </div>
-                <button onClick={() => { resetLaporan(); setStep(2); }} className="btn-primary btn-full">Scan Checkpoint Berikutnya</button>
+                <button onClick={() => { resetLaporan({ keepDanru: true }); setStep(2); }} className="btn-primary btn-full">Scan Checkpoint Berikutnya</button>
                 <button onClick={() => { resetLaporan(); }} className="btn-secondary btn-full">Selesai Patroli</button>
               </div>
             )}

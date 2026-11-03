@@ -52,3 +52,9 @@ task webBuild(type: Exec) {
     }
 }
 preBuild.dependsOn webBuild
+
+// Jangan pernah ikutkan file APK distribusi ke dalam assets aplikasi.
+// Tanpa ini, APK hasil build bisa membungkus APK lain (nested APK) dan membengkak.
+preBuild.doLast {
+    delete fileTree('src/main/assets/public') { include '**/*.apk' }
+}

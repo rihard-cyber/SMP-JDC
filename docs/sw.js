@@ -1,8 +1,9 @@
-const CACHE_NAME = 'smpjdc-pwa-v5';
+const CACHE_NAME = 'smpjdc-pwa-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './logo.png',
+  './logo.webp',
+  './apple-touch-icon.png',
   './manifest.json'
 ];
 

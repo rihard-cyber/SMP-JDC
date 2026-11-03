@@ -22,7 +22,6 @@
     "@capacitor/haptics": "^6.0.2",
     "@capacitor/status-bar": "^6.0.2",
     "@supabase/supabase-js": "^2.108.1",
-    "firebase": "^12.14.0",
     "html5-qrcode": "^2.3.8",
     "localforage": "^1.10.0",
     "lucide-react": "^0.395.0",

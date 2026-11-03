@@ -65,16 +65,7 @@ import {
   Package,
   Archive
 } from 'lucide-react';
-import ReportsExport from './components/ReportsExport';
-import TargetDashboard from './components/TargetDashboard';
 import LoginPage from './components/LoginPage';
-import MutasiPenjagaan from './components/MutasiPenjagaan';
-import UserManagement from './components/UserManagement';
-import AbsensiRegu from './components/AbsensiRegu';
-import RosterManagement from './components/RosterManagement';
-import LaporForm from './components/LaporForm';
-import BackupRestore from './components/BackupRestore';
-import ComplaintForm from './components/ComplaintForm';
 import BottomNav from './components/BottomNav';
 import ConfirmModal from './components/ConfirmModal';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
@@ -85,6 +76,19 @@ const SecurityPatrolApp = lazy(() => import('./components/SecurityPatrolApp'));
 const BarcodeGenerator = lazy(() => import('./components/BarcodeGenerator'));
 const ComplaintAdmin = lazy(() => import('./components/ComplaintAdmin'));
 const FoundItems = lazy(() => import('./components/FoundItems'));
+const ReportsExport = lazy(() => import('./components/ReportsExport'));
+const TargetDashboard = lazy(() => import('./components/TargetDashboard'));
+const MutasiPenjagaan = lazy(() => import('./components/MutasiPenjagaan'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const AbsensiRegu = lazy(() => import('./components/AbsensiRegu'));
+const RosterManagement = lazy(() => import('./components/RosterManagement'));
+const LaporForm = lazy(() => import('./components/LaporForm'));
+const BackupRestore = lazy(() => import('./components/BackupRestore'));
+const ComplaintForm = lazy(() => import('./components/ComplaintForm'));
+
+const TabLoader = ({ label = 'Memuat...' }) => (
+  <div className="loading-pulse" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>{label}</div>
+);
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
 const CURRENT_DB_VERSION = '5.2-stable';
@@ -2637,7 +2641,9 @@ export default function App() {
           WebkitOverflowScrolling: 'touch',
           width: '100%'
         }}>
-          <ComplaintForm onAddComplaint={handleAddComplaint} />
+          <Suspense fallback={<TabLoader label="Memuat Form Pengaduan..." />}>
+            <ComplaintForm onAddComplaint={handleAddComplaint} />
+          </Suspense>
         </div>
       </div>
     );
@@ -2662,7 +2668,7 @@ export default function App() {
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
+            <img src="logo.webp" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
         </div>
         <div className="cyber-progress-container">
@@ -2733,7 +2739,7 @@ export default function App() {
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
+            <img src="logo.webp" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
         </div>
         <div className="cyber-progress-container">
@@ -2781,7 +2787,7 @@ export default function App() {
       <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-logo-box">
-            <img src="logo.png" alt="SMPJDC" className="logo-3d" />
+            <img src="logo.webp" alt="SMPJDC" className="logo-3d" />
           </div>
           <div className="sidebar-brand-text">
             <h2>SMPJDC<span className="text-primary"> JDC</span></h2>
@@ -2952,7 +2958,7 @@ export default function App() {
                 {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               <div className="header-logo-box">
-                <img src="logo.png" alt="SMPJDC" className="logo-3d" />
+                <img src="logo.webp" alt="SMPJDC" className="logo-3d" />
               </div>
               <div className="header-brand-text">
                 <span className="header-brand-name">SMPJDC</span>
@@ -3030,6 +3036,7 @@ export default function App() {
           )}
 
           {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
+            <Suspense fallback={<TabLoader label="Memuat Absensi..." />}>
             <AbsensiRegu 
               users={users} 
               areas={areas}
@@ -3068,10 +3075,13 @@ export default function App() {
                 });
               }} 
             />
+            </Suspense>
           )}
 
           {currentTab === 'target-compliance' && (
-            <TargetDashboard reports={reports} findings={findings} areas={areas} currentUser={currentUser} isClient={isClient} />
+            <Suspense fallback={<TabLoader label="Memuat Target..." />}>
+              <TargetDashboard reports={reports} findings={findings} areas={areas} currentUser={currentUser} isClient={isClient} />
+            </Suspense>
           )}
 
           {currentTab === 'barcodes' && (isGodMode || (isAdmin && !isClient)) && (
@@ -3081,11 +3091,15 @@ export default function App() {
           )}
 
           {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser?.jabatan)) && (
-            <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} posList={posList} attendanceLogs={attendanceLogs} canViewResults={isGodMode || isAdmin} />
+            <Suspense fallback={<TabLoader label="Memuat Mutasi..." />}>
+              <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} posList={posList} attendanceLogs={attendanceLogs} canViewResults={isGodMode || isAdmin} />
+            </Suspense>
           )}
 
           {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
-            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onDeleteReport={handleDeleteReport} onUpdateReport={handleUpdateReport} />
+            <Suspense fallback={<TabLoader label="Memuat Laporan..." />}>
+              <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onDeleteReport={handleDeleteReport} onUpdateReport={handleUpdateReport} />
+            </Suspense>
           )}
 
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
@@ -3094,6 +3108,7 @@ export default function App() {
               <SecurityPatrolApp 
                 currentUser={currentUser} 
                 areas={areas} 
+                users={users}
                 posList={posList} 
                 attendanceLogs={attendanceLogs} 
                 reports={reports} 
@@ -3139,21 +3154,29 @@ export default function App() {
           )}
 
           {currentTab === 'user-management' && (isGodMode || isAdmin) && (
-            <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onSaveWAContacts={handleSaveWAContacts} />
+            <Suspense fallback={<TabLoader label="Memuat User..." />}>
+              <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} onSaveWAContacts={handleSaveWAContacts} />
+            </Suspense>
           )}
 
           {currentTab === 'roster' && (isGodMode || isAdmin) && (
-            <RosterManagement users={users} currentUser={currentUser} />
+            <Suspense fallback={<TabLoader label="Memuat Roster..." />}>
+              <RosterManagement users={users} currentUser={currentUser} />
+            </Suspense>
           )}  
 
           {currentTab === 'backup' && isSuperAdmin && (
             <div style={{ padding: '1rem 0' }}>
-              <BackupRestore addToast={addToast} onResetUsers={handleResetUsers} onClearAllData={handleClearAllData} />
+              <Suspense fallback={<TabLoader label="Memuat Backup..." />}>
+                <BackupRestore addToast={addToast} onResetUsers={handleResetUsers} onClearAllData={handleClearAllData} />
+              </Suspense>
             </div>
           )}
 
           {currentTab === 'lapor' && isPatrol && (
-            <LaporForm currentUser={currentUser} areas={areas} posList={posList} onAddReport={handleAddReport} onAddLog={handleAddMutasi} />
+            <Suspense fallback={<TabLoader label="Memuat Form Laporan..." />}>
+              <LaporForm currentUser={currentUser} areas={areas} posList={posList} onAddReport={handleAddReport} onAddLog={handleAddMutasi} />
+            </Suspense>
           )}
 
           {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (

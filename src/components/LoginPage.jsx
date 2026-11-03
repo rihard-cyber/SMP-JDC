@@ -135,7 +135,7 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
           <div className="hud-ring ring-inner"></div>
           <div className="hud-ring ring-dashed"></div>
           <div className="splash-logo-container">
-            <img src="logo.png" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
+            <img src="logo.webp" alt="SMPJDC" className="splash-logo cyber-logo logo-3d-spin" />
           </div>
         </div>
         <div className="cyber-progress-container">
@@ -197,7 +197,7 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
           <div className="login-card">
             <div className="login-header">
               <div className="login-logo-ring">
-                <img src="logo.png" alt="SMPJDC" className="login-logo logo-3d" />
+                <img src="logo.webp" alt="SMPJDC" className="login-logo logo-3d" />
               </div>
               <h1 className="login-title">Setup Awal SMPJDC</h1>
               <p className="login-subtitle">Buat akun Admin Super untuk memulai</p>
@@ -295,7 +295,7 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
         <div className="login-card">
           <div className="login-header">
             <div className="login-logo-ring">
-              <img src="logo.png" alt="SMPJDC" className="login-logo logo-3d" />
+              <img src="logo.webp" alt="SMPJDC" className="login-logo logo-3d" />
             </div>
             <h1 className="login-title">SMPJDC</h1>
             <p className="login-subtitle">SISTEM MANAGEMENT KEAMANAN JDC</p>
