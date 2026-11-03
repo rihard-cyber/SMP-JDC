@@ -465,18 +465,15 @@ export default function SecurityPatrolApp({
 
     const attendanceList = Array.from(attendanceMap.values());
     const masterList = Array.from(masterMap.values());
-    const myRegu = String(currentUser?.regu || myPlotting?.regu || todayLog?.regu || '').trim().toLowerCase();
-    const inMyRegu = (d) => myRegu && String(d.regu || '').trim().toLowerCase() === myRegu;
-
-    if (!myRegu) {
-      return attendanceList.length > 0 ? attendanceList : masterList;
-    }
-
-    const attendanceSameRegu = attendanceList.filter(inMyRegu);
-    const masterSameRegu = masterList.filter(inMyRegu);
-    if (attendanceSameRegu.length > 0) return attendanceSameRegu;
-    if (masterSameRegu.length > 0) return masterSameRegu;
-    return attendanceList.length > 0 ? attendanceList : masterList;
+    // Tidak filter by regu — anggota dari regu manapun bisa memasukkan
+    // NRP Danru siapapun. Hasil patroli diklasifikasikan berdasarkan
+    // regu Danru yang NRP-nya diverifikasi.
+    const merged = new Map(attendanceMap);
+    masterList.forEach(d => {
+      const key = `nrp:${d.nrp.toLowerCase()}`;
+      if (!merged.has(key)) merged.set(key, d);
+    });
+    return Array.from(merged.values());
   }, [todayLog, users, currentUser, myPlotting]);
 
   // Tidak boleh masuk ke kamera/scan tanpa verifikasi Danru.
@@ -1236,7 +1233,7 @@ export default function SecurityPatrolApp({
 
       const matched = danruCandidates.find(d => d.nrp.trim().toLowerCase() === inputNrp.toLowerCase());
       if (!matched) {
-        setDanruError('NRP Danru tidak valid untuk regu Anda. Periksa kembali NRP Danru yang bertugas hari ini.');
+        setDanruError('NRP Danru tidak ditemukan. Periksa kembali NRP Danru yang bertugas hari ini.');
         hapticHeavy();
         return;
       }
@@ -1358,6 +1355,10 @@ export default function SecurityPatrolApp({
       const r = {
         timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
         userId: currentUser.id, userName: currentUser.nama,
+        regu: danruVerified?.regu || currentUser.regu || '',
+        danruNama: danruVerified?.nama || '',
+        danruNrp: danruVerified?.nrp || '',
+        danruRegu: danruVerified?.regu || '',
         areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
         shift, kategori: '-', kodeTemuan: '-', temuan: 'Normal', status: 'normal',
         kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null,
@@ -1389,6 +1390,10 @@ export default function SecurityPatrolApp({
       const r = {
         timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
         userId: currentUser.id, userName: currentUser.nama,
+        regu: danruVerified?.regu || currentUser.regu || '',
+        danruNama: danruVerified?.nama || '',
+        danruNrp: danruVerified?.nrp || '',
+        danruRegu: danruVerified?.regu || '',
         areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
         shift,
         kategori: categoryName,
@@ -2633,7 +2638,7 @@ export default function SecurityPatrolApp({
                   ) : (
                     <>
                       <p style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', lineHeight: 1.45 }}>
-                        Anggota wajib memasukkan NRP Danru regu yang bertugas hari ini sebelum bisa membuka kamera patroli.
+                        Masukkan NRP Danru yang bertugas hari ini. Hasil patroli akan diklasifikasikan ke regu Danru tersebut.
                       </p>
                       <input
                         type="text"
