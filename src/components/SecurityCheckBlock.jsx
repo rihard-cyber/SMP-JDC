@@ -10,6 +10,7 @@ import {
   getGPSCoordinates, verifyGPSAntiFake, checkDeviceSecurity, 
   queryWebPermissions 
 } from '../utils/security';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 
 export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
   const [checking, setChecking] = useState(true);
@@ -129,7 +130,7 @@ export default function SecurityCheckBlock({ onPassed, theme = 'dark' }) {
     // Stop and compile errors if permissions are not granted
     if (!cameraOk || !locationOk) {
       const errors = [];
-      if (!cameraOk) errors.push('Akses Kamera ditolak. Aktifkan izin kamera di Pengaturan Aplikasi agar dapat mengambil foto presensi/laporan.');
+      if (!cameraOk) errors.push(`Akses Kamera ditolak. Aktifkan izin kamera di Pengaturan Aplikasi agar dapat mengambil foto ${PRESENSI_ABSENSI_ENABLED ? 'presensi/laporan' : 'laporan/patroli'}.`);
       if (!locationOk) errors.push('Akses Lokasi ditolak. Aktifkan izin lokasi (Akurasi Tinggi/GPS) agar koordinat patroli Anda dapat diverifikasi.');
       setErrorDetails(errors);
       setChecking(false);

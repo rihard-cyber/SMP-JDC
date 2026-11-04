@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { getWAContacts, buildWAMessage, buildWALink } from '../data/waContacts';
 import { hapticMedium, hapticSuccess, hapticError, hapticWarning, hapticLight } from '../utils/haptics';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 
 const SEVERITY_COLOR = {
@@ -247,7 +248,10 @@ export default function ManagementDashboard({
   const findingsClosed = combinedFindings.length > 0 ? (combinedFindings.filter(f => f.status === 'Closed').length / combinedFindings.length) * 100 : 100;
   const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 100;
   const healthScore = Math.round(
-    (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
+    PRESENSI_ABSENSI_ENABLED
+      ? (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
+      // Saat modul absensi disembunyikan, bobot dihitung dari metrik yang tampil saja.
+      : ((patrolPct * 0.30) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)) / 0.75
   );
   const healthLabel = healthScore >= 90 ? 'Sangat Baik' : healthScore >= 75 ? 'Baik' : healthScore >= 60 ? 'Cukup' : 'Perlu Perhatian';
   const healthColor = healthScore >= 90 ? '#10b981' : healthScore >= 75 ? '#3b82f6' : healthScore >= 60 ? '#f59e0b' : '#ef4444';
@@ -979,7 +983,7 @@ export default function ManagementDashboard({
         <div className="cyber-left-col">
           
           {/* Row 1: concentric circles and attendance loop progress */}
-          <div className="cyber-row-grid">
+          <div className="cyber-row-grid" style={!PRESENSI_ABSENSI_ENABLED ? { gridTemplateColumns: '1fr' } : undefined}>
             
             {/* Widget 1: Concentric rings */}
             <div className="cyber-card">
@@ -987,16 +991,20 @@ export default function ManagementDashboard({
               <div className="cyber-radial-container">
                 <svg width="110" height="110" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
                   <circle cx="50" cy="50" r="40" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
+                  {PRESENSI_ABSENSI_ENABLED && (
                   <circle cx="50" cy="50" r="30" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
+                  )}
                   <circle cx="50" cy="50" r="20" fill="transparent" className="cyber-track-ring" strokeWidth="6" />
                   
                   {/* Rings */}
                   <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ec4899" strokeWidth="6" 
                     strokeDasharray="251.3" strokeDashoffset={251.3 - (patrolPct / 100) * 251.3} 
                     strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                  {PRESENSI_ABSENSI_ENABLED && (
                   <circle cx="50" cy="50" r="30" fill="transparent" stroke="#00f0ff" strokeWidth="6" 
                     strokeDasharray="188.5" strokeDashoffset={188.5 - (attendancePct / 100) * 188.5} 
                     strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+                  )}
                   <circle cx="50" cy="50" r="20" fill="transparent" stroke="#8b5cf6" strokeWidth="6" 
                     strokeDasharray="125.7" strokeDashoffset={125.7 - (findingsClosed / 100) * 125.7} 
                     strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
@@ -1006,10 +1014,12 @@ export default function ManagementDashboard({
                     <div className="cyber-color-dot" style={{ background: '#ec4899' }} />
                     <span>Patroli: <strong>{Math.round(patrolPct)}%</strong></span>
                   </div>
+                  {PRESENSI_ABSENSI_ENABLED && (
                   <div className="cyber-info-item">
                     <div className="cyber-color-dot" style={{ background: '#00f0ff' }} />
                     <span>Absen: <strong>{Math.round(attendancePct)}%</strong></span>
                   </div>
+                  )}
                   <div className="cyber-info-item">
                     <div className="cyber-color-dot" style={{ background: '#8b5cf6' }} />
                     <span>Temuan: <strong>{Math.round(findingsClosed)}%</strong></span>
@@ -1019,6 +1029,7 @@ export default function ManagementDashboard({
             </div>
 
             {/* Widget 2: Attendance capsule loop */}
+            {PRESENSI_ABSENSI_ENABLED && (
             <div className="cyber-card">
               <div className="cyber-title"><Users size={12} className="cyber-title-accent"/> Status Absensi & Kehadiran</div>
               {(() => {
@@ -1067,6 +1078,7 @@ export default function ManagementDashboard({
                 );
               })()}
             </div>
+            )}
           </div>
 
           {/* Row 2: Slanted Weekly Activity */}
@@ -1983,7 +1995,8 @@ export default function ManagementDashboard({
               )}
             </div>
 
-            <div className="grid-cols-2">
+            <div className="grid-cols-2" style={!PRESENSI_ABSENSI_ENABLED ? { gridTemplateColumns: '1fr' } : undefined}>
+              {PRESENSI_ABSENSI_ENABLED && (
               <div className="glass-panel" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   <Users size={16}/> Kehadiran Harian Anggota Per Regu
@@ -2005,6 +2018,7 @@ export default function ManagementDashboard({
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="glass-panel" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -2099,7 +2113,7 @@ export default function ManagementDashboard({
                   <AlertTriangle size={16}/> Pembersihan Data Lama JDC (&gt; 90 Hari)
                 </h4>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
-                  Pembersihan otomatis data log patroli, laporan temuan, mutasi harian, data absensi regu, dan komplain tenant yang telah berusia **lebih dari 90 hari** agar kapasitas penyimpanan cloud tetap efisien dan performa loading dashboard tetap responsif.
+                  Pembersihan otomatis data log patroli, laporan temuan, mutasi harian{PRESENSI_ABSENSI_ENABLED ? ', data absensi regu,' : ','} dan komplain tenant yang telah berusia **lebih dari 90 hari** agar kapasitas penyimpanan cloud tetap efisien dan performa loading dashboard tetap responsif.
                 </p>
                 <button onClick={onArchiveOldData} className="btn-danger" style={{ width: '100%', padding: '0.65rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
                   <Sparkles size={14}/> Lakukan Pembersihan Data Lama (&gt; 90 Hari)

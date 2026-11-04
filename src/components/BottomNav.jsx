@@ -11,6 +11,7 @@ import {
   Fingerprint,
   Package
 } from 'lucide-react';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 
 export default function BottomNav({ className = '', currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
   const [visible, setVisible] = useState(true);
@@ -99,7 +100,7 @@ export default function BottomNav({ className = '', currentTab, onNavClick, onTo
     ];
   };
 
-  const items = getItems();
+  const items = getItems().filter(item => PRESENSI_ABSENSI_ENABLED || item.id !== 'absensi');
   const isNavVisible = visible && !isSidebarOpen;
 
   return (

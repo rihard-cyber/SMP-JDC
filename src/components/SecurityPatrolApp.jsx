@@ -21,6 +21,7 @@ import { getGPSCoordinates, generateAntiFraudData, checkDeviceSecurity, verifyGP
 import { compressImage } from '../utils/image';
 import { registerBackHandler } from '../utils/navigation';
 import { hapticMedium, hapticSuccess, hapticHeavy, hapticLight } from '../utils/haptics';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 import { setNativeTorch } from '../utils/torch';
 
 const KATEGORI_MUTASI = [
@@ -488,7 +489,8 @@ export default function SecurityPatrolApp({
     const handleTabChange = () => {
       const savedTab = localStorage.getItem('smpjdc_simulator_tab');
       if (savedTab) {
-        setTab(savedTab);
+        const nextTab = (!PRESENSI_ABSENSI_ENABLED && savedTab === 'presensi') ? 'home' : savedTab;
+        setTab(nextTab);
         localStorage.removeItem('smpjdc_simulator_tab');
       }
     };
@@ -496,6 +498,11 @@ export default function SecurityPatrolApp({
     handleTabChange();
     return () => window.removeEventListener('smpjdc_simulator_tab_change', handleTabChange);
   }, []);
+
+  // Modul presensi disembunyikan sementara: pastikan tidak ada state tab lama yang membukanya.
+  useEffect(() => {
+    if (!PRESENSI_ABSENSI_ENABLED && tab === 'presensi') setTab('home');
+  }, [tab]);
 
   // ── States & Handlers for Self Attendance (SI PRESENSI PRO MAX) ──
   const videoRef = React.useRef(null);
@@ -1172,6 +1179,7 @@ export default function SecurityPatrolApp({
   };
 
   useEffect(() => {
+    if (!PRESENSI_ABSENSI_ENABLED) return;
     if (myPlotting && todayLog) {
       const currentPlottingId = `${todayLog.id}-${myPlotting.posPlotting}-${myPlotting.status}`;
       if (lastPlottingId && lastPlottingId !== currentPlottingId) {
@@ -1226,7 +1234,9 @@ export default function SecurityPatrolApp({
       }
 
       if (danruCandidates.length === 0) {
-        setDanruError('Data Danru belum tersedia. Pastikan absensi/plotting hari ini sudah diisi oleh Danru.');
+        setDanruError(PRESENSI_ABSENSI_ENABLED
+          ? 'Data Danru belum tersedia. Pastikan absensi/plotting hari ini sudah diisi oleh Danru.'
+          : 'Data Danru belum tersedia. Pastikan akun Danru sudah terdaftar di Management User.');
         hapticHeavy();
         return;
       }
@@ -1706,7 +1716,7 @@ export default function SecurityPatrolApp({
         </div>
 
         {/* Empty Plotting Warning Banner */}
-        {(!todayLog || (todayLog && !myPlotting)) && (
+        {PRESENSI_ABSENSI_ENABLED && (!todayLog || (todayLog && !myPlotting)) && (
           <>
             <style>{`
               @keyframes warning-pulse {
@@ -1759,6 +1769,7 @@ export default function SecurityPatrolApp({
                   {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </p>
               </div>
+              {PRESENSI_ABSENSI_ENABLED && (
               <span style={{
                 background: clockedStatus === 'in' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
                 color: clockedStatus === 'in' ? 'var(--color-success)' : 'var(--color-danger)',
@@ -1771,6 +1782,7 @@ export default function SecurityPatrolApp({
               }}>
                 {clockedStatus === 'in' ? 'Shift Aktif' : 'Belum Absen'}
               </span>
+              )}
             </div>
 
             {/* Quick Status / Info Panel */}
@@ -1779,6 +1791,8 @@ export default function SecurityPatrolApp({
                 <span style={{ color: 'var(--text-secondary)' }}>Shift Dinas:</span>
                 <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{shift}</span>
               </div>
+              {PRESENSI_ABSENSI_ENABLED && (
+              <>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Plotting Pos:</span>
                 <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{myPlotting?.posPlotting || 'Belum Terplotting'}</span>
@@ -1787,11 +1801,14 @@ export default function SecurityPatrolApp({
                 <span style={{ color: 'var(--text-secondary)' }}>Presensi Masuk:</span>
                 <span style={{ fontWeight: 700, color: clockedStatus === 'in' ? 'var(--color-success)' : 'var(--text-muted)' }}>{clockInTime || 'Belum Masuk'}</span>
               </div>
+              </>
+              )}
             </div>
 
             {/* Grid Menu Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
               {/* Menu 1: Presensi */}
+              {PRESENSI_ABSENSI_ENABLED && (
               <div onClick={() => setTab('presensi')} className="home-menu-card" style={{
                 background: 'var(--bg-glass, rgba(255,255,255,0.01))', border: '1px solid var(--border-glass)', borderRadius: '14px', padding: '1rem 0.75rem',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
@@ -1805,6 +1822,7 @@ export default function SecurityPatrolApp({
                   <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Selfie & GPS Absen</div>
                 </div>
               </div>
+              )}
 
               {/* Menu 2: Patroli */}
               <div onClick={() => { setTab('patroli'); resetLaporan(); }} className="home-menu-card" style={{
@@ -1862,7 +1880,7 @@ export default function SecurityPatrolApp({
                 }}><History size={20} /></div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>Riwayat Aktivitas</div>
-                  <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>Log Absen & Patroli</div>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>{PRESENSI_ABSENSI_ENABLED ? 'Log Absen & Patroli' : 'Log Patroli'}</div>
                 </div>
               </div>
 
@@ -1892,7 +1910,7 @@ export default function SecurityPatrolApp({
         {/* ============================================================ */}
         {/* TAB: PRESENSI (SI PRESENSI PRO MAX) */}
         {/* ============================================================ */}
-        {tab === 'presensi' && (
+        {PRESENSI_ABSENSI_ENABLED && tab === 'presensi' && (
           <div className="tab-presensi-container animate-fade-in" style={{ padding: '0.1rem 0' }}>
             {/* Back to Home Button */}
             <button onClick={() => setTab('home')} style={{
@@ -2549,7 +2567,7 @@ export default function SecurityPatrolApp({
                   <h3>Mulai Patroli</h3>
                   <p>Masukkan NRP Danru, lalu scan barcode checkpoint untuk memulai patroli.</p>
                 </div>
-                {!todayLog && (
+                {PRESENSI_ABSENSI_ENABLED && !todayLog && (
                   <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-warning)', background: 'rgba(245,158,11,0.08)', marginBottom: '0.75rem' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
                       <AlertTriangle size={11} /> PLOTTING BELUM DIISI
@@ -2559,7 +2577,7 @@ export default function SecurityPatrolApp({
                     </p>
                   </div>
                 )}
-                {todayLog && !myPlotting && (
+                {PRESENSI_ABSENSI_ENABLED && todayLog && !myPlotting && (
                   <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-danger)', background: 'rgba(239,68,68,0.08)', marginBottom: '0.75rem' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
                       <AlertTriangle size={11} /> ANDA TIDAK TERDAFTAR
@@ -2569,7 +2587,7 @@ export default function SecurityPatrolApp({
                     </p>
                   </div>
                 )}
-                {myPlotting && (
+                {PRESENSI_ABSENSI_ENABLED && myPlotting && (
                   <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-success)', background: 'rgba(16,185,129,0.05)' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
                       <Shield size={11} /> PLOTTING AKTIF
@@ -2666,7 +2684,9 @@ export default function SecurityPatrolApp({
                       )}
                       {danruCandidates.length === 0 && !danruError && (
                         <div style={{ marginTop: '0.45rem', fontSize: '0.64rem', color: 'var(--color-warning)', lineHeight: 1.4 }}>
-                          Data Danru belum ditemukan. Pastikan absensi & plotting hari ini sudah disimpan.
+                          {PRESENSI_ABSENSI_ENABLED
+                            ? 'Data Danru belum ditemukan. Pastikan absensi & plotting hari ini sudah disimpan.'
+                            : 'Data Danru belum ditemukan. Pastikan akun Danru sudah terdaftar di Management User.'}
                         </div>
                       )}
                     </>
@@ -3347,7 +3367,7 @@ export default function SecurityPatrolApp({
         )}
 
         {/* Plotting Assignment Alarm Overlay */}
-        {showPlottingModal && myPlotting && (
+        {PRESENSI_ABSENSI_ENABLED && showPlottingModal && myPlotting && (
           <div style={{
             position: 'absolute',
             inset: 0,
@@ -3531,6 +3551,7 @@ export default function SecurityPatrolApp({
         </button>
 
         {/* Menu 3 (Center): Presensi (Fingerprint scan) */}
+        {PRESENSI_ABSENSI_ENABLED && (
         <div style={{ flex: 1.2, display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', height: '100%' }}>
           <button 
             type="button"
@@ -3571,6 +3592,7 @@ export default function SecurityPatrolApp({
             pointerEvents: 'none'
           }}>Presensi</span>
         </div>
+        )}
 
         {/* Menu 4: Temuan */}
         <button 

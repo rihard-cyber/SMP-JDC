@@ -5,6 +5,7 @@ import {
   getYearMonth, getDatesInMonth, parseExcelToRoster, downloadExcelTemplate
 } from '../data/rosterData';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -652,7 +653,7 @@ export default function RosterManagement({ users = [], currentUser }) {
       )}
 
       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', padding: '0 0.5rem' }}>
-        💡 Isi jadwal menggunakan kode shift di atas. Setelah selesai, klik <strong>Simpan Roster</strong>. Data akan otomatis terbaca oleh modul Absensi Harian.
+        💡 Isi jadwal menggunakan kode shift di atas. Setelah selesai, klik <strong>Simpan Roster</strong>. {PRESENSI_ABSENSI_ENABLED ? 'Data akan otomatis terbaca oleh modul Absensi Harian.' : 'Data roster digunakan sebagai jadwal shift petugas.'}
       </div>
 
       {/* ── Excel Upload Preview Modal ── */}

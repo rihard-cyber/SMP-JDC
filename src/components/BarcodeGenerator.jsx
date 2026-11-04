@@ -9,6 +9,7 @@ import {
 import QRCode from 'qrcode';
 import { exportTableToPdf, formatDateForFile } from '../utils/exportPdf';
 import { hapticLight } from '../utils/haptics';
+import { PRESENSI_ABSENSI_ENABLED } from '../utils/features';
 
 const FLOOR_OPTIONS = [
   { value: 'Basement', label: 'Basement' },
@@ -982,6 +983,7 @@ export default function BarcodeGenerator({
           cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
           minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><User size={16} /> Registrasi Anggota</button>
+        {PRESENSI_ABSENSI_ENABLED && (
         <button onClick={() => { hapticLight(); setTab('presensi_qr'); }} style={{
           padding: '0.55rem 0.75rem', borderRadius: '10px', fontSize: '0.78rem', fontWeight: 700,
           border: `1.5px solid ${tab === 'presensi_qr' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
@@ -990,6 +992,7 @@ export default function BarcodeGenerator({
           cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
           minHeight: '46px', touchAction: 'manipulation', width: '100%'
         }}><QrCode size={16} /> QR Presensi Staff</button>
+        )}
       </div>
 
       {/* ════════════════════════════════════════════════════
@@ -1520,7 +1523,7 @@ export default function BarcodeGenerator({
       {/* ════════════════════════════════════════════════════
           TAB: QR CODE PRESENSI (MASTER STAFF ROOM)
           ════════════════════════════════════════════════════ */}
-      {tab === 'presensi_qr' && (
+      {PRESENSI_ABSENSI_ENABLED && tab === 'presensi_qr' && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem 0' }}>
           <div className="glass-panel" style={{
             maxWidth: '500px',

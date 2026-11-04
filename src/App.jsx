@@ -21,6 +21,7 @@ import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
 import db from './utils/db';
 import { hapticLight } from './utils/haptics';
+import { PRESENSI_ABSENSI_ENABLED, resolveSafeTab } from './utils/features';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initSupabase,
   subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, deleteComplaintFromFirestore,
@@ -699,8 +700,8 @@ export default function App() {
             const hash = window.location.hash.replace('#/', '').replace('#', '');
             const lastRoute = localStorage.getItem('smpjdc_last_route');
             const defaultTab = ['Danru', 'Wadanru', 'Anggota'].includes(found.jabatan) ? 'guard-simulator' : 'dashboard';
-            const initialTab = hash || lastRoute || defaultTab;
-            
+            const initialTab = resolveSafeTab(hash || lastRoute || defaultTab, found.jabatan);
+
             setCurrentTab(initialTab);
             window.location.hash = '#/' + initialTab;
             localStorage.setItem('smpjdc_last_route', initialTab);
@@ -729,14 +730,25 @@ export default function App() {
           'backup', 'lapor', 'complaint', 'roster'
         ];
         if (validTabs.includes(hash)) {
-          setCurrentTab(hash);
-          localStorage.setItem('smpjdc_last_route', hash);
+          const safeTab = resolveSafeTab(hash, currentUser?.jabatan);
+          setCurrentTab(safeTab);
+          localStorage.setItem('smpjdc_last_route', safeTab);
         }
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [currentUser]);
+
+  // Sembunyikan modul presensi & absensi sementara.
+  // Rute lama (#/absensi) tetap diamankan agar tidak membuka halaman kosong.
+  useEffect(() => {
+    if (PRESENSI_ABSENSI_ENABLED || !authenticated || currentTab !== 'absensi') return;
+    const fallback = resolveSafeTab('absensi', currentUser?.jabatan);
+    setCurrentTab(fallback);
+    window.location.hash = '#/' + fallback;
+    localStorage.setItem('smpjdc_last_route', fallback);
+  }, [authenticated, currentTab, currentUser]);
 
   // Browser/PWA back: tutup sidebar atau modal profil sebelum pindah halaman
   useEffect(() => {
@@ -2558,6 +2570,14 @@ export default function App() {
   };
 
   const handleNavClick = (tabName) => {
+    const safeTab = resolveSafeTab(tabName, currentUser?.jabatan);
+    if (safeTab !== tabName) {
+      setCurrentTab(safeTab);
+      window.location.hash = '#/' + safeTab;
+      localStorage.setItem('smpjdc_last_route', safeTab);
+      setIsSidebarOpen(false);
+      return;
+    }
     if (tabName === 'absensi' && currentUser?.jabatan === 'Anggota') {
       setCurrentTab('guard-simulator');
       window.location.hash = '#/guard-simulator';
@@ -2820,9 +2840,11 @@ export default function App() {
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
                 <LayoutDashboard size={18} /> <span>Dashboard Utama</span>
               </button>
+              {PRESENSI_ABSENSI_ENABLED && (
               <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
                 <ClipboardList size={18} /> <span>Absensi & Plotting</span>
               </button>
+              )}
               <button onClick={() => handleNavClick('target-compliance')} className={`nav-tab-btn ${currentTab === 'target-compliance' ? 'active' : ''}`}>
                 <Target size={18} /> <span>Dashboard Target</span>
               </button>
@@ -2863,9 +2885,11 @@ export default function App() {
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
                 <LayoutDashboard size={18} /> <span>Dashboard Management</span>
               </button>
+              {PRESENSI_ABSENSI_ENABLED && (
               <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
                 <ClipboardList size={18} /> <span>Absensi & Plotting</span>
               </button>
+              )}
               <button onClick={() => handleNavClick('target-compliance')} className={`nav-tab-btn ${currentTab === 'target-compliance' ? 'active' : ''}`}>
                 <Target size={18} /> <span>Dashboard Target</span>
               </button>
@@ -2905,9 +2929,11 @@ export default function App() {
             <>
               {['Danru', 'Wadanru'].includes(currentUser.jabatan) && (
                 <>
+                  {PRESENSI_ABSENSI_ENABLED && (
                   <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
                     <ClipboardList size={18} /> <span>Absensi & Plotting</span>
                   </button>
+                  )}
                   <button onClick={() => handleNavClick('mutasi')} className={`nav-tab-btn ${currentTab === 'mutasi' ? 'active' : ''}`}>
                     <BookOpen size={18} /> <span>Mutasi Penjagaan</span>
                   </button>
@@ -2964,7 +2990,7 @@ export default function App() {
                 <span className="header-brand-name">SMPJDC</span>
                 <h1 className="header-page-title">
                   {currentTab === 'dashboard' && 'Dashboard Manajemen Keamanan'}
-                  {currentTab === 'absensi' && 'Absensi & Plotting Penjagaan'}
+                  {PRESENSI_ABSENSI_ENABLED && currentTab === 'absensi' && 'Absensi & Plotting Penjagaan'}
                   {currentTab === 'target-compliance' && 'Dashboard Target & SLA'}
                   {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
                   {currentTab === 'mutasi' && 'Mutasi Penjagaan'}
@@ -3035,7 +3061,7 @@ export default function App() {
             </Suspense>
           )}
 
-          {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
+          {PRESENSI_ABSENSI_ENABLED && currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
             <Suspense fallback={<TabLoader label="Memuat Absensi..." />}>
             <AbsensiRegu 
               users={users} 
